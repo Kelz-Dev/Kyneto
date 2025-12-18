@@ -1,0 +1,19 @@
+{
+    "name": "@incentive-layer/replication-orchestrator",
+    "version": "0.1.0",
+    "description": "Selects providers for shard distribution",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js"
+    },
+    "dependencies": {
+        "pg": "^8.11.3",
+        "winston": "^3.11.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.0",
+        "@types/pg": "^8.10.9",
+        "typescript": "^5.3.0"
+    }
+}

@@ -1,0 +1,34 @@
+{
+    "name": "@incentive-layer/erasure-coding",
+    "version": "0.1.0",
+    "description": "Reed-Solomon erasure coding service for decentralized storage",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "dev": "ts-node src/index.ts",
+        "start": "node dist/index.js",
+        "test": "jest",
+        "lint": "eslint src --ext .ts"
+    },
+    "dependencies": {
+        "ipfs-http-client": "^60.0.1",
+        "reed-solomon-js": "^1.0.0",
+        "@sindresorhus/is": "^4.6.0",
+        "dotenv": "^16.3.1",
+        "winston": "^3.11.0",
+        "pg": "^8.11.3",
+        "redis": "^4.6.10"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.0",
+        "@types/pg": "^8.10.9",
+        "typescript": "^5.3.0",
+        "ts-node": "^10.9.0",
+        "@types/jest": "^29.5.0",
+        "jest": "^29.7.0",
+        "eslint": "^8.54.0",
+        "@typescript-eslint/eslint-plugin": "^6.13.0",
+        "@typescript-eslint/parser": "^6.13.0"
+    }
+}

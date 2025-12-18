@@ -1,0 +1,72 @@
+{
+  "activeChain": "mumbai",
+  "chains": {
+    "mumbai": {
+      "name": "Polygon Mumbai Testnet",
+      "rpcUrl": "https://rpc-mumbai.maticvigil.com",
+      "chainId": 80001,
+      "currency": "MATIC",
+      "blockExplorer": "https://mumbai.polygonscan.com",
+      "contracts": {
+        "marketplace": "",
+        "token": "",
+        "capacityPledge": "",
+        "prover": "",
+        "registry": "",
+        "slashing": "",
+        "payments": ""
+      }
+    },
+    "polygon": {
+      "name": "Polygon Mainnet",
+      "rpcUrl": "https://polygon-rpc.com",
+      "chainId": 137,
+      "currency": "MATIC",
+      "blockExplorer": "https://polygonscan.com",
+      "contracts": {
+        "marketplace": "",
+        "token": "",
+        "capacityPledge": "",
+        "prover": "",
+        "registry": "",
+        "slashing": "",
+        "payments": ""
+      }
+    },
+    "custom": {
+      "name": "Custom Blockchain (Future)",
+      "rpcUrl": "https://your-chain-rpc.com",
+      "chainId": 9999,
+      "currency": "CUSTOM",
+      "blockExplorer": "",
+      "contracts": {
+        "marketplace": "",
+        "token": "",
+        "capacityPledge": "",
+        "prover": "",
+        "registry": "",
+        "slashing": "",
+        "payments": ""
+      }
+    }
+  },
+  "erasureCoding": {
+    "dataShards": 10,
+    "parityShards": 5,
+    "totalShards": 15,
+    "minSurvivingShards": 10,
+    "comment": "50% parity - can survive 5 simultaneous node failures"
+  },
+  "pricing": {
+    "clientRatePerGBMonth": 0.05,
+    "providerBaseRatePerGBMonth": 0.01,
+    "providerUsageRatePerGBMonth": 0.03,
+    "proofBonusPerSubmission": 0.10,
+    "currency": "USD"
+  },
+  "proofs": {
+    "postIntervalHours": 24,
+    "graceperiodHours": 2,
+    "challengeSectors": 10
+  }
+}

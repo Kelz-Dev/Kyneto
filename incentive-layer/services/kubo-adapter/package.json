@@ -1,0 +1,22 @@
+{
+    "name": "@incentive-layer/kubo-adapter",
+    "version": "0.1.0",
+    "description": "IPFS/Kubo adapter service for storage layer",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "dev": "ts-node src/index.ts",
+        "start": "node dist/index.js"
+    },
+    "dependencies": {
+        "ipfs-http-client": "^60.0.1",
+        "dotenv": "^16.3.1",
+        "winston": "^3.11.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.0",
+        "typescript": "^5.3.0",
+        "ts-node": "^10.9.0"
+    }
+}

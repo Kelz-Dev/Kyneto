@@ -1,0 +1,61 @@
+# ipfs can generate profiling dump files
+*.cpuprof
+*.memprof
+
+*.swp
+.ipfsconfig
+*.out
+*.coverprofile
+*.test
+*.orig
+*~
+
+coverage.txt
+gx-workspace-update.json
+
+.ipfs
+bin/gx
+bin/protoc-*
+bin/gx*
+bin/tmp
+bin/gocovmerge
+bin/cover
+
+
+vendor
+.tarball
+go-ipfs-source.tar.gz
+docs/examples/go-ipfs-as-a-library/example-folder/Qm*
+/test/sharness/t0054-dag-car-import-export-data/*.car
+
+# ignore build output from snapcraft
+/ipfs_*.snap
+/parts
+/stage
+/prime
+
+# Node.js
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Hardhat/Build
+artifacts/
+cache/
+typechain/
+typechain-types/
+coverage/
+coverage.json
+.openzeppelin/
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
