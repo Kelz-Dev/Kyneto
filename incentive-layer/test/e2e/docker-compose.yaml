@@ -1,0 +1,84 @@
+services:
+  # Local Blockchain Node
+  hardhat:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ../../smart-contracts:/app
+    command: sh -c "npm install && npx hardhat node"
+    ports:
+      - "8545:8545"
+
+  # Database for indexing
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=incentive_layer
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ../../config/database-schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "user", "-d", "incentive_layer" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # IPFS Node
+  ipfs:
+    image: ipfs/kubo:latest
+    ports:
+      - "5001:5001"
+      - "8081:8080"
+      - "4001:4001"
+
+  # REST API Service
+  api-server:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ../../api/rest-api:/app
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
+      - PORT=3000
+    depends_on:
+      - postgres
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+
+  # Erasure Coding Service
+  erasure-coding:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ../../services/erasure-coding:/app
+    environment:
+      - KUBO_API_URL=http://ipfs:5001
+    depends_on:
+      - ipfs
+    command: sh -c "npm install && npm run dev"
+
+  # Dashboard Service
+  dashboard:
+    image: nginx:alpine
+    volumes:
+      - ../../dashboard:/usr/share/nginx/html
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-server
+
+  # E2E Simulation Service
+  e2e-simulation:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      - API_URL=http://api-server:3000
+    depends_on:
+      - api-server
+    command: sh -c "npm install && npx ts-node run-e2e.ts"

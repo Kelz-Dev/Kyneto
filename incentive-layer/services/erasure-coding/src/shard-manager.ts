@@ -1,14 +1,17 @@
-import { create as createIpfsClient, IPFSHTTPClient } from 'ipfs-http-client';
-const ReedSolomon = require('reed-solomon-js');
 import { Logger } from 'winston';
+
+// Use package name directly
+const { ReedSolomonErasure } = require('@subspace/reed-solomon-erasure.wasm');
 
 /**
  * ShardManager - Handles erasure coding with 10+5 Reed-Solomon configuration
  * Splits files into 15 shards (10 data + 5 parity)
  */
 export class ShardManager {
-    private ipfs: IPFSHTTPClient;
+    private ipfs: any;
     private logger: Logger;
+    private rs: any;
+    private ipfsUrl: string;
 
     // Reed-Solomon configuration: 10 data + 5 parity (50% parity)
     private readonly DATA_SHARDS = 10;
@@ -16,8 +19,34 @@ export class ShardManager {
     private readonly TOTAL_SHARDS = 15;
 
     constructor(ipfsUrl: string, logger: Logger) {
-        this.ipfs = createIpfsClient({ url: ipfsUrl });
+        this.ipfsUrl = ipfsUrl;
         this.logger = logger;
+    }
+
+    /**
+     * Initialize the Reed-Solomon WASM module and IPFS client
+     */
+    async init() {
+        if (this.rs && this.ipfs) return;
+
+        try {
+            // Initialize Reed-Solomon
+            if (!this.rs) {
+                this.rs = await ReedSolomonErasure.fromCurrentDirectory();
+                this.logger.info('Reed-Solomon WASM module initialized');
+            }
+
+            // Initialize IPFS client using dynamic import to handle ESM package in CJS project
+            if (!this.ipfs) {
+                // Using eval('import(...)') to prevent ts-node from transpiling to require()
+                const { create } = await (eval('import("ipfs-http-client")') as Promise<any>);
+                this.ipfs = create({ url: this.ipfsUrl });
+                this.logger.info('IPFS client initialized');
+            }
+        } catch (error) {
+            this.logger.error('Failed to initialize ShardManager:', error);
+            throw error;
+        }
     }
 
     /**
@@ -27,6 +56,7 @@ export class ShardManager {
      */
     async encodeFile(fileCID: string): Promise<ShardInfo[]> {
         this.logger.info(`Starting erasure encoding for file ${fileCID}`);
+        await this.init();
 
         try {
             // 1. Download file from IPFS
@@ -73,6 +103,7 @@ export class ShardManager {
      */
     async reconstructFile(shardCIDs: string[], shardIndices: number[]): Promise<string> {
         this.logger.info(`Reconstructing file from ${shardCIDs.length} shards`);
+        await this.init();
 
         if (shardCIDs.length < this.DATA_SHARDS) {
             throw new Error(`Insufficient shards: need at least ${this.DATA_SHARDS}, have ${shardCIDs.length}`);
@@ -113,6 +144,7 @@ export class ShardManager {
         targetShardIndex: number
     ): Promise<Buffer> {
         this.logger.info(`Reconstructing shard ${targetShardIndex}`);
+        await this.init();
 
         if (availableShards.length < this.DATA_SHARDS) {
             throw new Error(`Need at least ${this.DATA_SHARDS} shards to reconstruct`);
@@ -145,55 +177,35 @@ export class ShardManager {
      * Private helper method
      */
     private async applyErasureCoding(data: Buffer): Promise<Buffer[]> {
+        await this.init();
+
         // Calculate shard size (each shard should be roughly equal)
         const shardSize = Math.ceil(data.length / this.DATA_SHARDS);
 
         // Pad data if necessary
         const paddedSize = shardSize * this.DATA_SHARDS;
-        const paddedData = Buffer.alloc(paddedSize);
-        data.copy(paddedData);
+        const totalSize = shardSize * this.TOTAL_SHARDS;
 
-        // Split into data shards
-        const dataShards: Buffer[] = [];
-        for (let i = 0; i < this.DATA_SHARDS; i++) {
+        // Create a contiguous buffer for all shards (data + parity)
+        const contiguousBuffer = Buffer.alloc(totalSize);
+        data.copy(contiguousBuffer);
+
+        // Apply Reed-Solomon encoding in-place
+        const result = this.rs.encode(contiguousBuffer, this.DATA_SHARDS, this.PARITY_SHARDS);
+
+        if (result !== 0) { // ReedSolomonErasure.RESULT_OK is 0
+            throw new Error(`Reed-Solomon encoding failed with error code: ${result}`);
+        }
+
+        // Split contiguous buffer into individual shards
+        const shards: Buffer[] = [];
+        for (let i = 0; i < this.TOTAL_SHARDS; i++) {
             const start = i * shardSize;
             const end = start + shardSize;
-            dataShards.push(paddedData.subarray(start, end));
+            shards.push(Buffer.from(contiguousBuffer.subarray(start, end)));
         }
 
-        // Generate parity shards using Reed-Solomon
-        // NOTE: This is a simplified implementation
-        // Production should use a proper Reed-Solomon library like 'reedsolomon' npm package
-        const parityShards: Buffer[] = this.generateParityShards(dataShards, shardSize);
-
-        // Combine data and parity shards
-        return [...dataShards, ...parityShards];
-    }
-
-    /**
-     * Generate parity shards using Reed-Solomon algorithm
-     */
-    private generateParityShards(dataShards: Buffer[], shardSize: number): Buffer[] {
-        // Simplified parity generation (XOR-based for demonstration)
-        // Production should use proper Galois Field arithmetic
-        const parityShards: Buffer[] = [];
-
-        for (let p = 0; p < this.PARITY_SHARDS; p++) {
-            const parity = Buffer.alloc(shardSize);
-
-            // Simple XOR parity (production should use Reed-Solomon matrices)
-            for (let i = 0; i < shardSize; i++) {
-                let parityByte = 0;
-                for (let d = 0; d < this.DATA_SHARDS; d++) {
-                    parityByte ^= dataShards[d][i];
-                }
-                parity[i] = parityByte;
-            }
-
-            parityShards.push(parity);
-        }
-
-        return parityShards;
+        return shards;
     }
 
     /**
@@ -203,6 +215,8 @@ export class ShardManager {
         shards: Buffer[],
         availableIndices: number[]
     ): Promise<Buffer> {
+        await this.init();
+
         // If we have all data shards, just concatenate them
         const hasAllDataShards = availableIndices.filter(i => i < this.DATA_SHARDS).length === this.DATA_SHARDS;
 
@@ -212,21 +226,35 @@ export class ShardManager {
         }
 
         // Otherwise, use Reed-Solomon decoding
-        // NOTE: Simplified - production needs proper RS decoding
         const shardSize = shards[availableIndices[0]].length;
-        const reconstructed = Buffer.alloc(shardSize * this.DATA_SHARDS);
+        const totalSize = shardSize * this.TOTAL_SHARDS;
+        const contiguousBuffer = Buffer.alloc(totalSize);
+        const shardsAvailable = new Array(this.TOTAL_SHARDS).fill(false);
 
-        // For simplicity, assuming we have enough data shards
-        // Production should implement full RS decoding matrix
-        let offset = 0;
-        for (let i = 0; i < this.DATA_SHARDS; i++) {
+        // Fill contiguous buffer with available shards
+        for (let i = 0; i < this.TOTAL_SHARDS; i++) {
             if (shards[i]) {
-                shards[i].copy(reconstructed, offset);
-                offset += shardSize;
+                shards[i].copy(contiguousBuffer, i * shardSize);
+                shardsAvailable[i] = true;
             }
         }
 
-        return reconstructed;
+        // Reconstruct missing shards in-place
+        const result = this.rs.reconstruct(contiguousBuffer, this.DATA_SHARDS, this.PARITY_SHARDS, shardsAvailable);
+
+        if (result !== 0) { // ReedSolomonErasure.RESULT_OK is 0
+            throw new Error(`Reed-Solomon reconstruction failed with error code: ${result}`);
+        }
+
+        // Extract data shards and concatenate
+        const dataShards: Buffer[] = [];
+        for (let i = 0; i < this.DATA_SHARDS; i++) {
+            const start = i * shardSize;
+            const end = start + shardSize;
+            dataShards.push(contiguousBuffer.subarray(start, end));
+        }
+
+        return Buffer.concat(dataShards);
     }
 
     /**

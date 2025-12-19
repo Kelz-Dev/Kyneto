@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incentive Layer | Network Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+</head>
+<body class="dark-theme">
+    <div class="glass-bg"></div>
+    
+    <header>
+        <div class="logo">
+            <span class="icon">⚡</span>
+            <h1>Incentive<span>Layer</span></h1>
+        </div>
+        <div class="status-badge" id="api-status">
+            <span class="dot"></span>
+            <span class="text">Connecting to API...</span>
+        </div>
+    </header>
+
+    <main>
+        <section class="stats-grid">
+            <div class="stat-card" id="stat-deals">
+                <div class="stat-icon">🤝</div>
+                <div class="stat-info">
+                    <span class="label">Active Deals</span>
+                    <span class="value">0</span>
+                </div>
+            </div>
+            <div class="stat-card" id="stat-providers">
+                <div class="stat-icon">🖥️</div>
+                <div class="stat-info">
+                    <span class="label">Active Providers</span>
+                    <span class="value">0</span>
+                </div>
+            </div>
+            <div class="stat-card" id="stat-capacity">
+                <div class="stat-icon">💾</div>
+                <div class="stat-info">
+                    <span class="label">Total Capacity</span>
+                    <span class="value">0 GB</span>
+                </div>
+            </div>
+            <div class="stat-card" id="stat-utilization">
+                <div class="stat-icon">📊</div>
+                <div class="stat-info">
+                    <span class="label">Utilization</span>
+                    <span class="value">0%</span>
+                </div>
+            </div>
+        </section>
+
+        <div class="content-layout">
+            <section class="panel recent-deals">
+                <div class="panel-header">
+                    <h2>Recent Storage Deals</h2>
+                    <button class="btn-refresh" onclick="refreshDeals()">↻</button>
+                </div>
+                <div class="table-container">
+                    <table id="deals-table">
+                        <thead>
+                            <tr>
+                                <th>Deal ID</th>
+                                <th>Status</th>
+                                <th>Size</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Deals will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel network-activity">
+                <div class="panel-header">
+                    <h2>Live Network Activity</h2>
+                </div>
+                <div class="activity-feed" id="activity-feed">
+                    <div class="activity-item system">
+                        <span class="time">Now</span>
+                        <span class="msg">Waiting for network events...</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Incentive Layer Protocol | Built for Polygon Mumbai</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

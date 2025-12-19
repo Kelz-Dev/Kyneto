@@ -157,7 +157,7 @@ export class RepairService {
             // Mark as failed
             await this.db.query(
                 'UPDATE repair_queue SET status = $1, error = $2 WHERE id = $3',
-                ['failed', error.message, repairId]
+                ['failed', (error as any).message, repairId]
             );
         }
     }
