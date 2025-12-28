@@ -63,6 +63,7 @@ coverage.json
 # Incentive Layer Build/Deployment
 **/dist/
 **/deployed-addresses-*.json
+.env
 
 # Logs and OS files
 *.log

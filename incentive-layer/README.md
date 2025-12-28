@@ -32,12 +32,12 @@ incentive-layer/
 
 ## Key Features
 
-✅ **50% Parity Erasure Coding**: Files split into 15 shards (10 data + 5 parity), survives 5 provider failures  
-✅ **Storage Pledges**: Providers commit capacity and earn passive rewards  
-✅ **Per GB/Month Pricing**: $0.05/GB for clients, $0.01-0.04/GB earnings for providers  
-✅ **Auto-Replication**: Network automatically repairs lost shards  
-✅ **Filecoin-Style Proofs**: PoRep (initial) + PoSt (continuous 24h verification)  
-✅ **Migration Ready**: Easy migration from Polygon to custom blockchain  
+**50% Parity Erasure Coding**: Files split into 15 shards (10 data + 5 parity), survives 5 provider failures  
+**Storage Pledges**: Providers commit capacity and earn passive rewards  
+**Per GB/Month Pricing**: $0.05/GB for clients, $0.01-0.04/GB earnings for providers  
+**Auto-Replication**: Network automatically repairs lost shards  
+**Filecoin-Style Proofs**: PoRep (initial) + PoSt (continuous 24h verification)  
+**Migration Ready**: Easy migration from Polygon to custom blockchain  
 
 ## Quick Start
 
@@ -94,7 +94,7 @@ See [economics_model.md](docs/economics_model.md) for detailed pricing, token ec
 
 ## Development Status
 
-🚧 **Under Active Development** 🚧
+**Under Active Development**
 
 - [x] Architecture design
 - [x] Erasure coding configuration (10+5 Reed-Solomon)

@@ -1,5 +1,6 @@
 import { Logger } from 'winston';
 import { Pool } from 'pg';
+import { ethers } from 'ethers';
 import { ShardManager } from './shard-manager';
 
 /**
@@ -208,15 +209,32 @@ export class RepairService {
         newProvider: string,
         newShardCID: string
     ) {
-        // This would be implemented by blockchain-listener service
-        // For now, just log
-        this.logger.info(`TODO: Update blockchain - Deal ${dealId}: ${oldProvider} → ${newProvider}`);
+        try {
+            this.logger.info(`Updating blockchain - Deal ${dealId}: ${oldProvider} → ${newProvider}`);
 
-        // In production:
-        // 1. Get contract instance
-        // 2. Call marketplace.repairShard(dealId, oldProvider, newProvider, newShardCID)
-        // 3. Wait for transaction confirmation
-        // 4. Update SlashingManager if needed
+            if (!process.env.PRIVATE_KEY || !process.env.MARKETPLACE_ADDRESS || !process.env.RPC_URL) {
+                throw new Error('Missing blockchain configuration (PRIVATE_KEY, MARKETPLACE_ADDRESS, RPC_URL)');
+            }
+
+            const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+            const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+
+            const abi = [
+                "function repairShard(uint256 dealId, address oldProvider, address newProvider, string calldata newShardCID) external"
+            ];
+
+            const contract = new ethers.Contract(process.env.MARKETPLACE_ADDRESS, abi, wallet);
+
+            const tx = await contract.repairShard(dealId, oldProvider, newProvider, newShardCID);
+            this.logger.info(`Transaction sent: ${tx.hash}`);
+
+            const receipt = await tx.wait();
+            this.logger.info(`Transaction confirmed: ${receipt.transactionHash}`);
+
+        } catch (error) {
+            this.logger.error('Error updating blockchain:', error);
+            throw error; // Re-throw to fail the repair job
+        }
     }
 
     /**

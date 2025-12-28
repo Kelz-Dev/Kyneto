@@ -214,13 +214,49 @@ app.get('/api/stats', async (req: Request, res: Response) => {
         (SELECT COUNT(*) FROM shards WHERE active = true) as active_shards,
         (SELECT SUM(capacity_gb) FROM capacity_pledges WHERE active = true) as total_capacity_gb,
         (SELECT SUM(utilization_gb) FROM capacity_pledges WHERE active = true) as total_utilization_gb,
-        (SELECT AVG(reputation_score) FROM providers WHERE active = true) as avg_reputation
+        (SELECT AVG(reputation_score) FROM providers WHERE active = true) as avg_reputation,
+        (SELECT COALESCE(SUM(protocol_fee), 0) FROM deals) as total_protocol_revenue,
+        (SELECT COALESCE(SUM(amount), 0) FROM slashing_events) as total_tokens_burned
     `);
 
         res.json(stats.rows[0]);
 
     } catch (error) {
         console.error('Error fetching stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/events - Recent protocol events
+ */
+app.get('/api/events', async (req: Request, res: Response) => {
+    try {
+        const result = await db.query('SELECT * FROM protocol_events ORDER BY created_at DESC LIMIT 50');
+        res.json({ events: result.rows });
+    } catch (error) {
+        console.error('Error fetching events:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /api/events - Record a new protocol event (Internal)
+ */
+app.post('/api/events', async (req: Request, res: Response) => {
+    try {
+        const { event_type, description, data } = req.body;
+        const result = await db.query(
+            'INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3) RETURNING *',
+            [event_type, description, JSON.stringify(data)]
+        );
+
+        // Broadcast to all connected clients
+        io.emit('protocol_event', result.rows[0]);
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error recording event:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -256,7 +292,7 @@ export { io };
 
 // Start server
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`✅ API server running on port ${PORT}`);
     console.log(`📡 WebSocket server ready`);
 });

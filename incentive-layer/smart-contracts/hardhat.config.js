@@ -9,7 +9,7 @@ require("@nomicfoundation/hardhat-toolbox");
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
 const POLYGON_RPC = process.env.POLYGON_RPC || "https://polygon-rpc.com";
-const MUMBAI_RPC = process.env.MUMBAI_RPC || "https://rpc-mumbai.maticvigil.com";
+const AMOY_RPC = process.env.AMOY_RPC || "https://rpc-amoy.polygon.technology";
 
 module.exports = {
   solidity: {
@@ -17,7 +17,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200 // Optimize for deployment cost vs execution cost
+        runs: 200
       }
     }
   },
@@ -25,26 +25,32 @@ module.exports = {
     hardhat: {
       chainId: 31337
     },
-    mumbai: {
-      url: MUMBAI_RPC,
+    amoy: {
+      url: AMOY_RPC,
       accounts: [PRIVATE_KEY],
-      chainId: 80001,
-      gasPrice: 20000000000, // 20 gwei
-      gas: 6000000
+      chainId: 80002,
     },
     polygon: {
       url: POLYGON_RPC,
       accounts: [PRIVATE_KEY],
       chainId: 137,
-      gasPrice: 50000000000, // 50 gwei
-      gas: 6000000
     }
   },
   etherscan: {
     apiKey: {
       polygon: POLYGONSCAN_API_KEY,
-      polygonMumbai: POLYGONSCAN_API_KEY
-    }
+      polygonAmoy: POLYGONSCAN_API_KEY
+    },
+    customChains: [
+      {
+        network: "polygonAmoy",
+        chainId: 80002,
+        urls: {
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com"
+        }
+      }
+    ]
   },
   gasReporter: {
     enabled: true,

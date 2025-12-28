@@ -1,14 +1,4 @@
 services:
-  # Local Blockchain Node
-  hardhat:
-    image: node:18-alpine
-    working_dir: /app
-    volumes:
-      - ../../smart-contracts:/app
-    command: sh -c "npm install && npx hardhat node"
-    ports:
-      - "8545:8545"
-
   # Database for indexing
   postgres:
     image: postgres:15-alpine
@@ -45,9 +35,23 @@ services:
       - PORT=3000
     depends_on:
       - postgres
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "[ -d node_modules ] || npm install; npm run dev"
     ports:
       - "3000:3000"
+
+  # Blockchain Indexer Service
+  indexer:
+    image: node:18-alpine
+    working_dir: /app
+    volumes:
+      - ../../indexer:/app
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
+    depends_on:
+      - postgres
+    command: sh -c "[ -d node_modules ] || npm install; npm run dev"
 
   # Erasure Coding Service
   erasure-coding:
@@ -57,9 +61,13 @@ services:
       - ../../services/erasure-coding:/app
     environment:
       - KUBO_API_URL=http://ipfs:5001
+      - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
+      - PRIVATE_KEY=${PRIVATE_KEY}
     depends_on:
       - ipfs
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "[ -d node_modules ] || npm install; npm run dev"
 
   # Dashboard Service
   dashboard:
@@ -70,15 +78,3 @@ services:
       - "8080:80"
     depends_on:
       - api-server
-
-  # E2E Simulation Service
-  e2e-simulation:
-    image: node:18-alpine
-    working_dir: /app
-    volumes:
-      - .:/app
-    environment:
-      - API_URL=http://api-server:3000
-    depends_on:
-      - api-server
-    command: sh -c "npm install && npx ts-node run-e2e.ts"

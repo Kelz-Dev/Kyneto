@@ -1,6 +1,6 @@
 # Incentive Layer - Quick Start Guide
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -37,7 +37,7 @@ npm install -g commander ethers dotenv
 
 ---
 
-## 📝 For Storage Providers
+## For Storage Providers
 
 ### 1. Register as Provider
 
@@ -77,7 +77,7 @@ provider-cli withdraw
 
 ---
 
-## 💾 For Storage Clients
+## For Storage Clients
 
 ### 1. Upload File
 
@@ -102,7 +102,7 @@ client-cli balance
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -130,7 +130,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/incentive_layer
 
 ---
 
-## 📊 Economics at a Glance
+## Economics at a Glance
 
 ### Token Supply
 - **Initial**: 500 million STK
@@ -153,7 +153,7 @@ Pledge 10 TB for 90 days (50% utilized):
 
 ---
 
-## 🛡️ Erasure Coding
+## Erasure Coding
 
 Files are split into **15 shards** (10 data + 5 parity):
 - Stored across 15 different providers
@@ -163,7 +163,7 @@ Files are split into **15 shards** (10 data + 5 parity):
 
 ---
 
-## ⚡ Network Commands
+## Network Commands
 
 ### Start Kubo Node
 
@@ -186,7 +186,7 @@ cat smart-contracts/deployed-addresses-mumbai.json
 
 ---
 
-## 🔍 Verification
+## Verification
 
 After deployment, verify contracts on PolygonScan:
 
@@ -197,7 +197,7 @@ npm run verify
 
 ---
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [Full Implementation Plan](docs/implementation_plan.md)
 - [Economics Model](docs/economics_model.md)
@@ -206,7 +206,7 @@ npm run verify
 
 ---
 
-## ⚠️ Important Notes
+## Important Notes
 
 1. **Testnet First**: Always test on Mumbai before mainnet
 2. **Keep Keys Safe**: Never commit `.env` file
@@ -216,7 +216,7 @@ npm run verify
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Connection Issues
 ```bash
@@ -238,7 +238,7 @@ client-cli balance
 
 ---
 
-## 💬 Support
+## Support
 
 - GitHub Issues: `github.com/your-repo/issues`
 - Discord: `discord.gg/your-server`

@@ -17,6 +17,12 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     ProviderRegistry public immutable registry;
     CapacityPledge public immutable pledges;
     
+    // Protocol Fees
+    address public treasury;
+    uint256 public protocolFeeBasisPoints = 200; // 2.00%
+    uint256 public constant MAX_FEE_BASIS_POINTS = 1000; // 10% max
+    uint256 public totalFeesCollected;
+    
     uint256 public constant SHARDS_PER_FILE = 15; // 10 data + 5 parity
     uint256 public constant MIN_PROVIDERS = 10; // Minimum to reconstruct
     
@@ -63,11 +69,15 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     event DealFailed(uint256 indexed dealId, string reason);
     event ShardLost(uint256 indexed dealId, address indexed provider, uint256 shardIndex);
     event ShardRepaired(uint256 indexed dealId, address indexed newProvider, uint256 shardIndex);
+    event ProtocolFeeUpdated(uint256 newFee);
+    event TreasuryUpdated(address newTreasury);
+    event FeesWithdrawn(address indexed to, uint256 amount);
     
-    constructor(address _token, address _registry, address _pledges) Ownable(msg.sender) {
+    constructor(address _token, address _registry, address _pledges, address _treasury) Ownable(msg.sender) {
         token = StorageToken(_token);
         registry = ProviderRegistry(_registry);
         pledges = CapacityPledge(_pledges);
+        treasury = _treasury;
     }
     
     /**
@@ -93,12 +103,16 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
             require(selectedProviders[i] != address(0), "Invalid provider");
         }
         
-        // Calculate total cost
+        // Calculate total cost and fees
         uint256 totalMonths = (durationDays + 29) / 30; // Round up to months
-        uint256 totalCost = fileSizeGB * pricePerGBMonth * totalMonths;
+        uint256 providerPayment = fileSizeGB * pricePerGBMonth * totalMonths;
+        uint256 protocolFee = (providerPayment * protocolFeeBasisPoints) / 10000;
+        uint256 totalCost = providerPayment + protocolFee;
         
         // Transfer payment to escrow
         require(token.transferFrom(msg.sender, address(this), totalCost), "Payment failed");
+        
+        totalFeesCollected += protocolFee;
         
         // Create deal
         uint256 dealId = dealCount++;
@@ -283,5 +297,34 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
      */
     function getProviderDeals(address provider) external view returns (uint256[] memory) {
         return providerDeals[provider];
+    }
+
+    /**
+     * @dev Update protocol fee (only owner)
+     */
+    function setProtocolFee(uint256 _feeBasisPoints) external onlyOwner {
+        require(_feeBasisPoints <= MAX_FEE_BASIS_POINTS, "Fee too high");
+        protocolFeeBasisPoints = _feeBasisPoints;
+        emit ProtocolFeeUpdated(_feeBasisPoints);
+    }
+
+    /**
+     * @dev Update treasury address (only owner)
+     */
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid address");
+        treasury = _treasury;
+        emit TreasuryUpdated(_treasury);
+    }
+
+    /**
+     * @dev Withdraw collected fees (only owner)
+     */
+    function withdrawFees() external onlyOwner nonReentrant {
+        uint256 amount = totalFeesCollected;
+        require(amount > 0, "No fees to withdraw");
+        totalFeesCollected = 0;
+        require(token.transfer(treasury, amount), "Transfer failed");
+        emit FeesWithdrawn(treasury, amount);
     }
 }

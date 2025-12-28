@@ -2,7 +2,7 @@
 
 This directory contains the end-to-end testing suite for the Incentive Layer. It uses Docker Compose to spin up a full environment including a local blockchain, IPFS node, database, and all backend services.
 
-## 🏗️ Architecture
+## Architecture
 
 - **Hardhat**: Local Polygon/Ethereum node (port 8545)
 - **Postgres**: Database for indexing (port 5432)

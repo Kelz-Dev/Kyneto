@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,96 +8,298 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js" type="application/javascript"></script>
+    <script type="module">
+        import { createAppKit } from 'https://esm.sh/@reown/appkit@1.1.0/ethers5';
+        window.createAppKit = createAppKit;
+    </script>
 </head>
+
 <body class="dark-theme">
     <div class="glass-bg"></div>
-    
-    <header>
-        <div class="logo">
-            <span class="icon">⚡</span>
-            <h1>Incentive<span>Layer</span></h1>
-        </div>
-        <div class="status-badge" id="api-status">
-            <span class="dot"></span>
-            <span class="text">Connecting to API...</span>
-        </div>
-    </header>
 
-    <main>
-        <section class="stats-grid">
-            <div class="stat-card" id="stat-deals">
-                <div class="stat-icon">🤝</div>
-                <div class="stat-info">
-                    <span class="label">Active Deals</span>
-                    <span class="value">0</span>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-bolt-lightning icon"></i>
+                <h1>Incentive<span>Layer</span></h1>
+            </div>
+            <nav>
+                <button class="nav-item active" onclick="switchView('dashboard')">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </button>
+                <button class="nav-item" onclick="switchView('marketplace')">
+                    <i class="fa-solid fa-store"></i> Marketplace
+                </button>
+                <button class="nav-item" onclick="switchView('provider')">
+                    <i class="fa-solid fa-server"></i> Provider Portal
+                </button>
+                <button class="nav-item" onclick="switchView('governance')">
+                    <i class="fa-solid fa-scale-balanced"></i> Governance
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="status-badge" id="api-status">
+                    <span class="dot"></span>
+                    <span class="text">Connecting...</span>
                 </div>
             </div>
-            <div class="stat-card" id="stat-providers">
-                <div class="stat-icon">🖥️</div>
-                <div class="stat-info">
-                    <span class="label">Active Providers</span>
-                    <span class="value">0</span>
-                </div>
-            </div>
-            <div class="stat-card" id="stat-capacity">
-                <div class="stat-icon">💾</div>
-                <div class="stat-info">
-                    <span class="label">Total Capacity</span>
-                    <span class="value">0 GB</span>
-                </div>
-            </div>
-            <div class="stat-card" id="stat-utilization">
-                <div class="stat-icon">📊</div>
-                <div class="stat-info">
-                    <span class="label">Utilization</span>
-                    <span class="value">0%</span>
-                </div>
-            </div>
-        </section>
+        </aside>
 
-        <div class="content-layout">
-            <section class="panel recent-deals">
-                <div class="panel-header">
-                    <h2>Recent Storage Deals</h2>
-                    <button class="btn-refresh" onclick="refreshDeals()">↻</button>
-                </div>
-                <div class="table-container">
-                    <table id="deals-table">
-                        <thead>
-                            <tr>
-                                <th>Deal ID</th>
-                                <th>Status</th>
-                                <th>Size</th>
-                                <th>Created</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Deals will be injected here -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section class="panel network-activity">
-                <div class="panel-header">
-                    <h2>Live Network Activity</h2>
-                </div>
-                <div class="activity-feed" id="activity-feed">
-                    <div class="activity-item system">
-                        <span class="time">Now</span>
-                        <span class="msg">Waiting for network events...</span>
+        <main class="main-content">
+            <header class="top-bar">
+                <h2 id="view-title">Network Dashboard</h2>
+                <div class="user-actions">
+                    <button id="connect-wallet-btn" class="btn-secondary" onclick="connectWallet()">
+                        <i class="fa-solid fa-wallet"></i> Connect Wallet
+                    </button>
+                    <div id="user-profile" class="user-profile hidden">
+                        <span class="wallet-addr" id="wallet-address">0x0000...0000</span>
+                        <div class="avatar"></div>
                     </div>
                 </div>
-            </section>
-        </div>
-    </main>
+            </header>
 
-    <footer>
-        <p>&copy; 2025 Incentive Layer Protocol | Built for Polygon Mumbai</p>
-    </footer>
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view active">
+                <section class="stats-grid">
+                    <div class="stat-card" id="stat-deals">
+                        <div class="stat-icon"><i class="fa-solid fa-handshake"></i></div>
+                        <div class="stat-info">
+                            <span class="label">Active Deals</span>
+                            <span class="value">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-providers">
+                        <div class="stat-icon"><i class="fa-solid fa-microchip"></i></div>
+                        <div class="stat-info">
+                            <span class="label">Active Providers</span>
+                            <span class="value">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-capacity">
+                        <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
+                        <div class="stat-info">
+                            <span class="label">Total Capacity</span>
+                            <span class="value">0 GB</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-utilization">
+                        <div class="stat-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                        <div class="stat-info">
+                            <span class="label">Utilization</span>
+                            <span class="value">0%</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-revenue">
+                        <div class="stat-icon"><i class="fa-solid fa-coins"></i></div>
+                        <div class="stat-info">
+                            <span class="label">Protocol Revenue</span>
+                            <span class="value">0 STK</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-burned">
+                        <div class="stat-icon"><i class="fa-solid fa-fire"></i></div>
+                        <div class="stat-info">
+                            <span class="label">Tokens Burned</span>
+                            <span class="value">0 STK</span>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="content-layout">
+                    <section class="panel recent-deals">
+                        <div class="panel-header">
+                            <h2>Recent Storage Deals</h2>
+                            <button class="btn-refresh" onclick="refreshDeals()"><i
+                                    class="fa-solid fa-rotate"></i></button>
+                        </div>
+                        <div class="table-container">
+                            <table id="deals-table">
+                                <thead>
+                                    <tr>
+                                        <th>Deal ID</th>
+                                        <th>Status</th>
+                                        <th>Size</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Deals will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="panel network-activity">
+                        <div class="panel-header">
+                            <h2>Live Network Activity</h2>
+                        </div>
+                        <div class="activity-feed" id="activity-feed">
+                            <div class="activity-item system">
+                                <span class="time">Now</span>
+                                <span class="msg">Waiting for network events...</span>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Marketplace View -->
+            <div id="marketplace-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Storage Marketplace</h2>
+                        <button class="btn-primary" onclick="switchView('create-deal')">
+                            <i class="fa-solid fa-plus"></i> Create New Deal
+                        </button>
+                    </div>
+                    <div class="marketplace-grid">
+                        <!-- Marketplace items will be injected here -->
+                        <div class="empty-state">
+                            <p>Loading marketplace data...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Provider Portal View -->
+            <div id="provider-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Provider Portal</h2>
+                    </div>
+                    <div class="provider-stats">
+                        <div class="stat-mini">
+                            <span class="label">Uptime</span>
+                            <span class="value">99.9%</span>
+                        </div>
+                        <div class="stat-mini">
+                            <span class="label">Total Earned</span>
+                            <span class="value">1,250 STK</span>
+                        </div>
+                    </div>
+                    <div class="node-list">
+                        <h3>Active Nodes</h3>
+                        <div class="empty-state" id="no-nodes-state">
+                            <p>You are not currently a storage provider.</p>
+                            <button class="btn-primary" onclick="switchView('become-provider')">
+                                <i class="fa-solid fa-rocket"></i> Become a Provider
+                            </button>
+                        </div>
+                        <div id="active-nodes-list" class="hidden">
+                            <!-- Nodes will be injected here -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Become a Provider View -->
+            <div id="become-provider-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Become a Storage Provider</h2>
+                        <button class="btn-secondary" onclick="switchView('provider')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="registration-flow">
+                        <div class="step-card">
+                            <div class="step-icon"><i class="fa-solid fa-1"></i></div>
+                            <div class="step-content">
+                                <h3>Stake Tokens</h3>
+                                <p>Stake a minimum of 1,000 STK tokens to secure the network.</p>
+                                <button class="btn-primary" id="stake-btn" onclick="handleStake()">Stake 1,000
+                                    STK</button>
+                            </div>
+                        </div>
+                        <div class="step-card disabled" id="step-register">
+                            <div class="step-icon"><i class="fa-solid fa-2"></i></div>
+                            <div class="step-content">
+                                <h3>Register Node</h3>
+                                <p>Set your storage capacity and pricing.</p>
+                                <form id="register-node-form" onsubmit="handleRegisterNode(event)">
+                                    <div class="form-group">
+                                        <label>Capacity (GB)</label>
+                                        <input type="number" placeholder="100" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Price (STK/GB/mo)</label>
+                                        <input type="number" step="0.1" placeholder="0.5" required>
+                                    </div>
+                                    <button type="submit" class="btn-primary">Register Node</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Governance View -->
+            <div id="governance-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Protocol Governance</h2>
+                    </div>
+                    <div class="governance-grid">
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <span class="label">Treasury Balance</span>
+                                <span class="value">45,000 STK</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <span class="label">Total Proposals</span>
+                                <span class="value">12</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="proposals-list">
+                        <h3>Active Proposals</h3>
+                        <div class="empty-state">
+                            <p>No active proposals at this time.</p>
+                            <button class="btn-secondary" disabled>Create Proposal</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Create Deal View -->
+            <div id="create-deal-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Create New Storage Deal</h2>
+                        <button class="btn-secondary" onclick="switchView('marketplace')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <form id="create-deal-form" class="deal-form" onsubmit="handleCreateDeal(event)">
+                        <div class="form-group">
+                            <label>File CID</label>
+                            <input type="text" placeholder="ipfs://Qm..." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Size (GB)</label>
+                            <input type="number" placeholder="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (Days)</label>
+                            <input type="number" placeholder="30" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Initiate Deal</button>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
 
     <script src="app.js"></script>
 </body>
+
 </html>

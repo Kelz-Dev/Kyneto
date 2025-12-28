@@ -15,6 +15,7 @@
         "@sindresorhus/is": "^4.6.0",
         "@subspace/reed-solomon-erasure.wasm": "^0.2.5",
         "dotenv": "^16.3.1",
+        "ethers": "^5.7.2",
         "ipfs-http-client": "^57.0.3",
         "pg": "^8.11.3",
         "redis": "^4.6.10",

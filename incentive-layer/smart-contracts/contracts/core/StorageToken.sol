@@ -22,10 +22,14 @@ contract StorageToken is ERC20, Ownable {
     
     // Authorized minters (for rewards distribution)
     mapping(address => bool) public authorizedMinters;
+    // Authorized burners (for slashing)
+    mapping(address => bool) public authorizedBurners;
     
     // Events
     event MinterAuthorized(address indexed minter);
     event MinterRevoked(address indexed minter);
+    event BurnerAuthorized(address indexed burner);
+    event BurnerRevoked(address indexed burner);
     event InflationRateUpdated(uint256 newRate);
     event TokensBurned(address indexed from, uint256 amount);
     
@@ -55,12 +59,28 @@ contract StorageToken is ERC20, Ownable {
     
     /**
      * @dev Burn tokens from another address (for slashing)
-     * Can only be called by authorized minters (SlashingManager contract)
+     * Can only be called by authorized burners (SlashingManager contract)
      */
     function burnFrom(address from, uint256 amount) external {
-        require(authorizedMinters[msg.sender], "Not authorized to burn");
+        require(authorizedBurners[msg.sender], "Not authorized to burn");
         _burn(from, amount);
         emit TokensBurned(from, amount);
+    }
+    
+    /**
+     * @dev Authorize a burner
+     */
+    function authorizeBurner(address burner) external onlyOwner {
+        authorizedBurners[burner] = true;
+        emit BurnerAuthorized(burner);
+    }
+    
+    /**
+     * @dev Revoke burner authorization
+     */
+    function revokeBurner(address burner) external onlyOwner {
+        authorizedBurners[burner] = false;
+        emit BurnerRevoked(burner);
     }
     
     /**

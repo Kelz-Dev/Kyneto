@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS deals (
   file_cid TEXT NOT NULL,
   file_size_gb NUMERIC NOT NULL,
   total_cost NUMERIC NOT NULL,
+  provider_payment NUMERIC NOT NULL,
+  protocol_fee NUMERIC NOT NULL,
   status VARCHAR(20) DEFAULT 'active',
   created_at TIMESTAMP DEFAULT NOW(),
   completed_at TIMESTAMP,
@@ -124,7 +126,27 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   FOREIGN KEY (provider_address) REFERENCES providers(address)
 );
 
+-- Protocol events (for live feed)
+CREATE TABLE IF NOT EXISTS protocol_events (
+  id SERIAL PRIMARY KEY,
+  event_type VARCHAR(50) NOT NULL,
+  description TEXT,
+  data JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Protocol revenue tracking
+CREATE TABLE IF NOT EXISTS protocol_revenue (
+  id SERIAL PRIMARY KEY,
+  deal_id VARCHAR(20),
+  amount NUMERIC NOT NULL,
+  withdrawn BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW(),
+  FOREIGN KEY (deal_id) REFERENCES deals(deal_id)
+);
+
 -- Indexes for performance
 CREATE INDEX idx_provider_deals ON shards(provider_address, deal_id);
 CREATE INDEX idx_repair_created ON repair_queue(created_at);
 CREATE INDEX idx_slashing_provider ON slashing_events(provider_address);
+CREATE INDEX idx_protocol_events_created ON protocol_events(created_at);
