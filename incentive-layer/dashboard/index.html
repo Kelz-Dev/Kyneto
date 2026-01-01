@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Incentive Layer | Network Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="notification.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -48,19 +49,101 @@
                     <span class="dot"></span>
                     <span class="text">Connecting...</span>
                 </div>
+                <div class="sidebar-profile-container">
+                    <div id="sidebar-dropdown" class="profile-dropdown sidebar-dropdown hidden">
+                        <div class="dropdown-header">
+                            <span class="label">Node Status</span>
+                            <span class="address" id="sidebar-node-id">Not Connected</span>
+                        </div>
+                        <div class="dropdown-menu">
+                            <button class="menu-item" onclick="switchView('dashboard')">
+                                <i class="fa-solid fa-user"></i>
+                                <span>My Profile</span>
+                            </button>
+                            <button class="menu-item" onclick="switchView('dashboard')">
+                                <i class="fa-solid fa-handshake"></i>
+                                <span>My Deals</span>
+                            </button>
+                            <button class="menu-item" onclick="switchView('dashboard')">
+                                <i class="fa-solid fa-coins"></i>
+                                <span>Earnings & Rewards</span>
+                            </button>
+                            <button class="menu-item" onclick="switchView('provider')">
+                                <i class="fa-solid fa-server"></i>
+                                <span>Node Management</span>
+                            </button>
+                            <div class="dropdown-divider"></div>
+                            <button class="menu-item" onclick="alert('Security settings coming soon!')">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <span>Security Settings</span>
+                            </button>
+                            <button id="sidebar-auth-btn" class="menu-item" onclick="connectWallet()">
+                                <i class="fa-solid fa-wallet"></i>
+                                <span>Connect Wallet</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="sidebar-profile" onclick="toggleSidebarDropdown()">
+                        <div class="avatar-mini"></div>
+                        <div class="profile-info-mini">
+                            <span class="name">Guest</span>
+                            <span class="status" style="color: var(--text-secondary)">Not Connected</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-up"></i>
+                    </div>
+                </div>
             </div>
         </aside>
 
         <main class="main-content">
             <header class="top-bar">
-                <h2 id="view-title">Network Dashboard</h2>
+                <div class="header-left">
+                    <button id="sidebar-toggle" class="sidebar-toggle">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h2 id="view-title">Network Dashboard</h2>
+                </div>
                 <div class="user-actions">
-                    <button id="connect-wallet-btn" class="btn-secondary" onclick="connectWallet()">
+                    <button id="connect-wallet-btn" class="btn-primary" onclick="connectWallet()">
                         <i class="fa-solid fa-wallet"></i> Connect Wallet
                     </button>
                     <div id="user-profile" class="user-profile hidden">
-                        <span class="wallet-addr" id="wallet-address">0x0000...0000</span>
-                        <div class="avatar"></div>
+                        <div class="profile-trigger" onclick="toggleProfileDropdown()">
+                            <div class="avatar"></div>
+                        </div>
+                        <div id="profile-dropdown" class="profile-dropdown hidden">
+                            <div class="dropdown-header">
+                                <span class="label">Connected Wallet</span>
+                                <span class="address" id="dropdown-address">0x00...000</span>
+                            </div>
+                            <div class="dropdown-menu">
+                                <button class="menu-item" onclick="switchView('dashboard')">
+                                    <i class="fa-solid fa-user"></i>
+                                    <span>My Profile</span>
+                                </button>
+                                <button class="menu-item" onclick="switchView('dashboard')">
+                                    <i class="fa-solid fa-handshake"></i>
+                                    <span>My Deals</span>
+                                </button>
+                                <button class="menu-item" onclick="switchView('dashboard')">
+                                    <i class="fa-solid fa-coins"></i>
+                                    <span>Earnings & Rewards</span>
+                                </button>
+                                <button class="menu-item" onclick="switchView('provider')">
+                                    <i class="fa-solid fa-server"></i>
+                                    <span>Node Management</span>
+                                </button>
+                                <div class="dropdown-divider"></div>
+                                <button class="menu-item" onclick="alert('Security settings coming soon!')">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                    <span>Security Settings</span>
+                                </button>
+                                <button class="menu-item logout" onclick="disconnectWallet()">
+                                    <i class="fa-solid fa-right-from-bracket"></i>
+                                    <span>Disconnect</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -68,42 +151,42 @@
             <!-- Dashboard View -->
             <div id="dashboard-view" class="view active">
                 <section class="stats-grid">
-                    <div class="stat-card" id="stat-deals">
+                    <div class="stat-card clickable" id="stat-deals" onclick="switchView('deals-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-handshake"></i></div>
                         <div class="stat-info">
                             <span class="label">Active Deals</span>
                             <span class="value">0</span>
                         </div>
                     </div>
-                    <div class="stat-card" id="stat-providers">
+                    <div class="stat-card clickable" id="stat-providers" onclick="switchView('providers-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-microchip"></i></div>
                         <div class="stat-info">
                             <span class="label">Active Providers</span>
                             <span class="value">0</span>
                         </div>
                     </div>
-                    <div class="stat-card" id="stat-capacity">
+                    <div class="stat-card clickable" id="stat-capacity" onclick="switchView('capacity-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
                         <div class="stat-info">
                             <span class="label">Total Capacity</span>
                             <span class="value">0 GB</span>
                         </div>
                     </div>
-                    <div class="stat-card" id="stat-utilization">
+                    <div class="stat-card clickable" id="stat-utilization" onclick="switchView('utilization-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-chart-pie"></i></div>
                         <div class="stat-info">
                             <span class="label">Utilization</span>
                             <span class="value">0%</span>
                         </div>
                     </div>
-                    <div class="stat-card" id="stat-revenue">
+                    <div class="stat-card clickable" id="stat-revenue" onclick="switchView('revenue-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-coins"></i></div>
                         <div class="stat-info">
                             <span class="label">Protocol Revenue</span>
                             <span class="value">0 STK</span>
                         </div>
                     </div>
-                    <div class="stat-card" id="stat-burned">
+                    <div class="stat-card clickable" id="stat-burned" onclick="switchView('burned-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-fire"></i></div>
                         <div class="stat-info">
                             <span class="label">Tokens Burned</span>
@@ -150,6 +233,135 @@
                 </div>
             </div>
 
+            <!-- Deals Detail View -->
+            <div id="deals-detail-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-handshake"></i> Active Deals Analytics</h2>
+                        <button class="btn-secondary" onclick="switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="detail-grid-premium">
+                        <div class="detail-card main-chart">
+                            <h4>Deal Growth (Last 30 Days)</h4>
+                            <div class="chart-placeholder-large" id="deals-growth-chart">
+                                <!-- Chart will be simulated here -->
+                            </div>
+                        </div>
+                        <div class="detail-card-stats">
+                            <div class="mini-stat-box">
+                                <span class="label">Avg. Deal Size</span>
+                                <span class="value">4.2 GB</span>
+                            </div>
+                            <div class="mini-stat-box">
+                                <span class="label">Success Rate</span>
+                                <span class="value">99.8%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Providers Detail View -->
+            <div id="providers-detail-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-microchip"></i> Provider Network Stats</h2>
+                        <button class="btn-secondary" onclick="switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="detail-grid-premium">
+                        <div class="detail-card">
+                            <h4>Provider Distribution</h4>
+                            <div class="distribution-list" id="provider-dist-list">
+                                <!-- Simulated distribution -->
+                            </div>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Network Health</h4>
+                            <div class="health-indicator">
+                                <div class="health-circle">98%</div>
+                                <span>Nodes Online</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Capacity Detail View -->
+            <div id="capacity-detail-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-database"></i> Network Capacity</h2>
+                        <button class="btn-secondary" onclick="switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="detail-grid-premium">
+                        <div class="detail-card full-width">
+                            <h4>Capacity Expansion Trend</h4>
+                            <div class="chart-placeholder-large" id="capacity-trend-chart"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Utilization Detail View -->
+            <div id="utilization-detail-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-chart-pie"></i> Storage Utilization</h2>
+                        <button class="btn-secondary" onclick="switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="detail-grid-premium">
+                        <div class="detail-card">
+                            <h4>Current Usage Breakdown</h4>
+                            <div class="usage-breakdown" id="usage-breakdown-list"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Revenue Detail View -->
+            <div id="revenue-detail-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-coins"></i> Protocol Revenue</h2>
+                        <button class="btn-secondary" onclick="switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="detail-grid-premium">
+                        <div class="detail-card">
+                            <h4>Revenue Streams</h4>
+                            <div class="revenue-list" id="revenue-streams"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Burned Detail View -->
+            <div id="burned-detail-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-fire"></i> Token Burn Analytics</h2>
+                        <button class="btn-secondary" onclick="switchView('dashboard')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="detail-grid-premium">
+                        <div class="detail-card">
+                            <h4>Burn Rate (Monthly)</h4>
+                            <div class="chart-placeholder-large" id="burn-rate-chart"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
             <!-- Marketplace View -->
             <div id="marketplace-view" class="view">
                 <section class="panel">
@@ -174,26 +386,157 @@
                     <div class="panel-header">
                         <h2>Provider Portal</h2>
                     </div>
-                    <div class="provider-stats">
-                        <div class="stat-mini">
-                            <span class="label">Uptime</span>
-                            <span class="value">99.9%</span>
+
+                    <section class="stats-grid provider-stats-grid">
+                        <div class="stat-card" id="provider-stat-uptime">
+                            <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Node Uptime</span>
+                                <span class="value">0%</span>
+                            </div>
                         </div>
-                        <div class="stat-mini">
-                            <span class="label">Total Earned</span>
-                            <span class="value">1,250 STK</span>
+                        <div class="stat-card" id="provider-stat-earnings">
+                            <div class="stat-icon"><i class="fa-solid fa-coins"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Total Earned</span>
+                                <span class="value">0 STK</span>
+                            </div>
                         </div>
-                    </div>
+                        <div class="stat-card" id="provider-stat-deals">
+                            <div class="stat-icon"><i class="fa-solid fa-handshake"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Completed Deals</span>
+                                <span class="value">0</span>
+                            </div>
+                        </div>
+                    </section>
+
                     <div class="node-list">
-                        <h3>Active Nodes</h3>
-                        <div class="empty-state" id="no-nodes-state">
-                            <p>You are not currently a storage provider.</p>
+                        <div class="section-header">
+                            <h3><i class="fa-solid fa-server"></i> Active Nodes</h3>
+                        </div>
+
+                        <div class="empty-state-premium" id="no-nodes-state">
+                            <div class="empty-icon">
+                                <i class="fa-solid fa-microchip"></i>
+                            </div>
+                            <h3>No Active Nodes</h3>
+                            <p>You are not currently contributing storage to the network. Start earning STK by becoming
+                                a provider.</p>
                             <button class="btn-primary" onclick="switchView('become-provider')">
                                 <i class="fa-solid fa-rocket"></i> Become a Provider
                             </button>
                         </div>
+
                         <div id="active-nodes-list" class="hidden">
                             <!-- Nodes will be injected here -->
+                        </div>
+                    </div>
+
+                    <div id="storage-management" class="hidden">
+                        <div class="storage-header">
+                            <h3><i class="fa-solid fa-microchip"></i> Node Management</h3>
+                            <div class="encryption-badge">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <span>AES-256 Encrypted Vault</span>
+                            </div>
+                        </div>
+
+                        <div class="provider-dashboard-grid">
+                            <!-- Reputation Card -->
+                            <div class="storage-card reputation-card">
+                                <div class="card-header">
+                                    <h4>Node Reputation</h4>
+                                    <i class="fa-solid fa-circle-info info-icon"></i>
+                                </div>
+                                <div class="reputation-visual">
+                                    <div class="circular-progress" id="reputation-gauge">
+                                        <div class="value-container" id="reputation-value">0</div>
+                                    </div>
+                                </div>
+                                <div class="reputation-meta">
+                                    <span class="status-text" id="reputation-status">Initializing...</span>
+                                    <p>Based on uptime, proof success, and deal completion.</p>
+                                </div>
+                            </div>
+
+                            <!-- Disk Usage Card -->
+                            <div class="storage-card usage-card">
+                                <div class="card-header">
+                                    <h4>Storage Allocation</h4>
+                                    <span class="usage-text" id="storage-usage-text">0 / 0 GB</span>
+                                </div>
+                                <div class="gauge-container">
+                                    <div class="gauge-bar-premium">
+                                        <div class="gauge-fill-premium" id="storage-gauge-fill" style="width: 0%">
+                                        </div>
+                                    </div>
+                                    <div class="gauge-markers">
+                                        <span>0%</span>
+                                        <span>50%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                                <div class="storage-details-grid">
+                                    <div class="detail-item">
+                                        <span class="label">Pledged</span>
+                                        <span class="value" id="pledged-value">0 GB</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Used</span>
+                                        <span class="value" id="used-value">0 GB</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="label">Remaining</span>
+                                        <span class="value" id="remaining-value">0 GB</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Analytics Card -->
+                            <div class="storage-card analytics-card-full">
+                                <div class="card-header">
+                                    <h4>Network Traffic & Usage</h4>
+                                    <div class="card-actions">
+                                        <select class="time-selector-premium">
+                                            <option>Last 7 Days</option>
+                                            <option>Last 30 Days</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="chart-container-premium">
+                                    <div class="bar-chart-premium">
+                                        <div class="bar-group">
+                                            <div class="bar-premium" style="height: 30%"></div>
+                                            <span>M</span>
+                                        </div>
+                                        <div class="bar-group">
+                                            <div class="bar-premium" style="height: 45%"></div>
+                                            <span>T</span>
+                                        </div>
+                                        <div class="bar-group">
+                                            <div class="bar-premium" style="height: 35%"></div>
+                                            <span>W</span>
+                                        </div>
+                                        <div class="bar-group">
+                                            <div class="bar-premium" style="height: 60%"></div>
+                                            <span>T</span>
+                                        </div>
+                                        <div class="bar-group">
+                                            <div class="bar-premium" style="height: 55%"></div>
+                                            <span>F</span>
+                                        </div>
+                                        <div class="bar-group">
+                                            <div class="bar-premium" style="height: 80%"></div>
+                                            <span>S</span>
+                                        </div>
+                                        <div class="bar-group">
+                                            <div class="bar-premium" style="height: 70%"></div>
+                                            <span>S</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -229,8 +572,17 @@
                                         <input type="number" placeholder="100" required>
                                     </div>
                                     <div class="form-group">
-                                        <label>Price (STK/GB/mo)</label>
-                                        <input type="number" step="0.1" placeholder="0.5" required>
+                                        <label>Region</label>
+                                        <select id="provider-region" required
+                                            style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                                            <option value="" disabled selected>Select Region</option>
+                                            <option value="na">North America</option>
+                                            <option value="eu">Europe</option>
+                                            <option value="asia">Asia</option>
+                                            <option value="sa">South America</option>
+                                            <option value="oc">Oceania</option>
+                                            <option value="af">Africa</option>
+                                        </select>
                                     </div>
                                     <button type="submit" class="btn-primary">Register Node</button>
                                 </form>
@@ -250,13 +602,13 @@
                         <div class="stat-card">
                             <div class="stat-info">
                                 <span class="label">Treasury Balance</span>
-                                <span class="value">45,000 STK</span>
+                                <span class="value">0 STK</span>
                             </div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-info">
                                 <span class="label">Total Proposals</span>
-                                <span class="value">12</span>
+                                <span class="value">0</span>
                             </div>
                         </div>
                     </div>
@@ -264,8 +616,56 @@
                         <h3>Active Proposals</h3>
                         <div class="empty-state">
                             <p>No active proposals at this time.</p>
-                            <button class="btn-secondary" disabled>Create Proposal</button>
+                            <button class="btn-primary" onclick="handleCreateProposal()">Create Proposal</button>
                         </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Upgrade Pledge View -->
+            <div id="upgrade-pledge-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Upgrade Storage Pledge</h2>
+                        <button class="btn-secondary" onclick="switchView('provider')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="upgrade-container">
+                        <div class="current-pledge-card">
+                            <div class="card-label">Current Pledge</div>
+                            <div class="pledge-stats">
+                                <div class="stat">
+                                    <span class="label">Capacity</span>
+                                    <span class="value" id="current-capacity-display">100 GB</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="label">Staked</span>
+                                    <span class="value" id="current-stake-display">1,000 STK</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form id="upgrade-pledge-form" class="upgrade-form" onsubmit="handleUpgradePledge(event)">
+                            <div class="form-group">
+                                <label>Additional Capacity (GB)</label>
+                                <input type="number" id="additional-capacity" placeholder="50" required min="1">
+                                <p class="input-hint">Minimum 1 GB increase required.</p>
+                            </div>
+                            <div class="form-group">
+                                <label>Required Additional Stake</label>
+                                <div class="stake-preview">
+                                    <span id="additional-stake-value">500</span>
+                                    <span class="unit">STK</span>
+                                </div>
+                                <p class="input-hint">10 STK per GB pledged.</p>
+                            </div>
+                            <div class="upgrade-actions">
+                                <button type="submit" class="btn-primary">
+                                    <i class="fa-solid fa-circle-up"></i> Confirm Upgrade
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </section>
             </div>
@@ -281,12 +681,33 @@
                     </div>
                     <form id="create-deal-form" class="deal-form" onsubmit="handleCreateDeal(event)">
                         <div class="form-group">
+                            <label>Upload File</label>
+                            <div class="upload-area" id="upload-area">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <p>Drag & drop file or <span>browse</span></p>
+                                <input type="file" id="file-input" hidden>
+                            </div>
+                            <div id="file-info" class="file-info hidden">
+                                <i class="fa-solid fa-file-code"></i>
+                                <div class="details">
+                                    <span class="name" id="file-name">filename.txt</span>
+                                    <div class="meta">
+                                        <span class="size" id="file-size">0 KB</span>
+                                        <span class="divider">•</span>
+                                        <span class="type" id="file-type">General Data</span>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-remove" onclick="removeFile()"><i
+                                        class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        </div>
+                        <div class="form-group hidden" id="cid-group">
                             <label>File CID</label>
-                            <input type="text" placeholder="ipfs://Qm..." required>
+                            <input type="text" id="file-cid" placeholder="ipfs://Qm..." readonly>
                         </div>
                         <div class="form-group">
                             <label>Size (GB)</label>
-                            <input type="number" placeholder="10" required>
+                            <input type="number" id="deal-size" placeholder="10" step="0.001" required>
                         </div>
                         <div class="form-group">
                             <label>Duration (Days)</label>
@@ -299,7 +720,7 @@
         </main>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
 </body>
 
 </html>
