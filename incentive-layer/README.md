@@ -1,6 +1,10 @@
-# Incentive Layer - Blockchain Storage Marketplace
+# Kyneto Protocol - Polygon-Backed Decentralized Storage
 
-A Filecoin-like decentralized storage incentive layer built on top of Kubo/IPFS with Polygon blockchain integration.
+A Filecoin-like decentralized storage incentive layer built on top of Kubo/IPFS with Polygon blockchain integration. Formerly known as the Incentive Layer.
+
+## Documentation
+
+- [**Kyneto Protocol Overview**](KYNETO_PROTOCOL.md) - Comprehensive technical and economic documentation.
 
 ## Overview
 
@@ -45,7 +49,7 @@ incentive-layer/
 
 - Node.js 18+
 - Kubo/IPFS node running locally
-- Polygon wallet with MATIC for gas
+- Polygon wallet with POL for gas
 
 ### Installation
 
@@ -98,10 +102,11 @@ See [economics_model.md](docs/economics_model.md) for detailed pricing, token ec
 
 - [x] Architecture design
 - [x] Erasure coding configuration (10+5 Reed-Solomon)
-- [ ] Smart contracts implementation
-- [ ] Erasure coding services
-- [ ] CLI tools
-- [ ] Testing & deployment
+- [x] Smart contracts implementation (Polygon Amoy)
+- [x] Erasure coding services
+- [x] Network Dashboard (Real-time monitoring)
+- [/] CLI tools & SDK
+- [ ] Mainnet Testing & Deployment
 
 ## License
 
@@ -113,4 +118,4 @@ This layer **does not modify Kubo source code**. It uses Kubo's HTTP API (`/api/
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.

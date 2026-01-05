@@ -69,3 +69,6 @@ coverage.json
 *.log
 .DS_Store
 Thumbs.db
+
+# Docs folder
+incentive-layer/docs/
