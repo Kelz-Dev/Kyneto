@@ -1,17 +1,3 @@
-# Incentive Layer - Quick Start Guide
-
-## Getting Started
-
-### Prerequisites
-
-1. **Node.js** 18+ installed
-2. **Kubo/IPFS** node running locally
-3. **Polygon wallet** with MATIC for gas fees
-4. **PostgreSQL** database for indexing
-
-### Installation
-
-```bash
 cd incentive-layer
 
 # 1. Install smart contracts
@@ -133,8 +119,8 @@ DATABASE_URL=postgresql://user:password@localhost:5432/incentive_layer
 ## Economics at a Glance
 
 ### Token Supply
-- **Initial**: 500 million STK
-- **Max**: 1 billion STK (with inflation)
+- **Initial**: 500 million KYN
+- **Max**: 1 billion KYN (with inflation)
 - **Inflation**: 5% annually (decreasing 0.5%/year)
 
 ### Pricing

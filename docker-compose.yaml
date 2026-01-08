@@ -1,5 +1,9 @@
 version: '3.8'
+
 services:
+  # ===========================================
+  # IPFS / Kubo Node
+  # ===========================================
   ipfs:
     build: .
     restart: unless-stopped
@@ -10,19 +14,115 @@ services:
     environment:
       - IPFS_PATH=/data/ipfs
     ports:
-      # Swarm listens on all interfaces, so is remotely reachable.
       - 4001:4001/tcp
       - 4001:4001/udp
-      
-      # The following ports only listen on the loopback interface, so are not remotely reachable by default.
-      # If you want to override these or add more ports, see https://docs.docker.com/compose/extends/ .
-      
-      # API port, which includes admin operations, so you probably don't want this remotely accessible.
       - 127.0.0.1:5001:5001
-      
-      # HTTP Gateway
       - 127.0.0.1:8080:8080
+
+  # ===========================================
+  # Kyneto Landing Page
+  # ===========================================
+  landing-page:
+    build:
+      context: ./Landing Page
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=incentive_layer
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./incentive-layer/config/database-schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "user", "-d", "incentive_layer" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Incentive Layer REST API
+  # ===========================================
+  api-server:
+    image: node:18-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/api/rest-api:/app
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
+      - PORT=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "[ -d node_modules ] || npm install; npm run dev"
+    ports:
+      - "3002:3000"
+
+  # ===========================================
+  # Blockchain Indexer Service
+  # ===========================================
+  indexer:
+    image: node:18-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/indexer:/app
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "[ -d node_modules ] || npm install; npm run dev"
+
+  # ===========================================
+  # Erasure Coding Service
+  # ===========================================
+  erasure-coding:
+    image: node:18-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/services/erasure-coding:/app
+    environment:
+      - KUBO_API_URL=http://ipfs:5001
+      - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+    depends_on:
+      - ipfs
+      - postgres
+    command: sh -c "[ -d node_modules ] || npm install; npm run dev"
+
+  # ===========================================
+  # Incentive Layer Dashboard
+  # ===========================================
+  incentive-dashboard:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/dashboard:/usr/share/nginx/html:ro
+    ports:
+      - "3003:80"
+    depends_on:
+      - api-server
+
 volumes:
   ipfs_path:
   ipfs_fuse:
   ipns_fuse:
+  postgres_data:

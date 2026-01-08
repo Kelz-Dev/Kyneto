@@ -37,7 +37,7 @@ services:
       - postgres
     command: sh -c "[ -d node_modules ] || npm install; npm run dev"
     ports:
-      - "3000:3000"
+      - "3002:3000"
 
   # Blockchain Indexer Service
   indexer:

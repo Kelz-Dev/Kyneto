@@ -1,0 +1,26 @@
+{
+    "name": "kyneto-landing-page",
+    "version": "1.0.0",
+    "description": "Kyneto Protocol Landing Page",
+    "main": "index.html",
+    "scripts": {
+        "dev": "concurrently \"npm run watch:sass\" \"live-server\"",
+        "watch:sass": "sass --watch scss/main.scss dist/css/compiled.css",
+        "build:sass": "sass scss/main.scss dist/css/compiled.css --style=compressed --no-source-map",
+        "build:postcss": "postcss dist/css/compiled.css -o dist/css/main.css",
+        "build": "npm run build:sass && npm run build:postcss"
+    },
+    "dependencies": {
+        "preline": "^2.0.3",
+        "lucide-static": "^0.321.0"
+    },
+    "devDependencies": {
+        "autoprefixer": "^10.4.17",
+        "concurrently": "^8.2.2",
+        "live-server": "^1.2.2",
+        "postcss": "^8.4.35",
+        "postcss-cli": "^11.0.0",
+        "sass": "^1.71.1",
+        "tailwindcss": "^3.4.1"
+    }
+}

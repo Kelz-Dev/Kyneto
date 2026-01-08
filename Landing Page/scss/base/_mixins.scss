@@ -1,0 +1,37 @@
+@mixin icon-container($size: 2.4rem, $shape: rounded) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: $size;
+    height: $size;
+
+    @if $shape ==circle {
+        border-radius: 9999px;
+    }
+
+    @else if $shape ==rounded {
+        border-radius: 0.8rem;
+    }
+}
+
+@mixin card-base {
+    @apply bg-white border border-grey-100 rounded-xl shadow-soft;
+
+    .dark & {
+        @apply bg-[#212121] border-[#333333] shadow-none;
+    }
+}
+
+@mixin transition-all {
+    transition: all 250ms ease-in-out;
+}
+
+@mixin hover-bg-subtle {
+    &:hover {
+        @apply bg-grey-50;
+
+        .dark & {
+            @apply bg-grey-800;
+        }
+    }
+}

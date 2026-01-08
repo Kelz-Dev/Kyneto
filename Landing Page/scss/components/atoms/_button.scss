@@ -1,0 +1,46 @@
+@use "../../base/mixins" as *;
+
+.btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-all duration-250 cursor-pointer;
+    font-size: 1.6rem;
+
+    &--primary {
+        @apply bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800;
+
+        .dark & {
+            @apply bg-white text-grey-900 hover:bg-grey-100;
+        }
+    }
+
+    &--secondary {
+        @apply bg-grey-100 text-grey-900 hover:bg-grey-200;
+
+        .dark & {
+            @apply bg-grey-800 text-white hover:bg-grey-700;
+        }
+    }
+
+    &--outline {
+        @apply border border-grey-200 text-grey-900 hover:bg-grey-50;
+
+        .dark & {
+            @apply border-grey-700 text-white hover:bg-grey-800;
+        }
+    }
+
+    &--ghost {
+        @apply text-grey-600 hover:bg-grey-50;
+
+        .dark & {
+            @apply text-grey-400 hover:bg-grey-800;
+        }
+    }
+
+    &--sm {
+        @apply px-4 py-2 text-sm;
+    }
+
+    &--lg {
+        @apply px-8 py-4 text-lg;
+    }
+}

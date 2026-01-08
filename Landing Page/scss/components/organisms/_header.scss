@@ -1,0 +1,31 @@
+.header {
+    @apply sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-grey-100;
+
+    .dark & {
+        @apply bg-[#181818]/80 border-grey-800;
+    }
+
+    &__container {
+        @apply max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between;
+    }
+
+    &__logo {
+        @apply flex items-center gap-2 text-2xl font-bold text-blue-600;
+    }
+
+    &__nav {
+        @apply hidden md:flex items-center gap-8;
+    }
+
+    &__link {
+        @apply text-grey-600 hover:text-blue-600 font-medium transition-colors;
+
+        .dark & {
+            @apply text-grey-400 hover:text-white;
+        }
+    }
+
+    &__actions {
+        @apply flex items-center gap-4;
+    }
+}

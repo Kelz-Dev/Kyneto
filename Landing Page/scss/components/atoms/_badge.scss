@@ -1,0 +1,43 @@
+.badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+
+    &--primary {
+        @apply bg-blue-100 text-blue-800;
+
+        .dark & {
+            @apply bg-blue-900/30 text-blue-400;
+        }
+    }
+
+    &--success {
+        @apply bg-green-100 text-green-800;
+
+        .dark & {
+            @apply bg-green-900/30 text-green-400;
+        }
+    }
+
+    &--warning {
+        @apply bg-yellow-100 text-yellow-800;
+
+        .dark & {
+            @apply bg-yellow-900/30 text-yellow-400;
+        }
+    }
+
+    &--danger {
+        @apply bg-red-100 text-red-800;
+
+        .dark & {
+            @apply bg-red-900/30 text-red-400;
+        }
+    }
+
+    &--neutral {
+        @apply bg-grey-100 text-grey-800;
+
+        .dark & {
+            @apply bg-grey-800 text-grey-300;
+        }
+    }
+}

@@ -1,0 +1,19 @@
+@use "base/variables";
+@use "base/base";
+@use "base/typography";
+@use "base/mixins";
+
+@use "components/atoms/button";
+@use "components/atoms/badge";
+@use "components/atoms/divider";
+
+@use "components/organisms/card";
+@use "components/organisms/header";
+@use "components/organisms/sidebar";
+
+@use "layouts/dashboard";
+@use "layouts/index";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

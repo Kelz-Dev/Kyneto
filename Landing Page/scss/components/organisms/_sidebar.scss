@@ -1,0 +1,23 @@
+.sidebar {
+    @apply fixed inset-y-0 left-0 z-50 w-64 bg-[#181818] text-white transform -translate-x-full transition-transform duration-300 ease-in-out;
+
+    &--open {
+        @apply translate-x-0;
+    }
+
+    &__header {
+        @apply p-6 flex items-center justify-between;
+    }
+
+    &__nav {
+        @apply px-4 py-6 space-y-2;
+    }
+
+    &__link {
+        @apply flex items-center gap-3 px-4 py-3 rounded-lg text-grey-400 hover:bg-grey-800 hover:text-white transition-all;
+
+        &--active {
+            @apply bg-blue-600 text-white;
+        }
+    }
+}

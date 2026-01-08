@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kyneto Protocol | Persistent Decentralized Storage</title>
+    <meta name="description"
+        content="Kyneto Protocol: Polygon-Backed Decentralized Storage on IPFS. 100% data durability with Reed-Solomon Erasure Coding.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="dist/css/main.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body class="layout-dashboard">
+    <!-- Header -->
+    <header class="header">
+        <div class="header__container">
+            <div class="header__logo">
+                <i data-lucide="layers" class="w-8 h-8"></i>
+                <span>Kyneto</span>
+            </div>
+            <nav class="header__nav">
+                <a href="#features" class="header__link">Features</a>
+                <a href="#architecture" class="header__link">Architecture</a>
+                <a href="#tokenomics" class="header__link">Tokenomics</a>
+                <a href="#docs" class="header__link">Docs</a>
+            </nav>
+            <div class="header__actions">
+                <button class="btn btn--ghost md:hidden" id="mobile-menu-toggle">
+                    <i data-lucide="menu"></i>
+                </button>
+                <button class="btn btn--outline btn--sm hidden md:flex" id="theme-toggle">
+                    <i data-lucide="moon" class="dark:hidden"></i>
+                    <i data-lucide="sun" class="hidden dark:block"></i>
+                </button>
+                <a href="http://localhost:3003" class="btn btn--primary btn--sm">Launch App</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="layout-dashboard__main">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero__container">
+                <div class="hero__badge">
+                    <span class="badge badge--primary">Now Live on Polygon Amoy Testnet</span>
+                </div>
+                <h1 class="hero__title">The Persistence Layer for the Decentralized Web</h1>
+                <p class="hero__description">
+                    Kyneto transforms IPFS into a reliable, enterprise-grade storage marketplace.
+                    Powered by Polygon, secured by cryptographic proofs, and optimized for 100% data durability.
+                </p>
+                <div class="hero__actions">
+                    <a href="http://localhost:3003" class="btn btn--primary btn--lg">Start Storing</a>
+                    <button class="btn btn--secondary btn--lg">Become a Provider</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="section section--grey">
+            <div class="section__header">
+                <h2 class="section__title">Enterprise-Grade Decentralized Storage</h2>
+                <p class="section__description">Built for performance, reliability, and economic accountability.</p>
+            </div>
+            <div class="max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="card card--elevated">
+                    <div class="mb-4 text-blue-600">
+                        <i data-lucide="shield-check" class="w-12 h-12"></i>
+                    </div>
+                    <h3 class="card__title mb-2">100% Data Durability</h3>
+                    <p class="card__body">
+                        Reed-Solomon (10+5) Erasure Coding ensures your data survives up to 5 simultaneous node
+                        failures.
+                    </p>
+                </div>
+                <div class="card card--elevated">
+                    <div class="mb-4 text-blue-600">
+                        <i data-lucide="zap" class="w-12 h-12"></i>
+                    </div>
+                    <h3 class="card__title mb-2">Low Latency, Low Cost</h3>
+                    <p class="card__body">
+                        At $0.05/GB/month, Kyneto is significantly cheaper than traditional cloud providers with better
+                        performance.
+                    </p>
+                </div>
+                <div class="card card--elevated">
+                    <div class="mb-4 text-blue-600">
+                        <i data-lucide="refresh-cw" class="w-12 h-12"></i>
+                    </div>
+                    <h3 class="card__title mb-2">Automated Healing</h3>
+                    <p class="card__body">
+                        A self-repairing network that autonomously detects and fixes data loss without user
+                        intervention.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Architecture Section -->
+        <section id="architecture" class="section">
+            <div class="section__header">
+                <h2 class="section__title">Technical Architecture</h2>
+                <p class="section__description">A hybrid orchestration layer sitting between users and a global network
+                    of providers.</p>
+            </div>
+            <div class="max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-6">The Kyneto Stack</h3>
+                        <ul class="space-y-6">
+                            <li class="flex gap-4">
+                                <div
+                                    class="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
+                                    <i data-lucide="box"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold">IPFS (Kubo)</h4>
+                                    <p class="text-grey-600 dark:text-grey-400">The underlying data transport and
+                                        content-addressing layer.</p>
+                                </div>
+                            </li>
+                            <li class="flex gap-4">
+                                <div
+                                    class="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
+                                    <i data-lucide="link"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold">Polygon Blockchain</h4>
+                                    <p class="text-grey-600 dark:text-grey-400">The settlement and verification layer
+                                        for smart contracts and rewards.</p>
+                                </div>
+                            </li>
+                            <li class="flex gap-4">
+                                <div
+                                    class="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
+                                    <i data-lucide="cpu"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold">Orchestration Services</h4>
+                                    <p class="text-grey-600 dark:text-grey-400">Node.js services for erasure coding,
+                                        health monitoring, and repair.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div
+                        class="bg-grey-100 dark:bg-grey-800 rounded-2xl p-8 aspect-video flex items-center justify-center">
+                        <!-- Placeholder for Architecture Diagram -->
+                        <div class="text-center">
+                            <i data-lucide="network" class="w-24 h-24 text-blue-600 mx-auto mb-4 opacity-50"></i>
+                            <p class="text-grey-500">Interactive Architecture Diagram</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tokenomics Section -->
+        <section id="tokenomics" class="section section--grey">
+            <div class="section__header">
+                <h2 class="section__title">The KYN Token</h2>
+                <p class="section__description">Powering the Kyneto ecosystem through incentivized storage.</p>
+            </div>
+            <div
+                class="max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="card">
+                    <h4 class="font-bold mb-2">Stake</h4>
+                    <p class="text-sm text-grey-600 dark:text-grey-400">Providers stake 1,000 KYN to register and commit
+                        capacity.</p>
+                </div>
+                <div class="card">
+                    <h4 class="font-bold mb-2">Earn</h4>
+                    <p class="text-sm text-grey-600 dark:text-grey-400">Earn $0.01/GB for pledged capacity and $0.03/GB
+                        for active usage.</p>
+                </div>
+                <div class="card">
+                    <h4 class="font-bold mb-2">Verify</h4>
+                    <p class="text-sm text-grey-600 dark:text-grey-400">Successful PoSt submissions unlock daily reward
+                        distributions.</p>
+                </div>
+                <div class="card">
+                    <h4 class="font-bold mb-2">Slash</h4>
+                    <p class="text-sm text-grey-600 dark:text-grey-400">Non-compliance leads to slashing, ensuring
+                        network integrity.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-grey-900 text-white py-12">
+        <div class="max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                <div class="col-span-1 md:col-span-2">
+                    <div class="flex items-center gap-2 text-2xl font-bold text-blue-500 mb-6">
+                        <i data-lucide="layers" class="w-8 h-8"></i>
+                        <span>Kyneto</span>
+                    </div>
+                    <p class="text-grey-400 max-w-md">
+                        The future of persistent decentralized storage. Built on IPFS and Polygon.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-6">Protocol</h4>
+                    <ul class="space-y-4 text-grey-400">
+                        <li><a href="#" class="hover:text-white">Whitepaper</a></li>
+                        <li><a href="#" class="hover:text-white">Tokenomics</a></li>
+                        <li><a href="#" class="hover:text-white">Governance</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-6">Community</h4>
+                    <ul class="space-y-4 text-grey-400">
+                        <li><a href="#" class="hover:text-white">Twitter</a></li>
+                        <li><a href="#" class="hover:text-white">Discord</a></li>
+                        <li><a href="#" class="hover:text-white">GitHub</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-grey-800 text-center text-grey-500 text-sm">
+                <p>&copy; 2026 Kyneto Protocol. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+
+        themeToggle.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+        });
+
+        // Check for saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            html.classList.remove('dark');
+        }
+    </script>
+    <script src="./node_modules/preline/dist/preline.js"></script>
+</body>
+
+</html>

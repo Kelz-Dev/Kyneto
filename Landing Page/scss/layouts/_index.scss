@@ -1,0 +1,63 @@
+.hero {
+    @apply relative overflow-hidden py-24 sm:py-32;
+
+    &__container {
+        @apply max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center;
+    }
+
+    &__badge {
+        @apply mb-8;
+    }
+
+    &__title {
+        @apply text-5xl sm:text-7xl font-extrabold tracking-tight text-grey-900 mb-6;
+
+        .dark & {
+            @apply text-white;
+        }
+    }
+
+    &__description {
+        @apply text-xl text-grey-600 max-w-3xl mb-10;
+
+        .dark & {
+            @apply text-grey-400;
+        }
+    }
+
+    &__actions {
+        @apply flex flex-wrap justify-center gap-4;
+    }
+}
+
+.section {
+    @apply py-24;
+
+    &--grey {
+        @apply bg-grey-50;
+
+        .dark & {
+            @apply bg-grey-900/50;
+        }
+    }
+
+    &__header {
+        @apply text-center mb-16;
+    }
+
+    &__title {
+        @apply text-3xl sm:text-4xl font-bold text-grey-900 mb-4;
+
+        .dark & {
+            @apply text-white;
+        }
+    }
+
+    &__description {
+        @apply text-lg text-grey-600 max-w-2xl mx-auto;
+
+        .dark & {
+            @apply text-grey-400;
+        }
+    }
+}

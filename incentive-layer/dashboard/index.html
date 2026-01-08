@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Incentive Layer | Network Dashboard</title>
+    <title>Kyneto | Network Dashboard</title>
     <link rel="stylesheet" href="style.css?v=2">
     <link rel="stylesheet" href="notification.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,8 +27,8 @@
     <div class="app-container">
         <aside class="sidebar">
             <div class="logo">
-                <i class="fa-solid fa-bolt-lightning icon"></i>
-                <h1>Incentive<span>Layer</span></h1>
+                <i class="fa-solid fa-layer-group icon"></i>
+                <h1>Kyneto</h1>
             </div>
             <nav>
                 <button class="nav-item active" onclick="switchView('dashboard')">
@@ -42,6 +42,12 @@
                 </button>
                 <button class="nav-item" onclick="switchView('governance')">
                     <i class="fa-solid fa-scale-balanced"></i> Governance
+                </button>
+                <button class="nav-item" onclick="switchView('files')">
+                    <i class="fa-solid fa-folder-open"></i> My Files
+                </button>
+                <button class="nav-item" onclick="switchView('settings')">
+                    <i class="fa-solid fa-gear"></i> Settings
                 </button>
             </nav>
             <div class="sidebar-footer">
@@ -104,6 +110,9 @@
                     <h2 id="view-title">Network Dashboard</h2>
                 </div>
                 <div class="user-actions">
+                    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
                     <button id="connect-wallet-btn" class="btn-primary" onclick="connectWallet()">
                         <i class="fa-solid fa-wallet"></i> Connect Wallet
                     </button>
@@ -183,14 +192,14 @@
                         <div class="stat-icon"><i class="fa-solid fa-coins"></i></div>
                         <div class="stat-info">
                             <span class="label">Protocol Revenue</span>
-                            <span class="value">0 STK</span>
+                            <span class="value">0 KYN</span>
                         </div>
                     </div>
                     <div class="stat-card clickable" id="stat-burned" onclick="switchView('burned-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-fire"></i></div>
                         <div class="stat-info">
                             <span class="label">Tokens Burned</span>
-                            <span class="value">0 STK</span>
+                            <span class="value">0 KYN</span>
                         </div>
                     </div>
                 </section>
@@ -210,6 +219,7 @@
                                         <th>Status</th>
                                         <th>Size</th>
                                         <th>Created</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -399,8 +409,12 @@
                             <div class="stat-icon"><i class="fa-solid fa-coins"></i></div>
                             <div class="stat-info">
                                 <span class="label">Total Earned</span>
-                                <span class="value">0 STK</span>
+                                <span class="value">0 KYN</span>
                             </div>
+                            <button class="btn-primary btn-sm" onclick="withdrawEarnings()"
+                                style="margin-left: auto; padding: 8px 16px;">
+                                <i class="fa-solid fa-hand-holding-dollar"></i> Withdraw
+                            </button>
                         </div>
                         <div class="stat-card" id="provider-stat-deals">
                             <div class="stat-icon"><i class="fa-solid fa-handshake"></i></div>
@@ -421,7 +435,7 @@
                                 <i class="fa-solid fa-microchip"></i>
                             </div>
                             <h3>No Active Nodes</h3>
-                            <p>You are not currently contributing storage to the network. Start earning STK by becoming
+                            <p>You are not currently contributing storage to the network. Start earning KYN by becoming
                                 a provider.</p>
                             <button class="btn-primary" onclick="switchView('become-provider')">
                                 <i class="fa-solid fa-rocket"></i> Become a Provider
@@ -556,9 +570,9 @@
                             <div class="step-icon"><i class="fa-solid fa-1"></i></div>
                             <div class="step-content">
                                 <h3>Stake Tokens</h3>
-                                <p>Stake a minimum of 1,000 STK tokens to secure the network.</p>
+                                <p>Stake a minimum of 1,000 KYN tokens to secure the network.</p>
                                 <button class="btn-primary" id="stake-btn" onclick="handleStake()">Stake 1,000
-                                    STK</button>
+                                    KYN</button>
                             </div>
                         </div>
                         <div class="step-card disabled" id="step-register">
@@ -569,10 +583,19 @@
                                 <form id="register-node-form" onsubmit="handleRegisterNode(event)">
                                     <div class="form-group">
                                         <label>Capacity (GB)</label>
-                                        <input type="number" placeholder="100" required>
+                                        <input type="number" id="reg-capacity" placeholder="100" required>
                                     </div>
                                     <div class="form-group">
-                                        <label>Region</label>
+                                        <label>Peer ID (IPFS)</label>
+                                        <input type="text" id="reg-peer-id" placeholder="Qm..." required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>API Endpoint</label>
+                                        <input type="url" id="reg-endpoint" placeholder="http://your-node:3002"
+                                            required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label id="region-label">Region</label>
                                         <select id="provider-region" required
                                             style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
                                             <option value="" disabled selected>Select Region</option>
@@ -602,7 +625,7 @@
                         <div class="stat-card">
                             <div class="stat-info">
                                 <span class="label">Treasury Balance</span>
-                                <span class="value">0 STK</span>
+                                <span class="value">0 KYN</span>
                             </div>
                         </div>
                         <div class="stat-card">
@@ -618,6 +641,34 @@
                             <p>No active proposals at this time.</p>
                             <button class="btn-primary" onclick="handleCreateProposal()">Create Proposal</button>
                         </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- My Files View -->
+            <div id="files-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>My Uploaded Files</h2>
+                        <button class="btn-primary" onclick="switchView('create-deal')">
+                            <i class="fa-solid fa-plus"></i> Upload New File
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table id="files-table">
+                            <thead>
+                                <tr>
+                                    <th>File Name</th>
+                                    <th>CID</th>
+                                    <th>Size</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Files will be injected here -->
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             </div>
@@ -641,7 +692,7 @@
                                 </div>
                                 <div class="stat">
                                     <span class="label">Staked</span>
-                                    <span class="value" id="current-stake-display">1,000 STK</span>
+                                    <span class="value" id="current-stake-display">1,000 KYN</span>
                                 </div>
                             </div>
                         </div>
@@ -656,9 +707,9 @@
                                 <label>Required Additional Stake</label>
                                 <div class="stake-preview">
                                     <span id="additional-stake-value">500</span>
-                                    <span class="unit">STK</span>
+                                    <span class="unit">KYN</span>
                                 </div>
-                                <p class="input-hint">10 STK per GB pledged.</p>
+                                <p class="input-hint">10 KYN per GB pledged.</p>
                             </div>
                             <div class="upgrade-actions">
                                 <button type="submit" class="btn-primary">
@@ -715,6 +766,139 @@
                         </div>
                         <button type="submit" class="btn-primary">Initiate Deal</button>
                     </form>
+                </section>
+            </div>
+
+            <!-- Settings View -->
+            <div id="settings-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Protocol Settings</h2>
+                        <button class="btn-primary" onclick="saveSettings()">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                        </button>
+                    </div>
+                    <div class="settings-grid">
+                        <!-- Notification Settings -->
+                        <div class="settings-card">
+                            <div class="card-header-icon">
+                                <i class="fa-solid fa-bell"></i>
+                                <h3>Notifications</h3>
+                            </div>
+                            <p class="subtitle">Manage how you receive alerts and updates.</p>
+
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="label">Deal Status Alerts</span>
+                                    <span class="desc">Get notified when deals are created or completed.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="notify-deals">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="label">Slashing Warnings</span>
+                                    <span class="desc">Critical alerts if your node is at risk of slashing.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="notify-slashing">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="label">Network Updates</span>
+                                    <span class="desc">Stay informed about protocol upgrades and DAO proposals.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="notify-network">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Display Settings -->
+                        <div class="settings-card">
+                            <div class="card-header-icon">
+                                <i class="fa-solid fa-eye"></i>
+                                <h3>Display & Units</h3>
+                            </div>
+                            <p class="subtitle">Customize how data is presented in your dashboard.</p>
+
+                            <div class="form-group">
+                                <label>Primary Currency</label>
+                                <select id="setting-currency" class="setting-select">
+                                    <option value="KYN">KYN (Native Token)</option>
+                                    <option value="USD">USD (Fiat Equivalent)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label>Storage Unit</label>
+                                <select id="setting-unit" class="setting-select">
+                                    <option value="GB">Gigabytes (GB)</option>
+                                    <option value="TB">Terabytes (TB)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Node Configuration -->
+                        <div class="settings-card">
+                            <div class="card-header-icon">
+                                <i class="fa-solid fa-gears"></i>
+                                <h3>Node Configuration</h3>
+                            </div>
+                            <p class="subtitle">Default preferences for your storage nodes.</p>
+
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="label">Auto-Renew Pledges</span>
+                                    <span class="desc">Automatically extend capacity pledges before expiry.</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-auto-renew">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label>Preferred Storage Region</label>
+                                <select id="setting-pref-region" class="setting-select">
+                                    <option value="na">North America</option>
+                                    <option value="eu">Europe</option>
+                                    <option value="asia">Asia</option>
+                                    <option value="sa">South America</option>
+                                    <option value="oc">Oceania</option>
+                                    <option value="af">Africa</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Protocol Info -->
+                        <div class="settings-card">
+                            <div class="card-header-icon">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <h3>Protocol Information</h3>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Network:</span>
+                                <span class="value">Polygon Amoy (Testnet)</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Chain ID:</span>
+                                <span class="value">80002</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">KYN Token:</span>
+                                <span class="value"
+                                    style="font-size: 0.7rem;">0x5FbDB2315678afecb367f032d93F642f64180aa3</span>
+                            </div>
+                        </div>
+                    </div>
                 </section>
             </div>
         </main>

@@ -1,12 +1,3 @@
-# Kyneto Protocol - Polygon-Backed Decentralized Storage
-
-A Filecoin-like decentralized storage incentive layer built on top of Kubo/IPFS with Polygon blockchain integration. Formerly known as the Incentive Layer.
-
-## Documentation
-
-- [**Kyneto Protocol Overview**](KYNETO_PROTOCOL.md) - Comprehensive technical and economic documentation.
-
-## Overview
 
 This project adds economic incentives and blockchain-based contracts to IPFS storage, enabling:
 - **Storage marketplace** with provider pledges and client deals

@@ -241,6 +241,43 @@ app.get('/api/events', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/detect-region - Detect region based on IP
+ */
+app.get('/api/detect-region', async (req: Request, res: Response) => {
+    try {
+        // In a real production environment, we would use the request IP
+        // For local development/demo, we'll use a public IP or a mock
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+        // Using ip-api.com (free for non-commercial use, no API key required for basic)
+        const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,continentCode,countryCode`);
+        const data = await response.json();
+
+        if (data.status === 'fail') {
+            // Fallback for local/private IPs
+            return res.json({ region: 'na', detected: false, message: data.message });
+        }
+
+        // Map continent codes to our region codes
+        const regionMap: { [key: string]: string } = {
+            'NA': 'na',
+            'EU': 'eu',
+            'AS': 'asia',
+            'SA': 'sa',
+            'OC': 'oc',
+            'AF': 'af'
+        };
+
+        const region = regionMap[data.continentCode] || 'na';
+        res.json({ region, detected: true, country: data.countryCode });
+
+    } catch (error) {
+        console.error('Error detecting region:', error);
+        res.json({ region: 'na', detected: false });
+    }
+});
+
+/**
  * POST /api/events - Record a new protocol event (Internal)
  */
 app.post('/api/events', async (req: Request, res: Response) => {

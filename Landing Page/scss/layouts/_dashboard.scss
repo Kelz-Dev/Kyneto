@@ -1,0 +1,15 @@
+.layout-dashboard {
+    @apply min-h-screen bg-white;
+
+    .dark & {
+        @apply bg-[#181818];
+    }
+
+    &__main {
+        @apply pt-20 transition-all duration-300;
+    }
+
+    &__content {
+        @apply max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8 py-8;
+    }
+}

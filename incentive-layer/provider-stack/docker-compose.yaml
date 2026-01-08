@@ -12,7 +12,7 @@ services:
       - ipfs_data:/data/ipfs
     restart: always
 
-  # Incentive Layer Provider Node
+  # Kyneto Provider Node
   provider-node:
     build:
       context: ..
