@@ -4,50 +4,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kyneto | Network Dashboard</title>
-    <link rel="stylesheet" href="style.css?v=2">
-    <link rel="stylesheet" href="notification.css">
+    <title>Kyneto Incentive Layer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js" type="application/javascript"></script>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="notification.css">
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="ethers-5.7.2.min.js"></script>
+    <script>
+        if (!window.ethers) {
+            document.write('<script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"><\/script>');
+        }
+    </script>
     <script type="module">
-        import { createAppKit } from 'https://esm.sh/@reown/appkit@1.1.0/ethers5';
+        import { createAppKit } from 'https://esm.sh/@reown/appkit@1.1.0';
         window.createAppKit = createAppKit;
     </script>
 </head>
 
-<body class="dark-theme">
+<body>
     <div class="glass-bg"></div>
-
     <div class="app-container">
         <aside class="sidebar">
             <div class="logo">
-                <i class="fa-solid fa-layer-group icon"></i>
-                <h1>Kyneto</h1>
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Kyneto</span>
             </div>
+
             <nav>
                 <button class="nav-item active" onclick="switchView('dashboard')">
-                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                    <i class="fa-solid fa-chart-line"></i> <span>Dashboard</span>
                 </button>
                 <button class="nav-item" onclick="switchView('marketplace')">
-                    <i class="fa-solid fa-store"></i> Marketplace
+                    <i class="fa-solid fa-store"></i> <span>Marketplace</span>
                 </button>
                 <button class="nav-item" onclick="switchView('provider')">
-                    <i class="fa-solid fa-server"></i> Provider Portal
+                    <i class="fa-solid fa-server"></i> <span>Provider Portal</span>
                 </button>
                 <button class="nav-item" onclick="switchView('governance')">
-                    <i class="fa-solid fa-scale-balanced"></i> Governance
+                    <i class="fa-solid fa-scale-balanced"></i> <span>Governance</span>
                 </button>
                 <button class="nav-item" onclick="switchView('files')">
-                    <i class="fa-solid fa-folder-open"></i> My Files
+                    <i class="fa-solid fa-folder-open"></i> <span>My Files</span>
                 </button>
                 <button class="nav-item" onclick="switchView('settings')">
-                    <i class="fa-solid fa-gear"></i> Settings
+                    <i class="fa-solid fa-gear"></i> <span>Settings</span>
                 </button>
             </nav>
             <div class="sidebar-footer">
@@ -62,15 +68,15 @@
                             <span class="address" id="sidebar-node-id">Not Connected</span>
                         </div>
                         <div class="dropdown-menu">
-                            <button class="menu-item" onclick="switchView('dashboard')">
+                            <button class="menu-item" onclick="switchView('profile')">
                                 <i class="fa-solid fa-user"></i>
                                 <span>My Profile</span>
                             </button>
-                            <button class="menu-item" onclick="switchView('dashboard')">
+                            <button class="menu-item" onclick="switchView('my-deals')">
                                 <i class="fa-solid fa-handshake"></i>
                                 <span>My Deals</span>
                             </button>
-                            <button class="menu-item" onclick="switchView('dashboard')">
+                            <button class="menu-item" onclick="switchView('earnings')">
                                 <i class="fa-solid fa-coins"></i>
                                 <span>Earnings & Rewards</span>
                             </button>
@@ -126,15 +132,15 @@
                                 <span class="address" id="dropdown-address">0x00...000</span>
                             </div>
                             <div class="dropdown-menu">
-                                <button class="menu-item" onclick="switchView('dashboard')">
+                                <button class="menu-item" onclick="switchView('profile')">
                                     <i class="fa-solid fa-user"></i>
                                     <span>My Profile</span>
                                 </button>
-                                <button class="menu-item" onclick="switchView('dashboard')">
+                                <button class="menu-item" onclick="switchView('my-deals')">
                                     <i class="fa-solid fa-handshake"></i>
                                     <span>My Deals</span>
                                 </button>
-                                <button class="menu-item" onclick="switchView('dashboard')">
+                                <button class="menu-item" onclick="switchView('earnings')">
                                     <i class="fa-solid fa-coins"></i>
                                     <span>Earnings & Rewards</span>
                                 </button>
@@ -164,42 +170,42 @@
                         <div class="stat-icon"><i class="fa-solid fa-handshake"></i></div>
                         <div class="stat-info">
                             <span class="label">Active Deals</span>
-                            <span class="value">0</span>
+                            <span class="value">--</span>
                         </div>
                     </div>
                     <div class="stat-card clickable" id="stat-providers" onclick="switchView('providers-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-microchip"></i></div>
                         <div class="stat-info">
                             <span class="label">Active Providers</span>
-                            <span class="value">0</span>
+                            <span class="value">--</span>
                         </div>
                     </div>
                     <div class="stat-card clickable" id="stat-capacity" onclick="switchView('capacity-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
                         <div class="stat-info">
                             <span class="label">Total Capacity</span>
-                            <span class="value">0 GB</span>
+                            <span class="value">--</span>
                         </div>
                     </div>
                     <div class="stat-card clickable" id="stat-utilization" onclick="switchView('utilization-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-chart-pie"></i></div>
                         <div class="stat-info">
                             <span class="label">Utilization</span>
-                            <span class="value">0%</span>
+                            <span class="value">--</span>
                         </div>
                     </div>
                     <div class="stat-card clickable" id="stat-revenue" onclick="switchView('revenue-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-coins"></i></div>
                         <div class="stat-info">
                             <span class="label">Protocol Revenue</span>
-                            <span class="value">0 KYN</span>
+                            <span class="value">--</span>
                         </div>
                     </div>
                     <div class="stat-card clickable" id="stat-burned" onclick="switchView('burned-detail')">
                         <div class="stat-icon"><i class="fa-solid fa-fire"></i></div>
                         <div class="stat-info">
                             <span class="label">Tokens Burned</span>
-                            <span class="value">0 KYN</span>
+                            <span class="value">--</span>
                         </div>
                     </div>
                 </section>
@@ -402,14 +408,14 @@
                             <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
                             <div class="stat-info">
                                 <span class="label">Node Uptime</span>
-                                <span class="value">0%</span>
+                                <span class="value">--</span>
                             </div>
                         </div>
                         <div class="stat-card" id="provider-stat-earnings">
                             <div class="stat-icon"><i class="fa-solid fa-coins"></i></div>
                             <div class="stat-info">
                                 <span class="label">Total Earned</span>
-                                <span class="value">0 KYN</span>
+                                <span class="value">--</span>
                             </div>
                             <button class="btn-primary btn-sm" onclick="withdrawEarnings()"
                                 style="margin-left: auto; padding: 8px 16px;">
@@ -420,7 +426,7 @@
                             <div class="stat-icon"><i class="fa-solid fa-handshake"></i></div>
                             <div class="stat-info">
                                 <span class="label">Completed Deals</span>
-                                <span class="value">0</span>
+                                <span class="value">--</span>
                             </div>
                         </div>
                     </section>
@@ -465,7 +471,7 @@
                                 </div>
                                 <div class="reputation-visual">
                                     <div class="circular-progress" id="reputation-gauge">
-                                        <div class="value-container" id="reputation-value">0</div>
+                                        <div class="value-container" id="reputation-value">--</div>
                                     </div>
                                 </div>
                                 <div class="reputation-meta">
@@ -478,7 +484,7 @@
                             <div class="storage-card usage-card">
                                 <div class="card-header">
                                     <h4>Storage Allocation</h4>
-                                    <span class="usage-text" id="storage-usage-text">0 / 0 GB</span>
+                                    <span class="usage-text" id="storage-usage-text">-- / --</span>
                                 </div>
                                 <div class="gauge-container">
                                     <div class="gauge-bar-premium">
@@ -494,15 +500,15 @@
                                 <div class="storage-details-grid">
                                     <div class="detail-item">
                                         <span class="label">Pledged</span>
-                                        <span class="value" id="pledged-value">0 GB</span>
+                                        <span class="value" id="pledged-value">--</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="label">Used</span>
-                                        <span class="value" id="used-value">0 GB</span>
+                                        <span class="value" id="used-value">--</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="label">Remaining</span>
-                                        <span class="value" id="remaining-value">0 GB</span>
+                                        <span class="value" id="remaining-value">--</span>
                                     </div>
                                 </div>
                             </div>
@@ -625,13 +631,13 @@
                         <div class="stat-card">
                             <div class="stat-info">
                                 <span class="label">Treasury Balance</span>
-                                <span class="value">0 KYN</span>
+                                <span class="value">--</span>
                             </div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-info">
                                 <span class="label">Total Proposals</span>
-                                <span class="value">0</span>
+                                <span class="value">--</span>
                             </div>
                         </div>
                     </div>
@@ -769,6 +775,192 @@
                 </section>
             </div>
 
+            <!-- Earnings & Rewards View -->
+            <div id="earnings-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Earnings & Rewards</h2>
+                        <button class="btn-primary" onclick="withdrawEarnings()">
+                            <i class="fa-solid fa-hand-holding-dollar"></i> Withdraw All
+                        </button>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-wallet"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Available Balance</span>
+                                <span class="value" id="earnings-available">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Total Earned</span>
+                                <span class="value" id="earnings-total">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-money-bill-transfer"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Total Withdrawn</span>
+                                <span class="value" id="earnings-withdrawn">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-grid-premium" style="margin-top: 20px;">
+                        <div class="detail-card main-chart">
+                            <h4>Earnings History</h4>
+                            <div class="chart-placeholder-large" id="earnings-chart">
+                                <!-- Chart will be simulated here -->
+                            </div>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Revenue Sources</h4>
+                            <div class="usage-breakdown" id="revenue-breakdown">
+                                <!-- Will be populated by JS -->
+                                <div class="empty-state-small">
+                                    <span>--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel" style="margin-top: 20px;">
+                        <div class="panel-header">
+                            <h3>Recent Payouts</h3>
+                        </div>
+                        <div class="table-container">
+                            <table id="payouts-table">
+                                <thead>
+                                    <tr>
+                                        <th>Transaction ID</th>
+                                        <th>Type</th>
+                                        <th>Amount</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Payouts will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- My Profile View -->
+            <div id="profile-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>My Profile</h2>
+                        <button class="btn-secondary" onclick="alert('Edit profile coming soon!')">
+                            <i class="fa-solid fa-pen-to-square"></i> Edit Profile
+                        </button>
+                    </div>
+
+                    <div class="profile-header-card">
+                        <div class="profile-avatar-large">
+                            <i class="fa-solid fa-user-astronaut" style="font-size: 3rem; color: white;"></i>
+                        </div>
+                        <div class="profile-details">
+                            <h3 id="profile-address-large">--</h3>
+                            <span class="profile-badge">Standard User</span>
+                            <div class="profile-meta">
+                                <span><i class="fa-solid fa-calendar-days"></i> Joined: <span
+                                        id="profile-joined">--</span></span>
+                                <span><i class="fa-solid fa-network-wired"></i> Network: <span
+                                        id="profile-network">--</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid" style="margin-top: 20px;">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-wallet"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Wallet Balance</span>
+                                <span class="value" id="profile-balance">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-star"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Reputation Score</span>
+                                <span class="value" id="profile-reputation">--</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-file-contract"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Total Deals</span>
+                                <span class="value" id="profile-total-deals">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel" style="margin-top: 20px;">
+                        <div class="panel-header">
+                            <h3>Recent Activity</h3>
+                        </div>
+                        <div class="activity-feed" id="profile-activity-feed">
+                            <!-- Activity will be injected here -->
+                            <div class="activity-item system">
+                                <span class="time">--</span>
+                                <span class="msg">No recent activity</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- My Deals View -->
+            <div id="my-deals-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>My Deals</h2>
+                        <div class="tab-controls">
+                            <button class="tab-btn active" onclick="switchDealsTab('client')">My Uploads</button>
+                            <button class="tab-btn" onclick="switchDealsTab('provider')">My Storage</button>
+                        </div>
+                    </div>
+
+                    <div class="filters-bar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text" placeholder="Search by Deal ID or CID...">
+                        </div>
+                        <select class="filter-select">
+                            <option value="all">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="my-deals-table">
+                            <thead>
+                                <tr>
+                                    <th>Deal ID</th>
+                                    <th>Content (CID)</th>
+                                    <th>Size</th>
+                                    <th>Price</th>
+                                    <th>Created</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Deals will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
             <!-- Settings View -->
             <div id="settings-view" class="view">
                 <section class="panel">
@@ -895,7 +1087,7 @@
                             <div class="info-row">
                                 <span class="label">KYN Token:</span>
                                 <span class="value"
-                                    style="font-size: 0.7rem;">0x5FbDB2315678afecb367f032d93F642f64180aa3</span>
+                                    style="font-size: 0.7rem;">0xAc526414a2f1c912DFd888Aeb676E72bA78F73Ff</span>
                             </div>
                         </div>
                     </div>

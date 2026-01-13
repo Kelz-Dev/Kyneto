@@ -23,7 +23,7 @@ contract StorageToken is ERC20, Ownable {
     mapping(address => bool) public authorizedMinters;
     mapping(address => bool) public authorizedBurners;
 
-    constructor() ERC20("StorageToken", "STK") {
+    constructor() ERC20("Kyneto", "KYN") {
         _mint(msg.sender, INITIAL_SUPPLY);
         lastInflationTimestamp = block.timestamp;
     }
@@ -209,6 +209,90 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         registry = ProviderRegistry(_registry);
         pledges = CapacityPledge(_pledges);
         treasury = _treasury;
+    }
+
+    struct DealParams {
+        string fileCID;
+        uint256 fileSizeGB;
+        uint256 durationDays;
+        uint256 pricePerGBMonth;
+        address[] selectedProviders;
+        string[] shardCIDs;
+        uint256[] shardSizes;
+    }
+
+    struct ShardAllocation {
+        uint256 shardIndex;
+        string shardCID;
+        uint256 sizeGB;
+        bool active;
+    }
+
+    // Provider => Deal IDs
+    mapping(address => uint256[]) public providerDeals;
+
+    // Events
+    event DealCreated(
+        uint256 indexed dealId,
+        address indexed client,
+        uint256 fileSizeGB,
+        uint256 totalCost
+    );
+    event ShardAssigned(
+        uint256 indexed dealId,
+        address indexed provider,
+        uint256 shardIndex,
+        string shardCID
+    );
+
+    function createDeal(
+        DealParams calldata params
+    ) external nonReentrant returns (uint256) {
+        require(
+            params.selectedProviders.length == 15,
+            "Must have 15 providers"
+        );
+
+        // Calculate total cost (simplified for flattened)
+        uint256 totalMonths = (params.durationDays + 29) / 30;
+        uint256 providerPayment = params.fileSizeGB *
+            params.pricePerGBMonth *
+            totalMonths;
+        uint256 protocolFee = (providerPayment * 200) / 10000; // 2% fee
+        uint256 totalCost = providerPayment + protocolFee;
+
+        // Transfer payment
+        require(
+            token.transferFrom(msg.sender, address(this), totalCost),
+            "Payment failed"
+        );
+
+        uint256 dealId = dealCount++;
+        Deal storage deal = deals[dealId];
+        deal.client = msg.sender;
+        deal.fileCID = params.fileCID;
+        deal.fileSizeGB = params.fileSizeGB;
+        deal.duration = params.durationDays;
+        deal.totalCost = totalCost;
+        deal.startTime = block.timestamp;
+        deal.endTime = block.timestamp + (params.durationDays * 1 days);
+        deal.status = DealStatus.Active;
+        deal.escrowedAmount = totalCost;
+        deal.activeShards = 15;
+
+        for (uint256 i = 0; i < 15; i++) {
+            deal.providers.push(params.selectedProviders[i]);
+            providerDeals[params.selectedProviders[i]].push(dealId);
+            emit ShardAssigned(
+                dealId,
+                params.selectedProviders[i],
+                i,
+                params.shardCIDs[i]
+            );
+        }
+
+        emit DealCreated(dealId, msg.sender, params.fileSizeGB, totalCost);
+        return dealId;
     }
 
     function setTreasury(address _treasury) external onlyOwner {

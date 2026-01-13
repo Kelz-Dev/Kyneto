@@ -2,6 +2,24 @@ const API_URL = window.location.hostname === 'localhost' || window.location.host
     ? 'http://localhost:3002'
     : `http://${window.location.hostname}:3002`;
 
+// Global Error Handler for Debugging
+window.onerror = function (msg, url, line, col, error) {
+    const errorMsg = `Global Error: ${msg}\nLine: ${line}:${col}\nError: ${error}`;
+    console.error(errorMsg);
+    // alert(errorMsg); // Uncomment for loud debugging if console is not accessible
+    return false;
+};
+
+console.log('App.js loaded. API_URL:', API_URL);
+
+// Critical Dependency Check
+if (typeof ethers === 'undefined') {
+    const errorMsg = 'CRITICAL ERROR: Ethers.js failed to load. The dashboard cannot function without it.\nPlease check your internet connection or disable ad blockers.';
+    console.error(errorMsg);
+    alert(errorMsg);
+    throw new Error('Ethers.js missing');
+}
+
 let socket;
 let provider;
 let signer;
@@ -58,14 +76,14 @@ const DISTRIBUTOR_ABI = [
 ];
 
 // Contract Addresses (Hardcoded for Polygon Amoy - Update these with your deployed addresses)
-const KYN_TOKEN_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
-const CAPACITY_PLEDGE_ADDRESS = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
-const STORAGE_MARKETPLACE_ADDRESS = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0';
-const PROVIDER_REGISTRY_ADDRESS = '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9';
-const PROOF_VERIFIER_ADDRESS = '0xDc64a140AaAbE83A934856a75F19704b0874cc45';
-const SLASHING_MANAGER_ADDRESS = '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707';
-const PAYMENT_DISTRIBUTOR_ADDRESS = '0x0165878A594ca255338adfa4d48449f69242Eb8F';
-const TOKEN_VESTING_ADDRESS = '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853';
+const KYN_TOKEN_ADDRESS = '0x943a1F4583dB1aC8B03FD58f753133d29B510B17';
+const CAPACITY_PLEDGE_ADDRESS = '0x16Af84FA7117152a48F49d2eACab961cbae0818b';
+const STORAGE_MARKETPLACE_ADDRESS = '0xc19c805eAfeAe35839D4b27113ec2ca91E8dCa61';
+const PROVIDER_REGISTRY_ADDRESS = '0xad47e6E5cc48526aF2cA26E0BE40c5fE0B4a8027';
+const PROOF_VERIFIER_ADDRESS = '0xB74fA7fD8E6EAd93FBF081dC26abe8321549E7de';
+const SLASHING_MANAGER_ADDRESS = '0x76fE15c685b01890E1E08B0aaf122d33A719d2f9';
+const PAYMENT_DISTRIBUTOR_ADDRESS = '0x0882899CB78D5E11ea5891193a3CB3C2286702eb';
+const TOKEN_VESTING_ADDRESS = '0x0C890Ce1170f2Ec224B968524F85Ab917a470755';
 
 // Settings State
 let settings = {
@@ -94,9 +112,14 @@ function loadSettings() {
 loadSettings();
 
 // Initialize AppKit
-async function initAppKit() {
+async function initAppKit(retries = 0) {
     if (typeof window.createAppKit === 'undefined') {
-        setTimeout(initAppKit, 100);
+        if (retries < 5) {
+            console.log(`AppKit not loaded yet, retrying (${retries + 1}/5)...`);
+            setTimeout(() => initAppKit(retries + 1), 1000);
+        } else {
+            console.warn('AppKit failed to load after multiple retries. Falling back to standard wallet connection.');
+        }
         return;
     }
 
@@ -125,116 +148,174 @@ async function initAppKit() {
     // Listen for account changes
     modal.subscribeProvider(({ address, isConnected, provider: appKitProvider }) => {
         console.log('AppKit State Change:', { isConnected, address });
-        if (isConnected && address) {
-            userAddress = address;
-            provider = new ethers.providers.Web3Provider(appKitProvider);
-            signer = provider.getSigner();
-            updateWalletUI(true);
-            addActivity('System', `Wallet connected (AppKit): ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`, 'system');
-        } else {
-            userAddress = null;
-            updateWalletUI(false);
+        if (isConnected && address && appKitProvider) {
+            initializeWallet(address, appKitProvider, 'AppKit');
+        } else if (!isConnected) {
+            // Only clear if we were previously connected via AppKit
+            if (userAddress && !window.ethereum?.selectedAddress) {
+                initializeWallet(null, null);
+            }
         }
     });
+}
 
-    // Initial check
-    const isConnected = modal.getIsConnected();
-    if (isConnected) {
-        const addr = modal.getAddress();
-        if (addr) {
-            userAddress = addr;
-            updateWalletUI(true);
+// Unified Wallet Initialization
+function initializeWallet(address, rawProvider, source = 'Unknown') {
+    console.log(`Initializing wallet from ${source}:`, address);
+
+    if (!address || !rawProvider) {
+        userAddress = null;
+        provider = null;
+        signer = null;
+        updateWalletUI(false);
+        return;
+    }
+
+    try {
+        // Use temp variables to ensure atomic update
+        const tempProvider = new ethers.providers.Web3Provider(rawProvider);
+        const tempSigner = tempProvider.getSigner();
+
+        // Only update global state if everything succeeded
+        userAddress = address;
+        provider = tempProvider;
+        signer = tempSigner;
+
+        updateWalletUI(true);
+        fetchEarnings();
+
+        if (source !== 'Auto-Check') {
+            addActivity('System', `Wallet connected (${source}): ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`, 'system');
         }
-    } else {
+    } catch (error) {
+        console.error(`Failed to initialize wallet from ${source}:`, error);
+        // Reset state on failure
+        userAddress = null;
+        provider = null;
+        signer = null;
         updateWalletUI(false);
     }
 }
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    fetchStats();
-    fetchDeals();
-    fetchMarketplace();
-    fetchEvents();
-    initWebSocket();
-    initAppKit();
+    console.log('Initializing Dashboard...');
 
-    // Auto-refresh stats every 30 seconds
-    setInterval(fetchStats, 30000);
+    // 1. Theme and Settings
+    try {
+        loadSavedTheme();
+        loadSettings();
+    } catch (e) { console.error('Settings init failed:', e); }
 
-    // Check if wallet is already connected
-    if (typeof window.ethereum !== 'undefined') {
-        try {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            if (accounts.length > 0) {
-                userAddress = accounts[0];
-                updateWalletUI(true);
+    // 2. UI Event Listeners
+    try {
+        // Sidebar Toggle
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', toggleSidebar);
+        }
+
+        // File Upload Listeners
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        if (uploadArea && fileInput) {
+            uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+            uploadArea.addEventListener('dragleave', () => { uploadArea.classList.remove('dragover'); });
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files[0]);
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
+            });
+        }
+
+        // Click outside to close dropdowns
+        document.addEventListener('click', (e) => {
+            const profileTrigger = document.querySelector('.profile-trigger');
+            const profileDropdown = document.getElementById('profile-dropdown');
+            const sidebarProfile = document.querySelector('.sidebar-profile');
+            const sidebarDropdown = document.getElementById('sidebar-dropdown');
+
+            if (profileDropdown && !profileDropdown.classList.contains('hidden') &&
+                profileTrigger && !profileTrigger.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.add('hidden');
+            }
+
+            if (sidebarDropdown && !sidebarDropdown.classList.contains('hidden') &&
+                sidebarProfile && !sidebarProfile.contains(e.target) && !sidebarDropdown.contains(e.target)) {
+                sidebarDropdown.classList.add('hidden');
+            }
+        });
+    } catch (e) { console.error('UI listeners failed:', e); }
+
+    // 3. Data Fetching
+    try {
+        fetchStats();
+        fetchDeals();
+        fetchMarketplace();
+        fetchEvents();
+    } catch (e) { console.error('Data fetch failed:', e); }
+
+    // 4. Network & Wallet
+    try {
+        if (typeof io !== 'undefined') initWebSocket();
+        initAppKit();
+
+        // Auto-refresh stats every 30 seconds
+        setInterval(() => {
+            fetchStats();
+            if (userAddress) fetchEarnings();
+        }, 30000);
+
+        // Check if wallet is already connected with retry logic
+        const checkWalletConnection = async (retries = 5) => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        initializeWallet(accounts[0], window.ethereum, 'Auto-Check');
+
+                        if (!window._walletListenersRegistered) {
+                            window._walletListenersRegistered = true;
+                            window.ethereum.on('accountsChanged', (newAccounts) => {
+                                if (newAccounts.length > 0) initializeWallet(newAccounts[0], window.ethereum, 'MetaMask');
+                                else initializeWallet(null, null);
+                            });
+                            window.ethereum.on('chainChanged', () => window.location.reload());
+                        }
+                    } else {
+                        // Retry if not found immediately (sometimes injection is slow)
+                        if (retries > 0) {
+                            setTimeout(() => checkWalletConnection(retries - 1), 1000);
+                        } else {
+                            if (!userAddress) updateWalletUI(false);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Wallet check failed:', e);
+                    if (!userAddress) updateWalletUI(false);
+                }
             } else {
-                updateWalletUI(false);
+                // Retry if window.ethereum is undefined
+                if (retries > 0) {
+                    setTimeout(() => checkWalletConnection(retries - 1), 1000);
+                } else {
+                    if (!userAddress) updateWalletUI(false);
+                }
             }
-        } catch (e) {
-            console.error('Error checking wallet status:', e);
-            updateWalletUI(false);
+        };
+
+        checkWalletConnection();
+
+        // Fallback: Ensure Connect Button works even if auto-check fails
+        const connectBtn = document.getElementById('connect-wallet-btn');
+        if (connectBtn) {
+            connectBtn.addEventListener('click', connectWallet);
         }
-    } else {
-        updateWalletUI(false);
-    }
-
-    // File Upload Listeners
-    const uploadArea = document.getElementById('upload-area');
-    const fileInput = document.getElementById('file-input');
-
-    if (uploadArea && fileInput) {
-        uploadArea.addEventListener('click', () => fileInput.click());
-
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleFileSelect(files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFileSelect(e.target.files[0]);
-            }
-        });
-    }
-
-    // Sidebar Toggle Listener
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', toggleSidebar);
-    }
-
-    // Click outside to close dropdowns
-    document.addEventListener('click', (e) => {
-        const profileTrigger = document.querySelector('.profile-trigger');
-        const profileDropdown = document.getElementById('profile-dropdown');
-        const sidebarProfile = document.querySelector('.sidebar-profile');
-        const sidebarDropdown = document.getElementById('sidebar-dropdown');
-
-        if (profileDropdown && !profileDropdown.classList.contains('hidden') &&
-            profileTrigger && !profileTrigger.contains(e.target) && !profileDropdown.contains(e.target)) {
-            profileDropdown.classList.add('hidden');
-        }
-
-        if (sidebarDropdown && !sidebarDropdown.classList.contains('hidden') &&
-            sidebarProfile && !sidebarProfile.contains(e.target) && !sidebarDropdown.contains(e.target)) {
-            sidebarDropdown.classList.add('hidden');
-        }
-    });
+    } catch (e) { console.error('Wallet/Network init failed:', e); }
 });
 
 function toggleSidebar() {
@@ -581,39 +662,89 @@ async function connectWallet() {
         console.log('Falling back to direct MetaMask connection');
         if (typeof window.ethereum !== 'undefined') {
             try {
-                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-                if (chainId !== AMOY_CHAIN_ID) {
-                    await switchNetwork();
-                }
-
                 const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                userAddress = accounts[0];
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                signer = provider.getSigner();
-                updateWalletUI(true);
-                addActivity('System', `Wallet connected (Direct - Amoy): ${userAddress.substring(0, 6)}...${userAddress.substring(38)}`, 'system');
 
-                window.ethereum.on('accountsChanged', (accounts) => {
-                    if (accounts.length > 0) {
-                        userAddress = accounts[0];
-                        updateWalletUI(true);
-                    } else {
-                        userAddress = null;
-                        updateWalletUI(false);
+                if (accounts.length > 0) {
+                    // Check network after getting permission
+                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    if (chainId !== AMOY_CHAIN_ID) {
+                        await switchNetwork();
                     }
-                });
 
-                window.ethereum.on('chainChanged', () => {
-                    window.location.reload();
-                });
+                    initializeWallet(accounts[0], window.ethereum, 'MetaMask');
+
+                    // Only register listeners once
+                    if (!window._walletListenersRegistered) {
+                        window._walletListenersRegistered = true;
+                        window.ethereum.on('accountsChanged', (newAccounts) => {
+                            if (newAccounts.length > 0) {
+                                initializeWallet(newAccounts[0], window.ethereum, 'MetaMask');
+                            } else {
+                                initializeWallet(null, null);
+                            }
+                        });
+
+                        window.ethereum.on('chainChanged', () => {
+                            window.location.reload();
+                        });
+                    }
+                }
             } catch (error) {
                 console.error('User rejected connection or network switch:', error);
+                if (error.code === 4001) {
+                    showNotification('error', 'Connection Cancelled', 'You rejected the wallet connection request.');
+                } else {
+                    showNotification('error', 'Connection Failed', error.message || 'Failed to connect wallet.');
+                }
             }
         } else {
-            alert('MetaMask not detected! Please install MetaMask to test the wallet connection.');
+            showNotification('error', 'No Wallet Found', 'Please install MetaMask or another Web3 wallet to connect.');
         }
     }
 }
+
+// Helper to ensure signer is available before contract calls
+async function recoverSigner() {
+    if (signer && userAddress) return true;
+
+    console.log('Signer missing, attempting recovery...');
+
+    // Try MetaMask recovery
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+
+            // If no accounts found, force a request (this makes buttons interactive)
+            if (accounts.length === 0) {
+                console.log('No accounts found, requesting permission...');
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            }
+
+            if (accounts.length > 0) {
+                initializeWallet(accounts[0], window.ethereum, 'Recovery');
+                return !!signer;
+            }
+        } catch (e) {
+            console.error('Signer recovery failed:', e);
+            if (e.code === 4001) {
+                showNotification('error', 'Connection Cancelled', 'You must connect your wallet to proceed.');
+            }
+        }
+    }
+
+    // Try AppKit recovery if connected
+    if (modal && modal.getIsConnected()) {
+        const addr = modal.getAddress();
+        if (addr) {
+            // We can't easily get the provider object from AppKit without an event
+            // but we can at least set the address
+            userAddress = addr;
+        }
+    }
+
+    return false;
+}
+
 
 async function disconnectWallet() {
     if (modal) {
@@ -661,12 +792,20 @@ function updateWalletUI(isConnected) {
     // Sidebar Auth Button
     const sidebarAuthBtn = document.getElementById('sidebar-auth-btn');
 
-    console.log('Updating Wallet UI:', { isConnected, userAddress });
-
-    // Force check if userAddress is present
-    if (userAddress) {
-        isConnected = true;
-    }
+    console.log('Updating Wallet UI:', {
+        isConnected,
+        userAddress,
+        hasSigner: !!signer,
+        elementsFound: {
+            connectBtn: !!connectBtn,
+            userProfile: !!userProfile,
+            dropdownAddr: !!dropdownAddr,
+            sidebarNodeId: !!sidebarNodeId,
+            sidebarName: !!sidebarName,
+            sidebarStatus: !!sidebarStatus,
+            sidebarAuthBtn: !!sidebarAuthBtn
+        }
+    });
 
     if (isConnected && userAddress) {
         // Hide Connect Button, Show Profile
@@ -791,6 +930,9 @@ function switchView(viewId) {
             'burned-detail': 'Token Burn Analytics',
             'become-provider': 'Become a Provider',
             'upgrade-pledge': 'Upgrade Storage Pledge',
+            'earnings': 'Earnings & Rewards',
+            'profile': 'My Profile',
+            'my-deals': 'My Deals',
             'settings': 'Protocol Settings'
         };
         document.getElementById('view-title').textContent = titles[viewId] || 'Dashboard';
@@ -804,6 +946,20 @@ function switchView(viewId) {
             document.getElementById('setting-unit').value = settings.display.unit;
             document.getElementById('setting-auto-renew').checked = settings.node.autoRenew;
             document.getElementById('setting-pref-region').value = settings.node.region;
+        }
+
+        // Load earnings data if entering earnings view
+        if (viewId === 'earnings') {
+            fetchEarnings(); // Refresh available balance
+            fetchEarningsHistory();
+        }
+
+        if (viewId === 'profile') {
+            renderProfile();
+        }
+
+        if (viewId === 'my-deals') {
+            fetchMyDeals('client'); // Default to client deals
         }
 
         // Simulate data for detail views
@@ -850,9 +1006,12 @@ function formatStorage(gb) {
 }
 
 async function handleStake() {
-    if (!userAddress || !signer) {
-        showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
-        return;
+    if (!signer || !userAddress) {
+        const recovered = await recoverSigner();
+        if (!recovered) {
+            showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+            return;
+        }
     }
 
     if (!KYN_TOKEN_ADDRESS || !CAPACITY_PLEDGE_ADDRESS) {
@@ -866,25 +1025,37 @@ async function handleStake() {
 
     try {
         stakeBtn.disabled = true;
-        stakeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Approving...';
+        stakeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking Balance...';
 
         const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, signer);
         const amount = ethers.utils.parseUnits("1000", 18);
 
+        // Check balance before approval
+        const balance = await tokenContract.balanceOf(userAddress);
+        if (balance.lt(amount)) {
+            showNotification('error', 'Insufficient KYN Balance', `You need at least 1,000 KYN to stake. Current balance: ${ethers.utils.formatUnits(balance, 18)} KYN`);
+            stakeBtn.disabled = false;
+            stakeBtn.textContent = originalText;
+            return;
+        }
+
+        stakeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Approving...';
+
         addActivity('System', 'Initiating KYN approval...', 'system');
+        showNotification('info', 'Confirm Transaction', 'Please confirm the KYN approval in your wallet.');
 
         // Request approval
         const tx = await tokenContract.approve(CAPACITY_PLEDGE_ADDRESS, amount);
 
-        showNotification('info', 'Transaction Pending', 'KYN approval transaction submitted.');
+        showNotification('info', 'Transaction Pending', 'KYN approval transaction submitted. Waiting for confirmation...');
         addActivity('System', `Approval pending: ${tx.hash.substring(0, 10)}...`, 'system');
 
         await tx.wait();
 
-        showNotification('success', 'Approval Successful', 'KYN tokens approved for staking.');
+        showNotification('success', 'Approval Successful', 'KYN tokens approved. You can now register your node.');
         addActivity('User', 'Approved 1,000 KYN for staking', 'user');
 
-        stakeBtn.textContent = 'Staked ✓';
+        stakeBtn.textContent = 'Approved ✓';
         document.getElementById('step-register').classList.remove('disabled');
 
         // Auto-fill Peer ID if possible (simulated for now)
@@ -899,11 +1070,23 @@ async function handleStake() {
 
     } catch (error) {
         console.error('Staking failed:', error);
-        showNotification('error', 'Transaction Failed', error.message || 'Failed to approve tokens.');
+
+        // User-friendly error messages
+        if (error.code === 4001 || error.message.includes('rejected')) {
+            showNotification('error', 'Transaction Cancelled', 'You rejected the approval transaction.');
+        } else if (error.message.includes('insufficient funds')) {
+            showNotification('error', 'Insufficient Balance', 'You need more KYN tokens or POL for gas fees.');
+        } else if (error.message.includes('ERC20: insufficient allowance')) {
+            showNotification('error', 'Token Balance Low', 'You do not have enough KYN tokens to stake.');
+        } else {
+            showNotification('error', 'Transaction Failed', error.reason || error.message || 'Failed to approve tokens.');
+        }
+
         stakeBtn.disabled = false;
         stakeBtn.textContent = originalText;
     }
 }
+
 
 function saveSettings() {
     settings.notifications.deals = document.getElementById('notify-deals').checked;
@@ -963,9 +1146,12 @@ async function handleRegisterNode(event) {
         return;
     }
 
-    if (!userAddress || !signer) {
-        showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
-        return;
+    if (!signer || !userAddress) {
+        const recovered = await recoverSigner();
+        if (!recovered) {
+            showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+            return;
+        }
     }
 
     const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -979,15 +1165,39 @@ async function handleRegisterNode(event) {
 
             const peerId = document.getElementById('reg-peer-id').value;
             const endpoint = document.getElementById('reg-endpoint').value;
-            const capacity = document.getElementById('reg-capacity').value;
+            const capacity = Math.ceil(document.getElementById('reg-capacity').value);
             const region = document.getElementById('provider-region').value;
 
             const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, signer);
             const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
 
+            console.log('--- DEBUG: Registration Start ---');
+            console.log('Signer:', userAddress);
+            console.log('Registry Address:', PROVIDER_REGISTRY_ADDRESS);
+            console.log('Peer ID:', peerId);
+            console.log('Endpoint:', endpoint);
+            console.log('Region:', region);
+            console.log('Capacity (rounded):', capacity);
+
+            // Pre-check: Is user already registered?
+            try {
+                const providerData = await registryContract.providers(userAddress);
+                console.log('Provider Data:', providerData);
+                if (providerData && providerData[0] === true) { // registered boolean is first return value
+                    console.error('DEBUG: User is ALREADY REGISTERED. Transaction will revert.');
+                    showNotification('error', 'Registration Failed', 'This wallet is already registered as a provider.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                    return;
+                }
+            } catch (err) {
+                console.error('DEBUG: Failed to check provider status:', err);
+            }
+
             addActivity('System', 'Registering provider in registry...', 'system');
 
             // 1. Register in ProviderRegistry
+            console.log('Sending registerProvider transaction...');
             const regTx = await registryContract.registerProvider(peerId, endpoint, region);
             showNotification('info', 'Registration Pending', 'Provider registration transaction submitted.');
             await regTx.wait();
@@ -1129,9 +1339,12 @@ async function handleCreateDeal(event) {
     const size = document.getElementById('deal-size').value;
     const cid = document.getElementById('file-cid').value || 'Qm' + Math.random().toString(36).substring(2, 15);
 
-    if (!userAddress || !signer) {
-        showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
-        return;
+    if (!signer || !userAddress) {
+        const recovered = await recoverSigner();
+        if (!recovered) {
+            showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+            return;
+        }
     }
 
     const submitBtn = event.target.querySelector('button[type="submit"]');
@@ -1148,7 +1361,8 @@ async function handleCreateDeal(event) {
             // 1. Calculate cost (simulated: 0.1 KYN per GB/Month)
             const durationDays = 30;
             const pricePerGBMonth = ethers.utils.parseUnits("0.1", 18);
-            const totalCost = pricePerGBMonth.mul(Math.ceil(size));
+            const roundedSize = Math.ceil(size);
+            const totalCost = pricePerGBMonth.mul(roundedSize);
 
             addActivity('System', 'Approving KYN for deal...', 'system');
             const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost);
@@ -1158,12 +1372,12 @@ async function handleCreateDeal(event) {
             // We'll use some dummy addresses if we don't have enough real ones
             const selectedProviders = Array(15).fill(0).map(() => ethers.Wallet.createRandom().address);
             const shardCIDs = Array(15).fill(0).map(() => cid + '_shard');
-            const shardSizes = Array(15).fill(0).map(() => Math.ceil(size * 1024 / 10)); // Simplified
+            const shardSizes = Array(15).fill(0).map(() => Math.ceil(roundedSize * 1024 / 10)); // Simplified
 
             addActivity('System', 'Initiating marketplace deal...', 'system');
             const dealTx = await marketplaceContract.createDeal(
                 cid,
-                size,
+                roundedSize,
                 durationDays,
                 pricePerGBMonth,
                 selectedProviders,
@@ -1207,59 +1421,13 @@ async function handleCreateDeal(event) {
     }
 }
 
-async function fetchEarnings() {
-    if (!userAddress || !PAYMENT_DISTRIBUTOR_ADDRESS) return;
-
-    try {
-        const distributor = new ethers.Contract(PAYMENT_DISTRIBUTOR_ADDRESS, DISTRIBUTOR_ABI, provider);
-        const breakdown = await distributor.getEarningsBreakdown(userAddress);
-
-        // breakdown: [capacity, usage, bonuses, total, withdrawn, available]
-        const available = ethers.utils.formatUnits(breakdown[5], 18);
-        const total = ethers.utils.formatUnits(breakdown[3], 18);
-
-        const earningsValue = document.getElementById('provider-stat-earnings').querySelector('.value');
-        if (earningsValue) earningsValue.textContent = `${parseFloat(available).toFixed(2)} KYN`;
-
-        return {
-            available,
-            total,
-            withdrawn: ethers.utils.formatUnits(breakdown[4], 18)
-        };
-    } catch (error) {
-        console.error('Error fetching earnings:', error);
-    }
-}
-
-async function withdrawEarnings() {
-    if (!userAddress || !signer || !PAYMENT_DISTRIBUTOR_ADDRESS) return;
-
-    try {
-        const distributor = new ethers.Contract(PAYMENT_DISTRIBUTOR_ADDRESS, DISTRIBUTOR_ABI, signer);
-        const available = await distributor.getAvailableEarnings(userAddress);
-
-        if (available.eq(0)) {
-            showNotification('info', 'No Earnings', 'You have no earnings available to withdraw.');
-            return;
-        }
-
-        addActivity('System', 'Initiating earnings withdrawal...', 'system');
-        const tx = await distributor.withdrawEarnings();
-        showNotification('info', 'Withdrawal Pending', 'Withdrawal transaction submitted.');
-        await tx.wait();
-
-        showNotification('success', 'Withdrawal Successful', `Successfully withdrawn ${ethers.utils.formatUnits(available, 18)} KYN.`);
-        addActivity('User', `Withdrew ${ethers.utils.formatUnits(available, 18)} KYN from earnings`, 'user');
-
-        fetchEarnings(); // Refresh
-    } catch (error) {
-        console.error('Withdrawal failed:', error);
-        showNotification('error', 'Withdrawal Failed', error.message || 'Failed to withdraw earnings.');
-    }
-}
+// Note: fetchEarnings and withdrawEarnings are defined below to avoid duplication
 
 async function submitProof(dealId) {
-    if (!userAddress || !signer || !PROOF_VERIFIER_ADDRESS) return;
+    if (!signer || !userAddress) {
+        const recovered = await recoverSigner();
+        if (!recovered || !PROOF_VERIFIER_ADDRESS) return;
+    }
 
     try {
         const verifier = new ethers.Contract(PROOF_VERIFIER_ADDRESS, PROOF_VERIFIER_ABI, signer);
@@ -1389,5 +1557,359 @@ function loadSavedTheme() {
     }
 }
 
-// Initialize theme on load
-document.addEventListener('DOMContentLoaded', loadSavedTheme);
+
+async function fetchEarnings() {
+    if (!userAddress || !provider) return;
+
+    try {
+        const distributorContract = new ethers.Contract(PAYMENT_DISTRIBUTOR_ADDRESS, DISTRIBUTOR_ABI, provider);
+        const earnings = await distributorContract.getAvailableEarnings(userAddress);
+
+        const earningsFormatted = ethers.utils.formatEther(earnings);
+        updateEarningsUI(earningsFormatted);
+    } catch (error) {
+        console.error('Error fetching earnings:', error);
+        // Fallback to 0 if error, or keep previous value
+        updateEarningsUI('0');
+    }
+}
+
+
+function fetchEarningsHistory() {
+    // Fetch history data from blockchain or indexer
+    // Currently showing empty states until real data integration
+
+    // TODO: Replace with actual API/contract calls
+    // For now, show clean empty states
+    const payouts = [];
+    const revenueData = [];
+    const chartData = [];
+
+    renderPayouts(payouts);
+    renderEarningsChart(chartData);
+    renderRevenueBreakdown(revenueData);
+}
+
+function renderRevenueBreakdown(data) {
+    const container = document.getElementById('revenue-breakdown');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!data || data.length === 0) {
+        container.innerHTML = '<div class="empty-state-small"><span>No data available</span></div>';
+        return;
+    }
+
+    data.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'breakdown-item';
+        div.innerHTML = `
+            <span class="label">${item.label}</span>
+            <div class="bar-container">
+                <div class="bar" style="width: ${item.percentage}%"></div>
+            </div>
+            <span class="value">${item.percentage}%</span>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function renderPayouts(payouts) {
+    const tbody = document.querySelector('#payouts-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (payouts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No transaction history found</td></tr>';
+        return;
+    }
+
+    payouts.forEach(tx => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-family: monospace;">${tx.id.substring(0, 10)}...${tx.id.substring(60)}</td>
+            <td>${tx.type}</td>
+            <td style="color: var(--success); font-weight: 600;">+${tx.amount} KYN</td>
+            <td>${new Date(tx.date).toLocaleDateString()}</td>
+            <td><span class="status-pill active">${tx.status}</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderEarningsChart(data) {
+    const chartContainer = document.getElementById('earnings-chart');
+    if (!chartContainer) return;
+
+    if (!data || data.length === 0) {
+        chartContainer.innerHTML = '<div class="empty-state-small" style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">No history available</div>';
+        return;
+    }
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // Simple CSS bar chart simulation
+    chartContainer.innerHTML = `
+        <div class="bar-chart-premium" style="height: 100%; align-items: flex-end; display: flex; gap: 10px; padding-bottom: 20px;">
+            ${data.map((h, i) => `
+                <div class="bar-group" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                    <div class="bar-premium" style="width: 100%; height: ${h}%; background: var(--primary); border-radius: 4px; opacity: 0.8;"></div>
+                    <span style="font-size: 0.7rem; color: var(--text-secondary); white-space: nowrap;">${days[i % 7]}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function updateEarningsUI(amount) {
+    // Update Provider Portal Card
+    const earningsValue = document.querySelector('#provider-stat-earnings .value');
+    if (earningsValue) {
+        earningsValue.textContent = `${parseFloat(amount).toFixed(2)} KYN`;
+    }
+
+    // Update Earnings Page Cards
+    const available = document.getElementById('earnings-available');
+    if (available) {
+        available.textContent = `${parseFloat(amount).toFixed(2)} KYN`;
+    }
+
+    // Simulate Total Earned = Available + Withdrawn (Fixed 500 for demo)
+    const total = document.getElementById('earnings-total');
+    if (total) {
+        const val = parseFloat(amount) + 500;
+        total.textContent = `${val.toFixed(2)} KYN`;
+    }
+
+    const withdrawn = document.getElementById('earnings-withdrawn');
+    if (withdrawn) {
+        withdrawn.textContent = `500.00 KYN`;
+    }
+}
+
+
+async function withdrawEarnings() {
+    if (!signer || !userAddress) {
+        const recovered = await recoverSigner();
+        if (!recovered) {
+            showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+            return;
+        }
+    }
+
+    // Find the withdraw button (could be in Provider Portal or Earnings page)
+    const btn = document.querySelector('#provider-stat-earnings button') ||
+        document.querySelector('#earnings-view .btn-primary');
+    const originalText = btn ? btn.innerHTML : '';
+
+    try {
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
+        }
+
+        const distributorContract = new ethers.Contract(PAYMENT_DISTRIBUTOR_ADDRESS, DISTRIBUTOR_ABI, signer);
+
+        // Check available earnings first
+        const available = await distributorContract.getAvailableEarnings(userAddress);
+
+        if (available.eq(0)) {
+            showNotification('info', 'No Earnings', 'You have no earnings available to withdraw.');
+            return;
+        }
+
+        addActivity('System', 'Initiating withdrawal...', 'system');
+        showNotification('info', 'Transaction Pending', 'Please confirm the transaction in your wallet.');
+
+        const tx = await distributorContract.withdrawEarnings();
+        addActivity('System', `Withdrawal transaction sent: ${tx.hash.substring(0, 10)}...`, 'system');
+        showNotification('info', 'Withdrawal Pending', 'Transaction submitted. Waiting for confirmation...');
+
+        await tx.wait();
+
+        const formattedAmount = ethers.utils.formatEther(available);
+        addActivity('User', `Successfully withdrew ${parseFloat(formattedAmount).toFixed(4)} KYN`, 'user');
+        showNotification('success', 'Withdrawal Successful', `${parseFloat(formattedAmount).toFixed(4)} KYN has been transferred to your wallet.`);
+
+        // Refresh earnings display
+        fetchEarnings();
+
+    } catch (error) {
+        console.error('Withdrawal failed:', error);
+        addActivity('System', `Withdrawal failed: ${error.message}`, 'error');
+
+        // User-friendly error messages
+        if (error.code === 4001 || error.message.includes('rejected')) {
+            showNotification('error', 'Transaction Cancelled', 'You rejected the transaction.');
+        } else if (error.message.includes('insufficient funds')) {
+            showNotification('error', 'Insufficient Gas', 'You need more POL to pay for gas fees.');
+        } else {
+            showNotification('error', 'Withdrawal Failed', error.reason || error.message || 'An error occurred. Please try again.');
+        }
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+}
+
+
+
+let currentDealsTab = 'client';
+
+function switchDealsTab(tab) {
+    currentDealsTab = tab;
+
+    // Update buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.textContent.includes(tab === 'client' ? 'Uploads' : 'Storage'));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    fetchMyDeals(tab);
+}
+
+async function fetchMyDeals(type) {
+    const tbody = document.querySelector('#my-deals-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
+
+    try {
+        // In a real app, we would fetch from different endpoints based on type
+        // For now, we'll use the same deals endpoint but filter/simulate
+        const response = await fetch(`${API_URL}/api/deals`);
+        const data = await response.json();
+        let deals = data.deals || [];
+
+        // Simulate filtering or different data for provider view
+        if (type === 'provider') {
+            // Just for demo, show a subset or modified list
+            deals = deals.map(d => ({ ...d, status: 'active' }));
+        }
+
+        renderMyDealsTable(deals, type);
+    } catch (error) {
+        console.error('Error fetching deals:', error);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No deals found</td></tr>';
+    }
+}
+
+function renderMyDealsTable(deals, type) {
+    const tbody = document.querySelector('#my-deals-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (deals.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No deals found</td></tr>';
+        return;
+    }
+
+    deals.forEach(deal => {
+        const tr = document.createElement('tr');
+        const price = (deal.file_size_gb * 0.5).toFixed(4); // Simulated price calc
+
+        tr.innerHTML = `
+            <td style="font-family: monospace;">#${deal.deal_id}</td>
+            <td style="font-family: monospace; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${deal.file_cid}</td>
+            <td>${deal.file_size_gb} GB</td>
+            <td>${price} KYN</td>
+            <td>${new Date(deal.created_at).toLocaleDateString()}</td>
+            <td><span class="status-pill ${deal.status}">${deal.status}</span></td>
+            <td>
+                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// ============================================
+// PROFILE VIEW FUNCTIONS
+// ============================================
+
+async function renderProfile() {
+    const addressEl = document.getElementById('profile-address-large');
+    const joinedEl = document.getElementById('profile-joined');
+    const networkEl = document.getElementById('profile-network');
+    const balanceEl = document.getElementById('profile-balance');
+    const reputationEl = document.getElementById('profile-reputation');
+    const totalDealsEl = document.getElementById('profile-total-deals');
+
+    if (!userAddress) {
+        if (addressEl) addressEl.textContent = 'Not Connected';
+        if (joinedEl) joinedEl.textContent = '--';
+        if (networkEl) networkEl.textContent = '--';
+        if (balanceEl) balanceEl.textContent = '--';
+        if (reputationEl) reputationEl.textContent = '--';
+        if (totalDealsEl) totalDealsEl.textContent = '--';
+        return;
+    }
+
+    // 1. Truncate address for display
+    const truncatedAddress = `${userAddress.substring(0, 8)}...${userAddress.substring(userAddress.length - 6)}`;
+    if (addressEl) {
+        addressEl.textContent = truncatedAddress;
+        addressEl.title = userAddress; // Full address on hover
+    }
+
+    // 2. Dynamic Joined Date (Persist via localStorage for simulation)
+    const storageKey = `kyneto_joined_${userAddress}`;
+    let joinedTimestamp = localStorage.getItem(storageKey);
+
+    if (!joinedTimestamp) {
+        joinedTimestamp = Date.now();
+        localStorage.setItem(storageKey, joinedTimestamp);
+    }
+
+    const joinedDate = new Date(parseInt(joinedTimestamp));
+    const monthYear = joinedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    if (joinedEl) joinedEl.textContent = monthYear;
+
+    // 3. Dynamic Network Check
+    if (networkEl && provider) {
+        try {
+            const network = await provider.getNetwork();
+            const chainId = network.chainId;
+
+            // Polygon Amoy: 80002, Polygon Mainnet: 137
+            if (chainId === 80002) {
+                networkEl.textContent = 'Polygon Amoy';
+                networkEl.style.color = '';
+            } else if (chainId === 137) {
+                networkEl.textContent = 'Polygon Mainnet';
+                networkEl.style.color = '';
+            } else {
+                networkEl.innerHTML = '<span style="color: var(--error);">Wrong Network!</span>';
+            }
+        } catch (e) {
+            console.error('Error getting network:', e);
+            networkEl.textContent = 'Unknown';
+        }
+    }
+
+    // 4. Wallet Balance
+    if (balanceEl && provider) {
+        try {
+            const balance = await provider.getBalance(userAddress);
+            balanceEl.textContent = `${parseFloat(ethers.utils.formatEther(balance)).toFixed(4)} POL`;
+        } catch (e) {
+            console.error('Error getting balance:', e);
+            balanceEl.textContent = '0.00 POL';
+        }
+    }
+
+    // 5. TODO: Fetch real reputation and deals from contract/API
+    // For now, show placeholders indicating data is not available
+    if (reputationEl) reputationEl.textContent = '--';
+    if (totalDealsEl) totalDealsEl.textContent = '--';
+
+    // 6. Copy main activity feed to profile feed
+    const mainFeed = document.getElementById('activity-feed');
+    const profileFeed = document.getElementById('profile-activity-feed');
+    if (mainFeed && profileFeed) {
+        profileFeed.innerHTML = mainFeed.innerHTML;
+    }
+}
+

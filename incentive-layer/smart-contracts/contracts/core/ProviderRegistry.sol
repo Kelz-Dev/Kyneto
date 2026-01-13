@@ -17,37 +17,49 @@ contract ProviderRegistry is Ownable {
         string endpoint; // Provider API endpoint
         string region; // Geographic region for diversity
         uint256 totalDealsCompleted;
-        uint256 totalDeals Failed;
+        uint256 totalDealsFailed;
         uint256 totalSlashingEvents;
         bool active; // Can be deactivated for cooldown period
         uint256 deactivatedUntil; // Timestamp when provider can reactivate
     }
-    
+
     mapping(address => Provider) public providers;
     address[] public providerList;
-    
+
     // Reputation thresholds
     uint256 public constant INITIAL_REPUTATION = 50;
     uint256 public constant MAX_REPUTATION = 100;
     uint256 public constant MIN_REPUTATION = 0;
     uint256 public constant COOLDOWN_PERIOD = 7 days;
-    
+
     // Events
-    event ProviderRegistered(address indexed provider, string peerId, string region);
+    event ProviderRegistered(
+        address indexed provider,
+        string peerId,
+        string region
+    );
     event ProviderUpdated(address indexed provider);
-    event ReputationUpdated(address indexed provider, uint256 newScore, string reason);
+    event ReputationUpdated(
+        address indexed provider,
+        uint256 newScore,
+        string reason
+    );
     event ProviderDeactivated(address indexed provider, uint256 reactivateTime);
     event ProviderReactivated(address indexed provider);
-    
-   constructor() Ownable(msg.sender) {}
-    
+
+    constructor() Ownable(msg.sender) {}
+
     /**
      * @dev Register as a storage provider
      */
-    function registerProvider(string calldata peerId, string calldata endpoint, string calldata region) external {
+    function registerProvider(
+        string calldata peerId,
+        string calldata endpoint,
+        string calldata region
+    ) external {
         require(!providers[msg.sender].registered, "Already registered");
         require(bytes(peerId).length > 0, "Invalid peer ID");
-        
+
         providers[msg.sender] = Provider({
             registered: true,
             registrationTime: block.timestamp,
@@ -62,174 +74,208 @@ contract ProviderRegistry is Ownable {
             active: true,
             deactivatedUntil: 0
         });
-        
+
         providerList.push(msg.sender);
-        
+
         emit ProviderRegistered(msg.sender, peerId, region);
     }
-    
+
     /**
      * @dev Update provider information
      */
-    function updateProvider(string calldata endpoint, string calldata region) external {
+    function updateProvider(
+        string calldata endpoint,
+        string calldata region
+    ) external {
         require(providers[msg.sender].registered, "Not registered");
-        
+
         providers[msg.sender].endpoint = endpoint;
         providers[msg.sender].region = region;
-        
+
         emit ProviderUpdated(msg.sender);
     }
-    
+
     /**
      * @dev Update total capacity (called by CapacityPledge contract)
      */
-    function updateCapacity(address provider, uint256 newTotalCapacityGB) external onlyOwner {
+    function updateCapacity(
+        address provider,
+        uint256 newTotalCapacityGB
+    ) external onlyOwner {
         require(providers[provider].registered, "Provider not registered");
         providers[provider].totalCapacityGB = newTotalCapacityGB;
     }
-    
+
     /**
      * @dev Increase reputation (successful deal or proof)
      */
-    function increaseReputation(address provider, uint256 amount, string calldata reason) external onlyOwner {
+    function increaseReputation(
+        address provider,
+        uint256 amount,
+        string memory reason
+    ) public onlyOwner {
         require(providers[provider].registered, "Provider not registered");
-        
+
         uint256 newScore = providers[provider].reputationScore + amount;
         if (newScore > MAX_REPUTATION) {
             newScore = MAX_REPUTATION;
         }
-        
+
         providers[provider].reputationScore = newScore;
         emit ReputationUpdated(provider, newScore, reason);
     }
-    
+
     /**
      * @dev Decrease reputation (failed deal, missed proof, slashing)
      */
-    function decreaseReputation(address provider, uint256 amount, string calldata reason) external onlyOwner {
+    function decreaseReputation(
+        address provider,
+        uint256 amount,
+        string memory reason
+    ) public onlyOwner {
         require(providers[provider].registered, "Provider not registered");
-        
+
         uint256 currentScore = providers[provider].reputationScore;
-        uint256 newScore = currentScore > amount ? currentScore - amount : MIN_REPUTATION;
-        
+        uint256 newScore = currentScore > amount
+            ? currentScore - amount
+            : MIN_REPUTATION;
+
         providers[provider].reputationScore = newScore;
         emit ReputationUpdated(provider, newScore, reason);
-        
+
         // Auto-deactivate if reputation drops too low
         if (newScore < 20) {
             deactivateProvider(provider);
         }
     }
-    
+
     /**
      * @dev Record successful deal completion
      */
     function recordDealCompleted(address provider) external onlyOwner {
         require(providers[provider].registered, "Provider not registered");
         providers[provider].totalDealsCompleted++;
-        
+
         // Small reputation increase for successful deals
         increaseReputation(provider, 1, "Successful deal completion");
     }
-    
+
     /**
      * @dev Record failed deal
      */
     function recordDealFailed(address provider) external onlyOwner {
         require(providers[provider].registered, "Provider not registered");
         providers[provider].totalDealsFailed++;
-        
+
         // Reputation decrease for failed deals
         decreaseReputation(provider, 5, "Failed deal");
     }
-    
+
     /**
      * @dev Record slashing event
      */
     function recordSlashing(address provider) external onlyOwner {
         require(providers[provider].registered, "Provider not registered");
         providers[provider].totalSlashingEvents++;
-        
+
         // Significant reputation decrease for slashing
         decreaseReputation(provider, 20, "Slashing event");
-        
+
         // Deactivate after 5 slashing events
         if (providers[provider].totalSlashingEvents >= 5) {
             deactivateProvider(provider);
         }
     }
-    
+
     /**
      * @dev Deactivate a provider (cooldown period)
      */
     function deactivateProvider(address provider) internal {
         providers[provider].active = false;
-        providers[provider].deactivatedUntil = block.timestamp + COOLDOWN_PERIOD;
-        
-        emit ProviderDeactivated(provider, providers[provider].deactivatedUntil);
+        providers[provider].deactivatedUntil =
+            block.timestamp +
+            COOLDOWN_PERIOD;
+
+        emit ProviderDeactivated(
+            provider,
+            providers[provider].deactivatedUntil
+        );
     }
-    
+
     /**
      * @dev Reactivate provider after cooldown
      */
     function reactivateProvider() external {
         require(providers[msg.sender].registered, "Not registered");
         require(!providers[msg.sender].active, "Already active");
-        require(block.timestamp >= providers[msg.sender].deactivatedUntil, "Cooldown not complete");
-        
+        require(
+            block.timestamp >= providers[msg.sender].deactivatedUntil,
+            "Cooldown not complete"
+        );
+
         providers[msg.sender].active = true;
         providers[msg.sender].reputationScore = INITIAL_REPUTATION; // Reset to initial
         providers[msg.sender].totalSlashingEvents = 0; // Clear slashing history
-        
+
         emit ProviderReactivated(msg.sender);
     }
-    
+
     /**
      * @dev Check if provider is active and available
      */
     function isProviderActive(address provider) external view returns (bool) {
         return providers[provider].registered && providers[provider].active;
     }
-    
+
     /**
      * @dev Get provider details
      */
-    function getProvider(address provider) external view returns (Provider memory) {
+    function getProvider(
+        address provider
+    ) external view returns (Provider memory) {
         return providers[provider];
     }
-    
+
     /**
      * @dev Get total number of registered providers
      */
     function getProviderCount() external view returns (uint256) {
         return providerList.length;
     }
-    
+
     /**
      * @dev Get list of active providers (for shard placement)
      */
-    function getActiveProviders(uint256 minReputation) external view returns (address[] memory) {
+    function getActiveProviders(
+        uint256 minReputation
+    ) external view returns (address[] memory) {
         uint256 activeCount = 0;
-        
+
         // Count active providers
         for (uint256 i = 0; i < providerList.length; i++) {
             address provider = providerList[i];
-            if (providers[provider].active && providers[provider].reputationScore >= minReputation) {
+            if (
+                providers[provider].active &&
+                providers[provider].reputationScore >= minReputation
+            ) {
                 activeCount++;
             }
         }
-        
+
         // Build array of active providers
         address[] memory activeProviders = new address[](activeCount);
         uint256 index = 0;
         for (uint256 i = 0; i < providerList.length; i++) {
             address provider = providerList[i];
-            if (providers[provider].active && providers[provider].reputationScore >= minReputation) {
+            if (
+                providers[provider].active &&
+                providers[provider].reputationScore >= minReputation
+            ) {
                 activeProviders[index] = provider;
                 index++;
             }
         }
-        
+
         return activeProviders;
     }
 }

@@ -251,7 +251,7 @@ app.get('/api/detect-region', async (req: Request, res: Response) => {
 
         // Using ip-api.com (free for non-commercial use, no API key required for basic)
         const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,continentCode,countryCode`);
-        const data = await response.json();
+        const data: any = await response.json();
 
         if (data.status === 'fail') {
             // Fallback for local/private IPs

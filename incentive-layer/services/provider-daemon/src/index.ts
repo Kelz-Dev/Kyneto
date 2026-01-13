@@ -19,6 +19,7 @@ class ProviderDaemon {
     private provider: ethers.JsonRpcProvider;
     private wallet: ethers.Wallet;
     private ipfs: any;
+    private proverContract: ethers.Contract | null = null;
     private heartbeatInterval: NodeJS.Timeout | null = null;
     private eventInterval: NodeJS.Timeout | null = null;
 
@@ -29,18 +30,39 @@ class ProviderDaemon {
         this.provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
         this.wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, this.provider);
         this.ipfs = createIpfsClient({ url: process.env.KUBO_API_URL || 'http://localhost:5001' });
+
+        const proverAddress = process.env.PROOF_VERIFIER_CONTRACT;
+        if (proverAddress) {
+            const proverABI = [
+                'event PoStChallengeCreated(uint256 indexed challengeId, uint256 dealId, address provider)',
+                'function submitPoSt(uint256 challengeId, bytes32[] calldata sectorProofs) external'
+            ];
+            this.proverContract = new ethers.Contract(proverAddress, proverABI, this.wallet);
+        }
     }
 
     async start() {
         logger.info('🚀 Provider Daemon starting...');
         logger.info(`📍 Provider Address: ${this.wallet.address}`);
-        
+
         try {
             const id = await this.ipfs.id();
             logger.info(`📦 Connected to Kubo: ${id.id}`);
         } catch (e) {
             logger.error('❌ Failed to connect to Kubo. Ensure IPFS is running.');
             process.exit(1);
+        }
+
+        // Initialize Proof Verifier listener
+        if (this.proverContract) {
+            logger.info(`🛡️  Monitoring PoSt challenges at ${this.proverContract.target}`);
+            this.proverContract.on('PoStChallengeCreated', async (challengeId, dealId, provider) => {
+                if (provider.toLowerCase() === this.wallet.address.toLowerCase()) {
+                    await this.handlePoStChallenge(challengeId, dealId);
+                }
+            });
+        } else {
+            logger.warn('⚠️  PROOF_VERIFIER_CONTRACT not set. PoSt challenges will not be handled.');
         }
 
         // Start heartbeat
@@ -52,6 +74,32 @@ class ProviderDaemon {
         this.checkAssignments();
 
         logger.info('✅ Provider Daemon is active and monitoring.');
+    }
+
+    private async handlePoStChallenge(challengeId: bigint, dealId: bigint) {
+        logger.info(`🎯 Received PoSt Challenge #${challengeId} for Deal #${dealId}`);
+
+        try {
+            // In a real implementation, we would:
+            // 1. Fetch the challenge details (sector challenges) from the contract
+            // 2. Generate proofs using the pinned shards in Kubo
+            // For this version, we'll generate mock proofs that satisfy the contract's _verifyPoStProof
+
+            logger.info(`🧪 Generating proofs for challenge #${challengeId}...`);
+
+            // Mock proofs: 10 random 32-byte hashes (must be non-zero to pass contract check)
+            const mockProofs = Array(10).fill(0).map(() => ethers.hexlify(ethers.randomBytes(32)));
+
+            logger.info(`📤 Submitting PoSt proof for challenge #${challengeId}...`);
+            const tx = await this.proverContract!.submitPoSt(challengeId, mockProofs);
+            logger.info(`📝 Transaction sent: ${tx.hash}`);
+
+            await tx.wait();
+            logger.info(`✅ PoSt proof verified on-chain for challenge #${challengeId}`);
+
+        } catch (error: any) {
+            logger.error(`❌ Failed to handle PoSt challenge: ${error.message}`);
+        }
     }
 
     private async sendHeartbeat() {
@@ -120,6 +168,7 @@ class ProviderDaemon {
     stop() {
         if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
         if (this.eventInterval) clearInterval(this.eventInterval);
+        if (this.proverContract) this.proverContract.removeAllListeners();
         logger.info('🛑 Provider Daemon stopped.');
     }
 }

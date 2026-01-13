@@ -506,6 +506,18 @@ Members of IPFS community provide Kubo support on [discussion forum category her
 
 Need help with IPFS itself? Learn where to get help and support at https://ipfs.tech/help.
 
+## Kyneto Incentive Layer
+
+This repository includes the **Kyneto Incentive Layer**, which adds economic incentives and blockchain-based contracts to IPFS storage.
+
+### Dashboard vs. Daemon: How Pledging Works
+- **The Dashboard**: Used for **on-chain financial commitments**. You stake KYN and reserve space via smart contracts.
+- **The Provider Daemon**: Used for **physical storage and verification**. It runs on your local machine, pins data to your Kubo node, and submits proofs to the blockchain.
+
+**Note**: You must run the daemon to fulfill your pledge. Failure to do so will result in **Slashing** (loss of staked tokens).
+
+For more details, see the [Incentive Layer Documentation](incentive-layer/README.md).
+
 ## License
 
 This project is dual-licensed under Apache 2.0 and MIT terms:

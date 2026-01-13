@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -16,16 +16,16 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     StorageToken public immutable token;
     ProviderRegistry public immutable registry;
     CapacityPledge public immutable pledges;
-    
+
     // Protocol Fees
     address public treasury;
     uint256 public protocolFeeBasisPoints = 200; // 2.00%
     uint256 public constant MAX_FEE_BASIS_POINTS = 1000; // 10% max
     uint256 public totalFeesCollected;
-    
+
     uint256 public constant SHARDS_PER_FILE = 15; // 10 data + 5 parity
     uint256 public constant MIN_PROVIDERS = 10; // Minimum to reconstruct
-    
+
     struct Deal {
         address client;
         string fileCID; // IPFS CID of original file
@@ -41,112 +41,167 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         DealStatus status;
         uint256 escrowedAmount;
     }
-    
+
     struct ShardAllocation {
         uint256 shardIndex; // 0-14
         string shardCID; // IPFS CID of shard
         uint256 sizeGB;
         bool active;
     }
-    
+
     enum DealStatus {
         Active,
         Completed,
         Failed,
         Cancelled
     }
-    
+
     mapping(uint256 => Deal) public deals;
     uint256 public dealCount;
-    
+
     // Provider => Deal IDs
     mapping(address => uint256[]) public providerDeals;
-    
+
     // Events
-    event DealCreated(uint256 indexed dealId, address indexed client, uint256 fileSizeGB, uint256 totalCost);
-    event ShardAssigned(uint256 indexed dealId, address indexed provider, uint256 shardIndex, string shardCID);
+    event DealCreated(
+        uint256 indexed dealId,
+        address indexed client,
+        uint256 fileSizeGB,
+        uint256 totalCost
+    );
+    event ShardAssigned(
+        uint256 indexed dealId,
+        address indexed provider,
+        uint256 shardIndex,
+        string shardCID
+    );
     event DealCompleted(uint256 indexed dealId);
     event DealFailed(uint256 indexed dealId, string reason);
-    event ShardLost(uint256 indexed dealId, address indexed provider, uint256 shardIndex);
-    event ShardRepaired(uint256 indexed dealId, address indexed newProvider, uint256 shardIndex);
+    event ShardLost(
+        uint256 indexed dealId,
+        address indexed provider,
+        uint256 shardIndex
+    );
+    event ShardRepaired(
+        uint256 indexed dealId,
+        address indexed newProvider,
+        uint256 shardIndex
+    );
     event ProtocolFeeUpdated(uint256 newFee);
     event TreasuryUpdated(address newTreasury);
     event FeesWithdrawn(address indexed to, uint256 amount);
-    
-    constructor(address _token, address _registry, address _pledges, address _treasury) Ownable(msg.sender) {
+
+    constructor(
+        address _token,
+        address _registry,
+        address _pledges,
+        address _treasury
+    ) Ownable(msg.sender) {
         token = StorageToken(_token);
         registry = ProviderRegistry(_registry);
         pledges = CapacityPledge(_pledges);
         treasury = _treasury;
     }
-    
+
     /**
      * @dev Create a storage deal
      * Called after file has been erasure coded into 15 shards
      */
+    struct DealParams {
+        string fileCID;
+        uint256 fileSizeGB;
+        uint256 durationDays;
+        uint256 pricePerGBMonth;
+        address[] selectedProviders;
+        string[] shardCIDs;
+        uint256[] shardSizes;
+    }
+
     function createDeal(
-        string calldata fileCID,
-        uint256 fileSizeGB,
-        uint256 durationDays,
-        uint256 pricePerGBMonth,
-        address[] calldata selectedProviders,
-        string[] calldata shardCIDs,
-        uint256[] calldata shardSizes
+        DealParams calldata params
     ) external nonReentrant returns (uint256) {
-        require(selectedProviders.length == SHARDS_PER_FILE, "Must have 15 providers");
-        require(shardCIDs.length == SHARDS_PER_FILE, "Must have 15 shard CIDs");
-        require(shardSizes.length == SHARDS_PER_FILE, "Must have 15 shard sizes");
-        
+        require(
+            params.selectedProviders.length == SHARDS_PER_FILE,
+            "Must have 15 providers"
+        );
+        require(
+            params.shardCIDs.length == SHARDS_PER_FILE,
+            "Must have 15 shard CIDs"
+        );
+        require(
+            params.shardSizes.length == SHARDS_PER_FILE,
+            "Must have 15 shard sizes"
+        );
+
         // Verify all providers are active
-        for (uint256 i = 0; i < selectedProviders.length; i++) {
-            require(registry.isProviderActive(selectedProviders[i]), "Provider not active");
-            require(selectedProviders[i] != address(0), "Invalid provider");
+        for (uint256 i = 0; i < params.selectedProviders.length; i++) {
+            require(
+                registry.isProviderActive(params.selectedProviders[i]),
+                "Provider not active"
+            );
+            require(
+                params.selectedProviders[i] != address(0),
+                "Invalid provider"
+            );
         }
-        
+
         // Calculate total cost and fees
-        uint256 totalMonths = (durationDays + 29) / 30; // Round up to months
-        uint256 providerPayment = fileSizeGB * pricePerGBMonth * totalMonths;
-        uint256 protocolFee = (providerPayment * protocolFeeBasisPoints) / 10000;
+        uint256 totalMonths = (params.durationDays + 29) / 30; // Round up to months
+        uint256 providerPayment = params.fileSizeGB *
+            params.pricePerGBMonth *
+            totalMonths;
+        uint256 protocolFee = (providerPayment * protocolFeeBasisPoints) /
+            10000;
         uint256 totalCost = providerPayment + protocolFee;
-        
+
         // Transfer payment to escrow
-        require(token.transferFrom(msg.sender, address(this), totalCost), "Payment failed");
-        
+        require(
+            token.transferFrom(msg.sender, address(this), totalCost),
+            "Payment failed"
+        );
+
         totalFeesCollected += protocolFee;
-        
+
         // Create deal
         uint256 dealId = dealCount++;
         Deal storage deal = deals[dealId];
         deal.client = msg.sender;
-        deal.fileCID = fileCID;
-        deal.fileSizeGB = fileSizeGB;
-        deal.duration = durationDays;
-        deal.pricePerGBMonth = pricePerGBMonth;
+        deal.fileCID = params.fileCID;
+        deal.fileSizeGB = params.fileSizeGB;
+        deal.duration = params.durationDays;
+        deal.pricePerGBMonth = params.pricePerGBMonth;
         deal.totalCost = totalCost;
         deal.startTime = block.timestamp;
-        deal.endTime = block.timestamp + (durationDays * 1 days);
+        deal.endTime = block.timestamp + (params.durationDays * 1 days);
         deal.status = DealStatus.Active;
         deal.escrowedAmount = totalCost;
         deal.activeShards = SHARDS_PER_FILE;
-        
+
         // Assign shards to providers
         for (uint256 i = 0; i < SHARDS_PER_FILE; i++) {
-            deal.providers.push(selectedProviders[i]);
-            deal.shardAllocations[selectedProviders[i]] = ShardAllocation({
+            deal.providers.push(params.selectedProviders[i]);
+            deal.shardAllocations[
+                params.selectedProviders[i]
+            ] = ShardAllocation({
                 shardIndex: i,
-                shardCID: shardCIDs[i],
-                sizeGB: shardSizes[i],
+                shardCID: params.shardCIDs[i],
+                sizeGB: params.shardSizes[i],
                 active: true
             });
-            
-            providerDeals[selectedProviders[i]].push(dealId);
-            emit ShardAssigned(dealId, selectedProviders[i], i, shardCIDs[i]);
+
+            providerDeals[params.selectedProviders[i]].push(dealId);
+            emit ShardAssigned(
+                dealId,
+                params.selectedProviders[i],
+                i,
+                params.shardCIDs[i]
+            );
         }
-        
-        emit DealCreated(dealId, msg.sender, fileSizeGB, totalCost);
+
+        emit DealCreated(dealId, msg.sender, params.fileSizeGB, totalCost);
         return dealId;
     }
-    
+
     /**
      * @dev Complete a deal (called when duration expires)
      */
@@ -155,52 +210,65 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         require(deal.status == DealStatus.Active, "Deal not active");
         require(block.timestamp >= deal.endTime, "Deal not expired");
         require(deal.activeShards >= MIN_PROVIDERS, "Too many shard failures");
-        
+
         deal.status = DealStatus.Completed;
-        
+
         // This function just marks as complete
         // PaymentDistributor will handle actual payment distribution
-        
+
         // Update provider stats
         for (uint256 i = 0; i < deal.providers.length; i++) {
             if (deal.shardAllocations[deal.providers[i]].active) {
                 registry.recordDealCompleted(deal.providers[i]);
             }
         }
-        
+
         emit DealCompleted(dealId);
     }
-    
+
     /**
      * @dev Report a lost shard (provider went offline)
      * Called by monitoring service
      */
-    function reportLostShard(uint256 dealId, address provider) external onlyOwner {
+    function reportLostShard(
+        uint256 dealId,
+        address provider
+    ) external onlyOwner {
         Deal storage deal = deals[dealId];
         require(deal.status == DealStatus.Active, "Deal not active");
-        require(deal.shardAllocations[provider].active, "Shard already inactive");
-        
+        require(
+            deal.shardAllocations[provider].active,
+            "Shard already inactive"
+        );
+
         deal.shardAllocations[provider].active = false;
         deal.activeShards--;
-        
-        emit ShardLost(dealId, provider, deal.shardAllocations[provider].shardIndex);
-        
+
+        emit ShardLost(
+            dealId,
+            provider,
+            deal.shardAllocations[provider].shardIndex
+        );
+
         // Mark deal as failed if too many shards lost
         if (deal.activeShards < MIN_PROVIDERS) {
             deal.status = DealStatus.Failed;
-            
+
             // Refund client
             if (deal.escrowedAmount > 0) {
                 uint256 refundAmount = deal.escrowedAmount;
                 deal.escrowedAmount = 0;
-                require(token.transfer(deal.client, refundAmount), "Refund failed");
+                require(
+                    token.transfer(deal.client, refundAmount),
+                    "Refund failed"
+                );
             }
-            
+
             emit DealFailed(dealId, "Too many shard failures");
             registry.recordDealFailed(provider);
         }
     }
-    
+
     /**
      * @dev Repair a shard (assign to new provider)
      * Called by repair service after reconstructing shard
@@ -213,15 +281,21 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     ) external onlyOwner {
         Deal storage deal = deals[dealId];
         require(deal.status == DealStatus.Active, "Deal not active");
-        require(!deal.shardAllocations[oldProvider].active, "Old shard still active");
-        require(registry.isProviderActive(newProvider), "New provider not active");
-        
+        require(
+            !deal.shardAllocations[oldProvider].active,
+            "Old shard still active"
+        );
+        require(
+            registry.isProviderActive(newProvider),
+            "New provider not active"
+        );
+
         uint256 shardIndex = deal.shardAllocations[oldProvider].shardIndex;
         uint256 shardSize = deal.shardAllocations[oldProvider].sizeGB;
-        
+
         // Remove old allocation
         delete deal.shardAllocations[oldProvider];
-        
+
         // Create new allocation
         deal.shardAllocations[newProvider] = ShardAllocation({
             shardIndex: shardIndex,
@@ -229,7 +303,7 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
             sizeGB: shardSize,
             active: true
         });
-        
+
         // Update providers array
         for (uint256 i = 0; i < deal.providers.length; i++) {
             if (deal.providers[i] == oldProvider) {
@@ -237,27 +311,33 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
                 break;
             }
         }
-        
+
         deal.activeShards++;
         providerDeals[newProvider].push(dealId);
-        
+
         emit ShardRepaired(dealId, newProvider, shardIndex);
     }
-    
+
     /**
      * @dev Get deal details
      */
-    function getDeal(uint256 dealId) external view returns (
-        address client,
-        string memory fileCID,
-        uint256 fileSizeGB,
-        uint256 duration,
-        uint256 totalCost,
-        uint256 startTime,
-        uint256 endTime,
-        uint256 activeShards,
-        DealStatus status
-    ) {
+    function getDeal(
+        uint256 dealId
+    )
+        external
+        view
+        returns (
+            address client,
+            string memory fileCID,
+            uint256 fileSizeGB,
+            uint256 duration,
+            uint256 totalCost,
+            uint256 startTime,
+            uint256 endTime,
+            uint256 activeShards,
+            DealStatus status
+        )
+    {
         Deal storage deal = deals[dealId];
         return (
             deal.client,
@@ -271,31 +351,44 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
             deal.status
         );
     }
-    
+
     /**
      * @dev Get providers for a deal
      */
-    function getDealProviders(uint256 dealId) external view returns (address[] memory) {
+    function getDealProviders(
+        uint256 dealId
+    ) external view returns (address[] memory) {
         return deals[dealId].providers;
     }
-    
+
     /**
      * @dev Get shard info for a provider in a deal
      */
-    function getShardAllocation(uint256 dealId, address provider) external view returns (
-        uint256 shardIndex,
-        string memory shardCID,
-        uint256 sizeGB,
-        bool active
-    ) {
-        ShardAllocation storage shard = deals[dealId].shardAllocations[provider];
+    function getShardAllocation(
+        uint256 dealId,
+        address provider
+    )
+        external
+        view
+        returns (
+            uint256 shardIndex,
+            string memory shardCID,
+            uint256 sizeGB,
+            bool active
+        )
+    {
+        ShardAllocation storage shard = deals[dealId].shardAllocations[
+            provider
+        ];
         return (shard.shardIndex, shard.shardCID, shard.sizeGB, shard.active);
     }
-    
+
     /**
      * @dev Get all deals for a provider
      */
-    function getProviderDeals(address provider) external view returns (uint256[] memory) {
+    function getProviderDeals(
+        address provider
+    ) external view returns (uint256[] memory) {
         return providerDeals[provider];
     }
 

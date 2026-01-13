@@ -34,6 +34,14 @@ incentive-layer/
 **Filecoin-Style Proofs**: PoRep (initial) + PoSt (continuous 24h verification)  
 **Migration Ready**: Easy migration from Polygon to custom blockchain  
 
+## Dashboard vs. Daemon: How Pledging Works
+
+- **Dashboard**: Your "Management Console" for signing contracts, staking KYN, and checking earnings.
+- **Daemon**: Your "Worker Bee" that runs on your laptop, pins data to Kubo, and submits cryptographic proofs.
+
+> [!IMPORTANT]
+> Pledging on the dashboard is only the **commitment**. You must run the **provider-daemon** to fulfill that commitment and avoid being slashed.
+
 ## Quick Start
 
 ### Prerequisites

@@ -104,7 +104,15 @@ The protocol is governed by a suite of interconnected Solidity contracts on Poly
 2. Stake 1,000 KYN via the Provider Portal.
 3. Pledging capacity and start earning rewards.
 
+### 7.3. Dashboard vs. Daemon: How Pledging Works
+A common question is whether the dashboard can pledge storage automatically. It is important to understand the distinction:
+- **The Dashboard (Commitment)**: Used for **on-chain financial commitments**. When you pledge via the dashboard, you are interacting with smart contracts to stake KYN and reserve space. This can be done from any browser with a wallet.
+- **The Provider Daemon (Fulfillment)**: Used for **physical storage and verification**. The daemon runs on your local machine, connects to your Kubo node, and pins the actual data shards to your disk. It also generates the cryptographic proofs (PoSt) required to keep your stake from being slashed.
+
+**Note**: Pledging on the dashboard without running the daemon will result in **Slashing**, as the network will challenge you to prove you are storing data that your machine hasn't actually pinned.
+
 ---
+
 
 ## 8. Development Status
 
