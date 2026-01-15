@@ -510,11 +510,13 @@ Need help with IPFS itself? Learn where to get help and support at https://ipfs.
 
 This repository includes the **Kyneto Incentive Layer**, which adds economic incentives and blockchain-based contracts to IPFS storage.
 
-### Dashboard vs. Daemon: How Pledging Works
-- **The Dashboard**: Used for **on-chain financial commitments**. You stake KYN and reserve space via smart contracts.
-- **The Provider Daemon**: Used for **physical storage and verification**. It runs on your local machine, pins data to your Kubo node, and submits proofs to the blockchain.
+### Why Polygon?
+Kyneto is built on the Polygon blockchain to ensure a seamless, cost-effective, and scalable experience.
+- **Economic Viability**: Ultra-low gas fees make daily Proof-of-Spacetime (PoSt) verifications sustainable.
+- **Web-Speed Finality**: 2-second block times ensure storage deals are processed almost instantly.
+- **Scalability**: High throughput allows the network to scale to thousands of providers without congestion.
 
-**Note**: You must run the daemon to fulfill your pledge. Failure to do so will result in **Slashing** (loss of staked tokens).
+**Note**: While Polygon is secured by 105 validator nodes, the **Kyneto Storage Provider** network is permissionless and designed to scale to thousands of independent nodes globally.
 
 For more details, see the [Incentive Layer Documentation](incentive-layer/README.md).
 

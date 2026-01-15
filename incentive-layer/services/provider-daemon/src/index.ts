@@ -3,6 +3,10 @@ import { create as createIpfsClient } from 'ipfs-http-client';
 import * as dotenv from 'dotenv';
 import axios from 'axios';
 import winston from 'winston';
+import { MerkleTree } from 'merkletreejs';
+import keccak256 from 'keccak256';
+import * as fs from 'fs';
+import * as path from 'path';
 
 dotenv.config();
 
@@ -22,20 +26,29 @@ class ProviderDaemon {
     private proverContract: ethers.Contract | null = null;
     private heartbeatInterval: NodeJS.Timeout | null = null;
     private eventInterval: NodeJS.Timeout | null = null;
+    private merkleTrees: Map<string, MerkleTree> = new Map();
+    private shardData: Map<string, Buffer[]> = new Map();
 
     private readonly API_URL = process.env.API_URL || 'http://localhost:3000';
     private readonly HEARTBEAT_MS = 30000; // 30 seconds
+    private readonly SECTOR_SIZE = 1024; // 1KB sectors for Merkle tree
+    private readonly DATA_DIR = path.join(process.cwd(), 'data');
 
     constructor() {
         this.provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
         this.wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, this.provider);
         this.ipfs = createIpfsClient({ url: process.env.KUBO_API_URL || 'http://localhost:5001' });
 
+        if (!fs.existsSync(this.DATA_DIR)) {
+            fs.mkdirSync(this.DATA_DIR);
+        }
+
         const proverAddress = process.env.PROOF_VERIFIER_CONTRACT;
         if (proverAddress) {
             const proverABI = [
                 'event PoStChallengeCreated(uint256 indexed challengeId, uint256 dealId, address provider)',
-                'function submitPoSt(uint256 challengeId, bytes32[] calldata sectorProofs) external'
+                'function submitPoSt(uint256 challengeId, bytes32[] calldata leafData, bytes32[][] calldata proofs) external',
+                'function postChallenges(uint256) view returns (uint256 dealId, address provider, uint256 challengeTimestamp, uint256 deadline, bool submitted, bool verified)'
             ];
             this.proverContract = new ethers.Contract(proverAddress, proverABI, this.wallet);
         }
@@ -80,18 +93,48 @@ class ProviderDaemon {
         logger.info(`🎯 Received PoSt Challenge #${challengeId} for Deal #${dealId}`);
 
         try {
-            // In a real implementation, we would:
-            // 1. Fetch the challenge details (sector challenges) from the contract
-            // 2. Generate proofs using the pinned shards in Kubo
-            // For this version, we'll generate mock proofs that satisfy the contract's _verifyPoStProof
+            if (!this.proverContract) return;
 
-            logger.info(`🧪 Generating proofs for challenge #${challengeId}...`);
+            logger.info(`🧪 Generating real Merkle proofs for challenge #${challengeId}...`);
 
-            // Mock proofs: 10 random 32-byte hashes (must be non-zero to pass contract check)
-            const mockProofs = Array(10).fill(0).map(() => ethers.hexlify(ethers.randomBytes(32)));
+            // We need the shard CID associated with this deal
+            const response = await axios.get(`${this.API_URL}/api/deals/${dealId}`);
+            const shard = response.data.shards.find((s: any) => s.provider_address === this.wallet.address);
 
-            logger.info(`📤 Submitting PoSt proof for challenge #${challengeId}...`);
-            const tx = await this.proverContract!.submitPoSt(challengeId, mockProofs);
+            if (!shard) {
+                throw new Error(`No shard found for deal ${dealId} assigned to this provider`);
+            }
+
+            const cid = shard.shard_cid;
+            let tree = this.merkleTrees.get(cid);
+            let sectors = this.shardData.get(cid);
+
+            if (!tree || !sectors) {
+                await this.ensurePinned(cid);
+                tree = this.merkleTrees.get(cid);
+                sectors = this.shardData.get(cid);
+            }
+
+            if (!tree || !sectors) {
+                throw new Error(`Failed to load Merkle tree for shard ${cid}`);
+            }
+
+            // For this demo, we'll use fixed indices [0..9] as planned
+            const indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+            const leafData: string[] = [];
+            const proofs: string[][] = [];
+
+            for (const index of indices) {
+                const sector = sectors[index % sectors.length];
+                leafData.push(ethers.hexlify(sector));
+
+                const proof = tree.getHexProof(keccak256(sector));
+                proofs.push(proof);
+            }
+
+            logger.info(`📤 Submitting real PoSt proof for challenge #${challengeId}...`);
+            const tx = await this.proverContract.submitPoSt(challengeId, leafData, proofs);
             logger.info(`📝 Transaction sent: ${tx.hash}`);
 
             await tx.wait();
@@ -120,8 +163,6 @@ class ProviderDaemon {
             const deals = response.data.deals || [];
 
             for (const deal of deals) {
-                // In a real implementation, we would check the ShardAssigned events on-chain
-                // For this daemon, we'll ensure all shards for our active deals are pinned
                 const dealDetail = await axios.get(`${this.API_URL}/api/deals/${deal.deal_id}`);
                 const myShards = dealDetail.data.shards.filter((s: any) => s.provider_address === this.wallet.address);
 
@@ -153,15 +194,60 @@ class ProviderDaemon {
                 await this.ipfs.pin.add(cid);
                 logger.info(`✅ Shard pinned: ${cid}`);
             }
+
+            // Build Merkle tree if not already in memory
+            if (!this.merkleTrees.has(cid)) {
+                await this.buildMerkleTree(cid);
+            }
         } catch (e) {
-            // If not pinned, it will throw an error, so we catch and pin
             try {
                 logger.info(`📌 Pinning new shard: ${cid}`);
                 await this.ipfs.pin.add(cid);
                 logger.info(`✅ Shard pinned: ${cid}`);
+                await this.buildMerkleTree(cid);
             } catch (pinError: any) {
-                logger.error(`❌ Failed to pin ${cid}: ${pinError.message}`);
+                logger.error(`❌ Failed to pin/process ${cid}: ${pinError.message}`);
             }
+        }
+    }
+
+    private async buildMerkleTree(cid: string) {
+        try {
+            logger.info(`🌳 Building Merkle tree for shard ${cid}...`);
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of this.ipfs.cat(cid)) {
+                chunks.push(chunk);
+            }
+            const data = Buffer.concat(chunks);
+
+            // Split into sectors
+            const sectors: Buffer[] = [];
+            for (let i = 0; i < data.length; i += this.SECTOR_SIZE) {
+                sectors.push(data.subarray(i, Math.min(i + this.SECTOR_SIZE, data.length)));
+            }
+
+            // Pad last sector if needed
+            if (sectors.length > 0 && sectors[sectors.length - 1].length < this.SECTOR_SIZE) {
+                const lastSector = sectors[sectors.length - 1];
+                const padded = Buffer.alloc(this.SECTOR_SIZE, 0);
+                lastSector.copy(padded);
+                sectors[sectors.length - 1] = padded;
+            }
+
+            // If too few sectors, add dummy ones to ensure at least CHALLENGE_SECTORS
+            while (sectors.length < 10) {
+                sectors.push(Buffer.alloc(this.SECTOR_SIZE, 0));
+            }
+
+            const leaves = sectors.map(s => keccak256(s));
+            const tree = new MerkleTree(leaves, keccak256, { sortPairs: true });
+
+            this.merkleTrees.set(cid, tree);
+            this.shardData.set(cid, sectors);
+
+            logger.info(`✅ Merkle tree built for ${cid}. Root: ${tree.getHexRoot()}`);
+        } catch (error: any) {
+            logger.error(`❌ Failed to build Merkle tree for ${cid}: ${error.message}`);
         }
     }
 

@@ -9,7 +9,8 @@
         content="Kyneto Protocol: Polygon-Backed Decentralized Storage on IPFS. 100% data durability with Reed-Solomon Erasure Coding.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap"
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;700;800&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="dist/css/main.css">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -20,7 +21,7 @@
     <header class="header">
         <div class="header__container">
             <div class="header__logo">
-                <i data-lucide="layers" class="w-8 h-8"></i>
+                <img src="dist/img/logo.png" alt="Kyneto Logo" class="w-8 h-8">
                 <span>Kyneto</span>
             </div>
             <nav class="header__nav">
@@ -52,11 +53,13 @@
                 <h1 class="hero__title">The Persistence Layer for the Decentralized Web</h1>
                 <p class="hero__description">
                     Kyneto transforms IPFS into a reliable, enterprise-grade storage marketplace.
-                    Powered by Polygon, secured by cryptographic proofs, and optimized for 100% data durability.
+                    Powered by Polygon, secured by cryptographic proofs, and optimized for 100% data durability with
+                    Reed-Solomon Erasure Coding.
                 </p>
                 <div class="hero__actions">
-                    <a href="http://localhost:3003" class="btn btn--primary btn--lg">Start Storing</a>
-                    <button class="btn btn--secondary btn--lg">Become a Provider</button>
+                    <a href="http://localhost:3003" class="btn btn--primary btn--lg">Launch Dashboard</a>
+                    <button class="btn btn--secondary btn--lg" onclick="window.location.href='#architecture'">How it
+                        Works</button>
                 </div>
             </div>
         </section>
@@ -69,7 +72,7 @@
             </div>
             <div class="max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div class="card card--elevated">
-                    <div class="mb-4 text-blue-600">
+                    <div class="mb-4 text-primary">
                         <i data-lucide="shield-check" class="w-12 h-12"></i>
                     </div>
                     <h3 class="card__title mb-2">100% Data Durability</h3>
@@ -79,17 +82,17 @@
                     </p>
                 </div>
                 <div class="card card--elevated">
-                    <div class="mb-4 text-blue-600">
-                        <i data-lucide="zap" class="w-12 h-12"></i>
+                    <div class="mb-4 text-primary">
+                        <i data-lucide="lock" class="w-12 h-12"></i>
                     </div>
-                    <h3 class="card__title mb-2">Low Latency, Low Cost</h3>
+                    <h3 class="card__title mb-2">Cryptographic Proofs</h3>
                     <p class="card__body">
-                        At $0.05/GB/month, Kyneto is significantly cheaper than traditional cloud providers with better
-                        performance.
+                        Proof-of-Spacetime (PoSt) provides continuous 24h verification that your data is safe and
+                        accessible.
                     </p>
                 </div>
                 <div class="card card--elevated">
-                    <div class="mb-4 text-blue-600">
+                    <div class="mb-4 text-primary">
                         <i data-lucide="refresh-cw" class="w-12 h-12"></i>
                     </div>
                     <h3 class="card__title mb-2">Automated Healing</h3>
@@ -101,8 +104,52 @@
             </div>
         </section>
 
+        <!-- Scope Section -->
+        <section id="scope" class="section">
+            <div class="section__header">
+                <h2 class="section__title">Full Protocol Scope</h2>
+                <p class="section__description">Comprehensive storage solutions for the modern web.</p>
+            </div>
+            <div class="max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div class="scope-card p-8 bg-glass border border-glass rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-3">
+                        <i data-lucide="layout-dashboard" class="text-primary"></i> The Dashboard
+                    </h3>
+                    <p class="text-grey-400 mb-6">Your management console for on-chain financial commitments and network
+                        monitoring.</p>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Stake KYN & Register Nodes</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Sign Storage Contracts</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Monitor Real-time Earnings</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Manage Governance Proposals</li>
+                    </ul>
+                </div>
+                <div class="scope-card p-8 bg-glass border border-glass rounded-2xl">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-3">
+                        <i data-lucide="terminal" class="text-primary"></i> The Provider Daemon
+                    </h3>
+                    <p class="text-grey-400 mb-6">The physical storage and verification engine running on your local
+                        hardware.</p>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Physical Data Pinning (Kubo)</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Cryptographic Proof Submission</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Erasure Coding Shard Management</li>
+                        <li class="flex items-center gap-2"><i data-lucide="check-circle"
+                                class="w-5 h-5 text-accent"></i> Automated Slashing Prevention</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
         <!-- Architecture Section -->
-        <section id="architecture" class="section">
+        <section id="architecture" class="section section--grey">
             <div class="section__header">
                 <h2 class="section__title">Technical Architecture</h2>
                 <p class="section__description">A hybrid orchestration layer sitting between users and a global network
@@ -115,7 +162,7 @@
                         <ul class="space-y-6">
                             <li class="flex gap-4">
                                 <div
-                                    class="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
+                                    class="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
                                     <i data-lucide="box"></i>
                                 </div>
                                 <div>
@@ -126,7 +173,7 @@
                             </li>
                             <li class="flex gap-4">
                                 <div
-                                    class="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
+                                    class="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
                                     <i data-lucide="link"></i>
                                 </div>
                                 <div>
@@ -137,7 +184,7 @@
                             </li>
                             <li class="flex gap-4">
                                 <div
-                                    class="flex-shrink-0 w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
+                                    class="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
                                     <i data-lucide="cpu"></i>
                                 </div>
                                 <div>
@@ -149,11 +196,16 @@
                         </ul>
                     </div>
                     <div
-                        class="bg-grey-100 dark:bg-grey-800 rounded-2xl p-8 aspect-video flex items-center justify-center">
-                        <!-- Placeholder for Architecture Diagram -->
-                        <div class="text-center">
-                            <i data-lucide="network" class="w-24 h-24 text-blue-600 mx-auto mb-4 opacity-50"></i>
-                            <p class="text-grey-500">Interactive Architecture Diagram</p>
+                        class="relative bg-grey-100 dark:bg-grey-800 rounded-2xl overflow-hidden aspect-video flex items-center justify-center group border border-glass">
+                        <img src="dist/img/architecture.png" alt="Kyneto Architecture Diagram"
+                            class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110">
+                        <div
+                            class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-8">
+                            <div class="text-white">
+                                <span class="badge badge--primary mb-2">Live Protocol View</span>
+                                <p class="text-sm opacity-80">Real-time orchestration between Polygon, IPFS, and Global
+                                    Providers.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -161,7 +213,7 @@
         </section>
 
         <!-- Tokenomics Section -->
-        <section id="tokenomics" class="section section--grey">
+        <section id="tokenomics" class="section">
             <div class="section__header">
                 <h2 class="section__title">The KYN Token</h2>
                 <p class="section__description">Powering the Kyneto ecosystem through incentivized storage.</p>
@@ -196,8 +248,8 @@
         <div class="max-w-[144rem] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
                 <div class="col-span-1 md:col-span-2">
-                    <div class="flex items-center gap-2 text-2xl font-bold text-blue-500 mb-6">
-                        <i data-lucide="layers" class="w-8 h-8"></i>
+                    <div class="flex items-center gap-2 text-2xl font-bold text-primary mb-6">
+                        <img src="dist/img/logo.png" alt="Kyneto Logo" class="w-8 h-8">
                         <span>Kyneto</span>
                     </div>
                     <p class="text-grey-400 max-w-md">

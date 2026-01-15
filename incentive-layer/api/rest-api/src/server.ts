@@ -328,7 +328,7 @@ io.on('connection', (socket) => {
 export { io };
 
 // Start server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`✅ API server running on port ${PORT}`);
     console.log(`📡 WebSocket server ready`);

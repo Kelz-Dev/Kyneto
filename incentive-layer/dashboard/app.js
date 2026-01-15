@@ -1,6 +1,21 @@
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3002'
-    : `http://${window.location.hostname}:3002`;
+const getApiUrl = () => {
+    // Handle file:// protocol or empty hostname
+    const hostname = window.location.hostname || 'localhost';
+
+    // If we are on port 3003 (Docker dashboard), we want 3002 (Docker API)
+    if (window.location.port === '3003') {
+        return `http://${hostname}:3002`;
+    }
+
+    // Default to 3002 to match Docker and our new server default
+    // but allow override via localStorage for debugging
+    const savedUrl = localStorage.getItem('kyneto_api_url');
+    if (savedUrl) return savedUrl;
+
+    return `http://${hostname}:3002`;
+};
+
+const API_URL = getApiUrl();
 
 // Global Error Handler for Debugging
 window.onerror = function (msg, url, line, col, error) {
@@ -83,6 +98,38 @@ const PROVIDER_REGISTRY_ADDRESS = '0xad47e6E5cc48526aF2cA26E0BE40c5fE0B4a8027';
 const PROOF_VERIFIER_ADDRESS = '0xB74fA7fD8E6EAd93FBF081dC26abe8321549E7de';
 const SLASHING_MANAGER_ADDRESS = '0x76fE15c685b01890E1E08B0aaf122d33A719d2f9';
 const PAYMENT_DISTRIBUTOR_ADDRESS = '0x0882899CB78D5E11ea5891193a3CB3C2286702eb';
+
+// Gas Helper Functions
+async function getGasFees() {
+    try {
+        const feeData = await provider.getFeeData();
+        console.log('Fee Data:', feeData);
+
+        // Add a 20% buffer to the priority fee for faster inclusion
+        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas.mul(120).div(100);
+
+        // Ensure maxFeePerGas is at least baseFee + maxPriorityFeePerGas
+        // Ethers v5 getFeeData returns maxFeePerGas which usually includes a buffer
+        const maxFeePerGas = feeData.maxFeePerGas.mul(120).div(100);
+
+        return {
+            maxFeePerGas,
+            maxPriorityFeePerGas
+        };
+    } catch (error) {
+        console.error('Failed to get gas fees:', error);
+        // Fallback to legacy gas price if EIP-1559 fails
+        const gasPrice = await provider.getGasPrice();
+        return {
+            gasPrice: gasPrice.mul(120).div(100)
+        };
+    }
+}
+
+function getGasLimitWithBuffer(estimate) {
+    // Add 20% buffer to gas limit
+    return estimate.mul(120).div(100);
+}
 const TOKEN_VESTING_ADDRESS = '0x0C890Ce1170f2Ec224B968524F85Ab917a470755';
 
 // Settings State
@@ -197,6 +244,14 @@ function initializeWallet(address, rawProvider, source = 'Unknown') {
     }
 }
 
+// Update Protocol Information Display
+function updateProtocolInfo() {
+    const kynTokenElem = document.getElementById('protocol-kyn-token');
+    if (kynTokenElem) {
+        kynTokenElem.textContent = KYN_TOKEN_ADDRESS;
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Initializing Dashboard...');
@@ -257,6 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetchDeals();
         fetchMarketplace();
         fetchEvents();
+        updateProtocolInfo();  // Set KYN token address in settings
     } catch (e) { console.error('Data fetch failed:', e); }
 
     // 4. Network & Wallet
@@ -467,7 +523,19 @@ function renderDeals(deals) {
     tbody.innerHTML = '';
 
     if (deals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No deals found</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5">
+                    <div class="empty-state-container">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-folder-open"></i>
+                        </div>
+                        <h3>No deals found</h3>
+                        <p>The network is currently waiting for new storage deals.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
         return;
     }
 
@@ -479,7 +547,7 @@ function renderDeals(deals) {
             <td>${deal.file_size_gb || 0} GB</td>
             <td>${new Date(deal.created_at).toLocaleDateString()}</td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')">
+                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="View Details">
                     <i class="fa-solid fa-eye"></i> View
                 </button>
             </td>
@@ -497,7 +565,19 @@ function renderFiles(deals) {
     tbody.innerHTML = '';
 
     if (deals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No files found</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5">
+                    <div class="empty-state-container">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-file-circle-xmark"></i>
+                        </div>
+                        <h3>No files found</h3>
+                        <p>You haven't uploaded any files to the network yet.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
         return;
     }
 
@@ -507,11 +587,15 @@ function renderFiles(deals) {
         const fileName = `File_${deal.deal_id}`;
         tr.innerHTML = `
             <td>${fileName}</td>
-            <td style="font-family: monospace; font-size: 0.8rem;">${deal.file_cid}</td>
+            <td>
+                <a href="#" class="cid-link" onclick="viewFile('${deal.file_cid}'); return false;">
+                    ${deal.file_cid.substring(0, 12)}...${deal.file_cid.substring(deal.file_cid.length - 10)}
+                </a>
+            </td>
             <td>${deal.file_size_gb} GB</td>
             <td>${new Date(deal.created_at).toLocaleDateString()}</td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')">
+                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Retrieve File">
                     <i class="fa-solid fa-download"></i> Retrieve
                 </button>
             </td>
@@ -538,8 +622,12 @@ function renderMarketplace(deals) {
 
     if (deals.length === 0) {
         grid.innerHTML = `
-            <div class="empty-state">
-                <p>No active deals in the marketplace.</p>
+            <div class="empty-state-container" style="grid-column: 1 / -1;">
+                <div class="empty-icon">
+                    <i class="fa-solid fa-store-slash"></i>
+                </div>
+                <h3>Marketplace Empty</h3>
+                <p>No active deals are currently available in the marketplace.</p>
             </div>
         `;
         return;
@@ -547,15 +635,16 @@ function renderMarketplace(deals) {
 
     deals.forEach(deal => {
         const card = document.createElement('div');
-        card.className = 'stat-card';
+        card.className = 'stat-card clickable';
+        card.onclick = () => viewFile(deal.file_cid);
         card.innerHTML = `
             <div class="stat-icon"><i class="fa-solid fa-box"></i></div>
             <div class="stat-info">
                 <span class="label">Deal #${deal.deal_id}</span>
                 <span class="value">${deal.file_size_gb} GB</span>
-                <span class="label" style="font-size: 0.7rem; margin-top: 5px; word-break: break-all;">${deal.file_cid}</span>
+                <span class="label" style="font-size: 0.7rem; margin-top: 5px; word-break: break-all; opacity: 0.6;">${deal.file_cid}</span>
             </div>
-            <button class="btn-primary btn-sm" onclick="viewFile('${deal.file_cid}')" style="margin-left: auto">
+            <button class="btn-primary btn-sm" onclick="event.stopPropagation(); viewFile('${deal.file_cid}')" style="margin-left: auto">
                 <i class="fa-solid fa-download"></i>
             </button>
         `;
@@ -656,6 +745,15 @@ async function switchNetwork() {
 
 async function connectWallet() {
     console.log('Connecting wallet...');
+
+    // Check if wallet provider exists with retry (sometimes it loads slowly)
+    let retries = 3;
+    while (retries > 0 && typeof window.ethereum === 'undefined') {
+        console.log(`Waiting for wallet provider... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retries--;
+    }
+
     if (modal && projectId !== 'YOUR_PROJECT_ID') {
         modal.open();
     } else {
@@ -698,7 +796,15 @@ async function connectWallet() {
                 }
             }
         } else {
-            showNotification('error', 'No Wallet Found', 'Please install MetaMask or another Web3 wallet to connect.');
+            console.error('No wallet provider detected!');
+            console.log('window.ethereum:', window.ethereum);
+            console.log('window.web3:', window.web3);
+
+            showNotification('error', 'No Wallet Found',
+                'MetaMask not detected. Please:<br>' +
+                '1. Install MetaMask from metamask.io<br>' +
+                '2. Refresh this page after installing<br>' +
+                '3. Make sure MetaMask is enabled in your browser');
         }
     }
 }
@@ -970,30 +1076,22 @@ function switchView(viewId) {
 }
 
 function simulateDetailData(viewId) {
-    if (viewId === 'utilization-detail') {
-        const list = document.getElementById('usage-breakdown-list');
-        if (list) {
-            const types = [
-                { name: 'Video Streaming', val: 45, color: '#7c4dff' },
-                { name: 'Scientific Data', val: 25, color: '#00e676' },
-                { name: 'Backups', val: 15, color: '#ffab40' },
-                { name: 'Web Assets', val: 10, color: '#00f2fe' },
-                { name: 'General Data', val: 5, color: '#ff5252' }
-            ];
-            list.innerHTML = types.map(t => `
-                <div class="usage-item">
-                    <div class="usage-info">
-                        <span class="name">${t.name}</span>
-                        <div class="usage-bar-mini">
-                            <div class="usage-fill-mini" style="width: ${t.val}%; background: ${t.color}"></div>
-                        </div>
-                    </div>
-                    <span class="val">${t.val}%</span>
-                </div>
-            `).join('');
-        }
+    // Placeholders cleared as per user request.
+    // Real data will be injected here when available from the API.
+    const list = document.getElementById('usage-breakdown-list');
+    if (list) {
+        list.innerHTML = '<div class="empty-state-small"><span>No data available</span></div>';
     }
-    // Add other simulations as needed...
+
+    const distList = document.getElementById('provider-dist-list');
+    if (distList) {
+        distList.innerHTML = '<div class="empty-state-small"><span>No data available</span></div>';
+    }
+
+    const revenueList = document.getElementById('revenue-streams');
+    if (revenueList) {
+        revenueList.innerHTML = '<div class="empty-state-small"><span>No data available</span></div>';
+    }
 }
 
 // Provider Portal Logic
@@ -1044,8 +1142,15 @@ async function handleStake() {
         addActivity('System', 'Initiating KYN approval...', 'system');
         showNotification('info', 'Confirm Transaction', 'Please confirm the KYN approval in your wallet.');
 
-        // Request approval
-        const tx = await tokenContract.approve(CAPACITY_PLEDGE_ADDRESS, amount);
+        // Get gas fees and estimate gas
+        const gasFees = await getGasFees();
+        const gasEstimate = await tokenContract.estimateGas.approve(CAPACITY_PLEDGE_ADDRESS, amount);
+
+        // Request approval with robust gas parameters
+        const tx = await tokenContract.approve(CAPACITY_PLEDGE_ADDRESS, amount, {
+            ...gasFees,
+            gasLimit: getGasLimitWithBuffer(gasEstimate)
+        });
 
         showNotification('info', 'Transaction Pending', 'KYN approval transaction submitted. Waiting for confirmation...');
         addActivity('System', `Approval pending: ${tx.hash.substring(0, 10)}...`, 'system');
@@ -1069,17 +1174,38 @@ async function handleStake() {
         }
 
     } catch (error) {
-        console.error('Staking failed:', error);
+        console.error('=== STAKING ERROR ===');
+        console.error('Full error object:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Error data:', error.data);
+        console.error('Error reason:', error.reason);
+
+        // Try to extract the revert reason
+        let revertReason = 'Unknown error';
+        if (error.data && error.data.message) {
+            revertReason = error.data.message;
+        } else if (error.error && error.error.message) {
+            revertReason = error.error.message;
+        } else if (error.reason) {
+            revertReason = error.reason;
+        } else if (error.message) {
+            revertReason = error.message;
+        }
+
+        console.error('Extracted revert reason:', revertReason);
 
         // User-friendly error messages
         if (error.code === 4001 || error.message.includes('rejected')) {
             showNotification('error', 'Transaction Cancelled', 'You rejected the approval transaction.');
         } else if (error.message.includes('insufficient funds')) {
-            showNotification('error', 'Insufficient Balance', 'You need more KYN tokens or POL for gas fees.');
+            showNotification('error', 'Insufficient POL', 'You need POL to pay for gas fees. Get testnet POL from https://faucet.polygon.technology');
         } else if (error.message.includes('ERC20: insufficient allowance')) {
             showNotification('error', 'Token Balance Low', 'You do not have enough KYN tokens to stake.');
+        } else if (revertReason.includes('execution reverted')) {
+            showNotification('error', 'Transaction Failed', `Contract Error: ${revertReason}. This might be a contract configuration issue. Check console for details.`);
         } else {
-            showNotification('error', 'Transaction Failed', error.reason || error.message || 'Failed to approve tokens.');
+            showNotification('error', 'Transaction Failed', `${revertReason}. Check browser console for full details.`);
         }
 
         stakeBtn.disabled = false;
@@ -1171,34 +1297,17 @@ async function handleRegisterNode(event) {
             const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, signer);
             const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
 
-            console.log('--- DEBUG: Registration Start ---');
-            console.log('Signer:', userAddress);
-            console.log('Registry Address:', PROVIDER_REGISTRY_ADDRESS);
-            console.log('Peer ID:', peerId);
-            console.log('Endpoint:', endpoint);
-            console.log('Region:', region);
-            console.log('Capacity (rounded):', capacity);
-
-            // Pre-check: Is user already registered?
-            try {
-                const providerData = await registryContract.providers(userAddress);
-                console.log('Provider Data:', providerData);
-                if (providerData && providerData[0] === true) { // registered boolean is first return value
-                    console.error('DEBUG: User is ALREADY REGISTERED. Transaction will revert.');
-                    showNotification('error', 'Registration Failed', 'This wallet is already registered as a provider.');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalText;
-                    return;
-                }
-            } catch (err) {
-                console.error('DEBUG: Failed to check provider status:', err);
-            }
-
             addActivity('System', 'Registering provider in registry...', 'system');
 
             // 1. Register in ProviderRegistry
-            console.log('Sending registerProvider transaction...');
-            const regTx = await registryContract.registerProvider(peerId, endpoint, region);
+            const regGasFees = await getGasFees();
+            const regGasEstimate = await registryContract.estimateGas.registerProvider(peerId, endpoint, region);
+
+            const regTx = await registryContract.registerProvider(peerId, endpoint, region, {
+                ...regGasFees,
+                gasLimit: getGasLimitWithBuffer(regGasEstimate)
+            });
+
             showNotification('info', 'Registration Pending', 'Provider registration transaction submitted.');
             await regTx.wait();
             addActivity('System', 'Provider registered successfully', 'system');
@@ -1209,7 +1318,15 @@ async function handleRegisterNode(event) {
             const collateral = ethers.utils.parseUnits("1000", 18);
 
             addActivity('System', 'Creating capacity pledge...', 'system');
-            const pledgeTx = await pledgeContract.createPledge(capacity, duration, collateral);
+
+            const pledgeGasFees = await getGasFees();
+            const pledgeGasEstimate = await pledgeContract.estimateGas.createPledge(capacity, duration, collateral);
+
+            const pledgeTx = await pledgeContract.createPledge(capacity, duration, collateral, {
+                ...pledgeGasFees,
+                gasLimit: getGasLimitWithBuffer(pledgeGasEstimate)
+            });
+
             showNotification('info', 'Pledge Pending', 'Pledge transaction submitted.');
             await pledgeTx.wait();
 
@@ -1277,8 +1394,44 @@ async function handleRegisterNode(event) {
         }, 1500);
 
     } catch (error) {
-        console.error('Registration failed:', error);
-        showNotification('error', 'Registration Failed', error.message || 'Failed to register node.');
+        console.error('=== REGISTRATION ERROR ===');
+        console.error('Full error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error reason:', error.reason);
+        console.error('Error message:', error.message);
+        console.error('Error data:', error.data);
+
+        let errorTitle = 'Registration Failed';
+        let errorMessage = 'Unknown error occurred.';
+
+        // Parse the error to give user-friendly feedback
+        if (error.code === 4001) {
+            errorTitle = 'Transaction Cancelled';
+            errorMessage = 'You rejected the transaction in your wallet.';
+        } else if (error.message.includes('insufficient funds')) {
+            errorTitle = 'Insufficient POL';
+            errorMessage = 'You don\'t have enough POL to pay for gas fees. Get testnet POL from https://faucet.polygon.technology';
+        } else if (error.reason && error.reason.includes('Already registered')) {
+            errorTitle = 'Already Registered';
+            errorMessage = 'This wallet is already registered as a provider.';
+        } else if (error.reason && error.reason.includes('Invalid peer ID')) {
+            errorTitle = 'Invalid Peer ID';
+            errorMessage = 'Please enter a valid IPFS Peer ID. Get it by running: ipfs id';
+        } else if (error.message.includes('ERC20: insufficient allowance') || error.message.includes('transfer amount exceeds allowance')) {
+            errorTitle = 'Approval Required';
+            errorMessage = 'Please approve KYN tokens for the CapacityPledge contract first by clicking "Stake 1,000 KYN" again.';
+        } else if (error.message.includes('ERC20: transfer amount exceeds balance')) {
+            errorTitle = 'Insufficient KYN Balance';
+            errorMessage = 'You need at least 1,000 KYN tokens to register as a provider.';
+        } else if (error.data) {
+            // Try to decode the error data
+            errorMessage = `Contract error: ${error.message}. Check browser console for details.`;
+        } else {
+            errorMessage = error.message || error.reason || 'An unexpected error occurred. Check browser console for details.';
+        }
+
+        console.error('User-friendly error:', errorTitle, errorMessage);
+        showNotification('error', errorTitle, errorMessage);
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
@@ -1365,7 +1518,13 @@ async function handleCreateDeal(event) {
             const totalCost = pricePerGBMonth.mul(roundedSize);
 
             addActivity('System', 'Approving KYN for deal...', 'system');
-            const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost);
+            const approveGasFees = await getGasFees();
+            const approveGasEstimate = await tokenContract.estimateGas.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost);
+
+            const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost, {
+                ...approveGasFees,
+                gasLimit: getGasLimitWithBuffer(approveGasEstimate)
+            });
             await approveTx.wait();
 
             // 2. Select 15 providers (simulated for now - in production fetch from Registry)
@@ -1375,7 +1534,9 @@ async function handleCreateDeal(event) {
             const shardSizes = Array(15).fill(0).map(() => Math.ceil(roundedSize * 1024 / 10)); // Simplified
 
             addActivity('System', 'Initiating marketplace deal...', 'system');
-            const dealTx = await marketplaceContract.createDeal(
+
+            const dealGasFees = await getGasFees();
+            const dealGasEstimate = await marketplaceContract.estimateGas.createDeal(
                 cid,
                 roundedSize,
                 durationDays,
@@ -1383,6 +1544,20 @@ async function handleCreateDeal(event) {
                 selectedProviders,
                 shardCIDs,
                 shardSizes
+            );
+
+            const dealTx = await marketplaceContract.createDeal(
+                cid,
+                roundedSize,
+                durationDays,
+                pricePerGBMonth,
+                selectedProviders,
+                shardCIDs,
+                shardSizes,
+                {
+                    ...dealGasFees,
+                    gasLimit: getGasLimitWithBuffer(dealGasEstimate)
+                }
             );
 
             showNotification('info', 'Deal Pending', 'Marketplace deal transaction submitted.');
@@ -1402,7 +1577,13 @@ async function handleCreateDeal(event) {
             const dealCount = await marketplaceContract.dealCount();
             const dealId = dealCount.toNumber(); // Assuming this is our deal
 
-            const porepTx = await proofVerifier.submitPoRep(dealId, sealedCID, unsealedCID, proofData);
+            const porepGasFees = await getGasFees();
+            const porepGasEstimate = await proofVerifier.estimateGas.submitPoRep(dealId, sealedCID, unsealedCID, proofData);
+
+            const porepTx = await proofVerifier.submitPoRep(dealId, sealedCID, unsealedCID, proofData, {
+                ...porepGasFees,
+                gasLimit: getGasLimitWithBuffer(porepGasEstimate)
+            });
             await porepTx.wait();
             addActivity('System', 'PoRep verified successfully', 'system');
         } else {
@@ -1439,7 +1620,13 @@ async function submitProof(dealId) {
         const sectorProofs = Array(10).fill(0).map(() => ethers.utils.hexlify(ethers.utils.randomBytes(32)));
         const challengeId = 0; // Simulated
 
-        const tx = await verifier.submitPoSt(challengeId, sectorProofs);
+        const gasFees = await getGasFees();
+        const gasEstimate = await verifier.estimateGas.submitPoSt(challengeId, sectorProofs);
+
+        const tx = await verifier.submitPoSt(challengeId, sectorProofs, {
+            ...gasFees,
+            gasLimit: getGasLimitWithBuffer(gasEstimate)
+        });
         showNotification('info', 'Proof Pending', 'PoSt submission transaction submitted.');
         await tx.wait();
 
@@ -1721,7 +1908,13 @@ async function withdrawEarnings() {
         addActivity('System', 'Initiating withdrawal...', 'system');
         showNotification('info', 'Transaction Pending', 'Please confirm the transaction in your wallet.');
 
-        const tx = await distributorContract.withdrawEarnings();
+        const gasFees = await getGasFees();
+        const gasEstimate = await distributorContract.estimateGas.withdrawEarnings();
+
+        const tx = await distributorContract.withdrawEarnings({
+            ...gasFees,
+            gasLimit: getGasLimitWithBuffer(gasEstimate)
+        });
         addActivity('System', `Withdrawal transaction sent: ${tx.hash.substring(0, 10)}...`, 'system');
         showNotification('info', 'Withdrawal Pending', 'Transaction submitted. Waiting for confirmation...');
 
@@ -1800,7 +1993,19 @@ function renderMyDealsTable(deals, type) {
     tbody.innerHTML = '';
 
     if (deals.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No deals found</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    <div class="empty-state-container">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-folder-open"></i>
+                        </div>
+                        <h3>No deals found</h3>
+                        <p>You haven't ${type === 'client' ? 'uploaded any files' : 'stored any shards'} yet.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
         return;
     }
 
@@ -1809,14 +2014,18 @@ function renderMyDealsTable(deals, type) {
         const price = (deal.file_size_gb * 0.5).toFixed(4); // Simulated price calc
 
         tr.innerHTML = `
-            <td style="font-family: monospace;">#${deal.deal_id}</td>
-            <td style="font-family: monospace; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${deal.file_cid}</td>
+            <td>#${deal.deal_id}</td>
+            <td>
+                <a href="#" class="cid-link" onclick="viewFile('${deal.file_cid}'); return false;">
+                    ${deal.file_cid.substring(0, 10)}...${deal.file_cid.substring(deal.file_cid.length - 8)}
+                </a>
+            </td>
             <td>${deal.file_size_gb} GB</td>
             <td>${price} KYN</td>
             <td>${new Date(deal.created_at).toLocaleDateString()}</td>
             <td><span class="status-pill ${deal.status}">${deal.status}</span></td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')">
+                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="View Details">
                     <i class="fa-solid fa-eye"></i>
                 </button>
             </td>

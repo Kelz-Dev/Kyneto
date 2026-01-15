@@ -31,7 +31,7 @@ export class ProofGenerator {
         this.wallet = new ethers.Wallet(privateKey, this.provider);
 
         const proverABI = [
-            'function createPoStChallenge(uint256 dealId, address provider, bytes32[] sectorChallenges) returns (uint256)',
+            'function createPoStChallenge(uint256 dealId, address provider, uint256[] leafIndices) returns (uint256)',
             'function checkMissedPoSt(uint256 challengeId) returns (bool)'
         ];
         this.proverContract = new ethers.Contract(proverAddress, proverABI, this.wallet);
@@ -99,11 +99,12 @@ export class ProofGenerator {
      */
     private async createChallenge(dealId: string, providerAddress: string) {
         try {
-            // Generate random sector challenges
-            const sectorChallenges: string[] = [];
+            // Generate random leaf indices
+            const leafIndices: number[] = [];
             for (let i = 0; i < this.CHALLENGE_SECTORS; i++) {
-                const randomBytes = crypto.randomBytes(32);
-                sectorChallenges.push('0x' + randomBytes.toString('hex'));
+                // For this demo, we'll pick indices between 0 and 100
+                // In production, this would be based on the actual number of sectors in the shard
+                leafIndices.push(Math.floor(Math.random() * 100));
             }
 
             this.logger.debug(`Creating challenge for provider ${providerAddress} on deal ${dealId}`);
@@ -112,7 +113,7 @@ export class ProofGenerator {
             const tx = await this.proverContract.createPoStChallenge(
                 dealId,
                 providerAddress,
-                sectorChallenges
+                leafIndices
             );
 
             const receipt = await tx.wait();

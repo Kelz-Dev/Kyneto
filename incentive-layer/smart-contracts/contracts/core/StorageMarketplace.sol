@@ -91,6 +91,82 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     event TreasuryUpdated(address newTreasury);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
+    struct Retrieval {
+        uint256 dealId;
+        address client;
+        address provider;
+        uint256 amount;
+        bool completed;
+    }
+
+    mapping(uint256 => Retrieval) public retrievals;
+    uint256 public retrievalCount;
+
+    event RetrievalInitiated(
+        uint256 indexed retrievalId,
+        uint256 indexed dealId,
+        address indexed client,
+        address provider,
+        uint256 amount
+    );
+    event RetrievalClaimed(
+        uint256 indexed retrievalId,
+        address indexed provider
+    );
+
+    /**
+     * @dev Initiate a retrieval request with a payment lock
+     */
+    function initiateRetrieval(
+        uint256 dealId,
+        address provider,
+        uint256 amount
+    ) external nonReentrant returns (uint256) {
+        require(deals[dealId].status == DealStatus.Active, "Deal not active");
+        require(amount > 0, "Amount must be > 0");
+
+        require(
+            token.transferFrom(msg.sender, address(this), amount),
+            "Payment failed"
+        );
+
+        uint256 retrievalId = retrievalCount++;
+        retrievals[retrievalId] = Retrieval({
+            dealId: dealId,
+            client: msg.sender,
+            provider: provider,
+            amount: amount,
+            completed: false
+        });
+
+        emit RetrievalInitiated(
+            retrievalId,
+            dealId,
+            msg.sender,
+            provider,
+            amount
+        );
+        return retrievalId;
+    }
+
+    /**
+     * @dev Claim retrieval payment after serving data
+     * In production, this would require a signature from the client or a zero-knowledge proof
+     */
+    function claimRetrievalPayment(uint256 retrievalId) external nonReentrant {
+        Retrieval storage retrieval = retrievals[retrievalId];
+        require(!retrieval.completed, "Already claimed");
+        require(msg.sender == retrieval.provider, "Not the provider");
+
+        retrieval.completed = true;
+        require(
+            token.transfer(retrieval.provider, retrieval.amount),
+            "Transfer failed"
+        );
+
+        emit RetrievalClaimed(retrievalId, msg.sender);
+    }
+
     constructor(
         address _token,
         address _registry,

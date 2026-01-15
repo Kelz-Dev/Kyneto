@@ -87,6 +87,13 @@ See [economics_model.md](docs/economics_model.md) for detailed pricing, token ec
 - 1.5× storage overhead (vs 3× for replication)
 - ERC-20 token on Polygon
 
+### Why Polygon?
+Kyneto leverages Polygon to provide an enterprise-grade storage backbone:
+- **Low-Cost Verification**: Daily PoSt proofs are economically viable due to sub-cent gas fees.
+- **High Performance**: Rapid block finality for real-time storage deal signing.
+- **EVM Compatibility**: Built on industry-standard Ethereum tools for maximum security.
+- **Permissionless Scaling**: While the blockchain is secured by 105 validators, the Kyneto provider network is open to anyone with spare storage.
+
 ## Documentation
 
 - [Implementation Plan](docs/implementation_plan.md) - Full technical architecture

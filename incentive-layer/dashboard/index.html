@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kyneto Incentive Layer</title>
+    <title>Kyneto Protocol</title>
+    <link rel="icon" type="image/png" href="img/logo.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +33,7 @@
     <div class="app-container">
         <aside class="sidebar">
             <div class="logo">
-                <i class="fa-solid fa-layer-group"></i>
+                <img src="img/logo.png" alt="Kyneto Logo">
                 <span>Kyneto</span>
             </div>
 
@@ -268,11 +269,11 @@
                         <div class="detail-card-stats">
                             <div class="mini-stat-box">
                                 <span class="label">Avg. Deal Size</span>
-                                <span class="value">4.2 GB</span>
+                                <span class="value">--</span>
                             </div>
                             <div class="mini-stat-box">
                                 <span class="label">Success Rate</span>
-                                <span class="value">99.8%</span>
+                                <span class="value">--</span>
                             </div>
                         </div>
                     </div>
@@ -298,7 +299,7 @@
                         <div class="detail-card">
                             <h4>Network Health</h4>
                             <div class="health-indicator">
-                                <div class="health-circle">98%</div>
+                                <div class="health-circle">--</div>
                                 <span>Nodes Online</span>
                             </div>
                         </div>
@@ -922,14 +923,18 @@
                     <div class="panel-header">
                         <h2>My Deals</h2>
                         <div class="tab-controls">
-                            <button class="tab-btn active" onclick="switchDealsTab('client')">My Uploads</button>
-                            <button class="tab-btn" onclick="switchDealsTab('provider')">My Storage</button>
+                            <button class="tab-btn active" onclick="switchDealsTab('client')">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> My Uploads
+                            </button>
+                            <button class="tab-btn" onclick="switchDealsTab('provider')">
+                                <i class="fa-solid fa-server"></i> My Storage
+                            </button>
                         </div>
                     </div>
 
                     <div class="filters-bar">
                         <div class="search-box">
-                            <i class="fa-solid fa-search"></i>
+                            <i class="fa-solid fa-magnifying-glass"></i>
                             <input type="text" placeholder="Search by Deal ID or CID...">
                         </div>
                         <select class="filter-select">
@@ -1086,8 +1091,8 @@
                             </div>
                             <div class="info-row">
                                 <span class="label">KYN Token:</span>
-                                <span class="value"
-                                    style="font-size: 0.7rem;">0xAc526414a2f1c912DFd888Aeb676E72bA78F73Ff</span>
+                                <span class="value" id="protocol-kyn-token"
+                                    style="font-size: 0.7rem;">0x943a1F4583dB1aC8B03FD58f753133d29B510B17</span>
                             </div>
                         </div>
                     </div>
