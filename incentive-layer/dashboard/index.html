@@ -499,9 +499,13 @@
                                     </div>
                                 </div>
                                 <div class="storage-details-grid">
-                                    <div class="detail-item">
-                                        <span class="label">Pledged</span>
+                                    <div class="allocation-stat">
+                                        <span class="label">Pledged Capacity</span>
                                         <span class="value" id="pledged-value">--</span>
+                                    </div>
+                                    <div class="allocation-stat">
+                                        <span class="label">Staked Collateral</span>
+                                        <span class="value" id="collateral-value">--</span>
                                     </div>
                                     <div class="detail-item">
                                         <span class="label">Used</span>
@@ -642,14 +646,47 @@
                             </div>
                         </div>
                     </div>
-                    <div class="proposals-list">
-                        <h3>Active Proposals</h3>
+                    <div class="proposals-list" id="proposals-container">
+                        <div class="section-header"
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                            <h3><i class="fa-solid fa-list-check"></i> Active Proposals</h3>
+                            <button class="btn-primary" onclick="openProposalModal()">
+                                <i class="fa-solid fa-plus"></i> Create Proposal
+                            </button>
+                        </div>
                         <div class="empty-state">
                             <p>No active proposals at this time.</p>
-                            <button class="btn-primary" onclick="handleCreateProposal()">Create Proposal</button>
                         </div>
                     </div>
                 </section>
+            </div>
+
+            <!-- Create Proposal Modal -->
+            <div id="proposal-modal" class="modal-overlay hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Create New Proposal</h2>
+                        <button class="close-modal" onclick="closeProposalModal()">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <form id="create-proposal-form" onsubmit="handleCreateProposal(event)">
+                        <div class="form-group">
+                            <label for="proposal-title">Proposal Title</label>
+                            <input type="text" id="proposal-title" placeholder="e.g., Increase Storage Rewards"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="proposal-description">Description</label>
+                            <textarea id="proposal-description" rows="4"
+                                placeholder="Describe your proposal in detail..." required></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn-secondary" onclick="closeProposalModal()">Cancel</button>
+                            <button type="submit" class="btn-primary">Submit Proposal</button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <!-- My Files View -->
@@ -857,23 +894,32 @@
                 <section class="panel">
                     <div class="panel-header">
                         <h2>My Profile</h2>
-                        <button class="btn-secondary" onclick="alert('Edit profile coming soon!')">
+                        <button class="btn-secondary" onclick="handleEditProfile()">
                             <i class="fa-solid fa-pen-to-square"></i> Edit Profile
                         </button>
                     </div>
 
                     <div class="profile-header-card">
-                        <div class="profile-avatar-large">
+                        <div class="profile-avatar-large" id="profile-avatar-display">
                             <i class="fa-solid fa-user-astronaut" style="font-size: 3rem; color: white;"></i>
                         </div>
                         <div class="profile-details">
-                            <h3 id="profile-address-large">--</h3>
+                            <h3 id="profile-username-display">--</h3>
+                            <p id="profile-address-display"
+                                style="font-family: monospace; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                                --</p>
                             <span class="profile-badge">Standard User</span>
                             <div class="profile-meta">
                                 <span><i class="fa-solid fa-calendar-days"></i> Joined: <span
                                         id="profile-joined">--</span></span>
                                 <span><i class="fa-solid fa-network-wired"></i> Network: <span
                                         id="profile-network">--</span></span>
+                            </div>
+                            <p id="profile-bio-display"
+                                style="margin-top: 1rem; color: var(--text-secondary); line-height: 1.5;"></p>
+                            <div class="profile-socials" id="profile-socials-display"
+                                style="display: flex; gap: 1rem; margin-top: 1rem;">
+                                <!-- Social icons will be injected here -->
                             </div>
                         </div>
                     </div>
@@ -1096,6 +1142,75 @@
                             </div>
                         </div>
                     </div>
+                </section>
+            </div>
+            <!-- Edit Profile View -->
+            <div id="edit-profile-view" class="view">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Edit Profile</h2>
+                        <button class="btn-secondary" onclick="switchView('profile')">
+                            <i class="fa-solid fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+
+                    <form id="edit-profile-form" class="edit-profile-form" onsubmit="handleSaveProfile(event)">
+                        <div class="edit-profile-grid">
+                            <!-- Left Column: Avatar Upload -->
+                            <div class="edit-avatar-section">
+                                <div class="avatar-preview-container">
+                                    <div class="avatar-preview-large" id="avatar-preview">
+                                        <i class="fa-solid fa-user-astronaut"></i>
+                                    </div>
+                                    <label for="avatar-upload" class="avatar-upload-label">
+                                        <i class="fa-solid fa-camera"></i>
+                                        <input type="file" id="avatar-upload" accept="image/*" hidden
+                                            onchange="previewAvatar(event)">
+                                    </label>
+                                </div>
+                                <p class="input-hint">Recommended: 400x400px JPG or PNG</p>
+                            </div>
+
+                            <!-- Right Column: Details -->
+                            <div class="edit-details-section">
+                                <div class="form-group">
+                                    <label for="edit-username">Username</label>
+                                    <input type="text" id="edit-username" placeholder="Enter your username" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-email">Email Address</label>
+                                    <input type="email" id="edit-email" placeholder="your@email.com">
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-bio">Bio</label>
+                                    <textarea id="edit-bio" rows="4"
+                                        placeholder="Tell the community about yourself..."></textarea>
+                                </div>
+
+                                <div class="social-inputs">
+                                    <h4>Social Links</h4>
+                                    <div class="form-group">
+                                        <div class="input-with-icon">
+                                            <i class="fa-brands fa-x-twitter"></i>
+                                            <input type="text" id="edit-twitter" placeholder="Twitter handle">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="input-with-icon">
+                                            <i class="fa-brands fa-github"></i>
+                                            <input type="text" id="edit-github" placeholder="GitHub username">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="button" class="btn-secondary"
+                                        onclick="switchView('profile')">Cancel</button>
+                                    <button type="submit" class="btn-primary">Save Changes</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
                 </section>
             </div>
         </main>

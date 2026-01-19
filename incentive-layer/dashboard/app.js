@@ -58,7 +58,9 @@ const ERC20_ABI = [
 const CAPACITY_PLEDGE_ABI = [
     "function createPledge(uint256 capacityGB, uint256 duration, uint256 collateralAmount) external",
     "function calculateMinimumCollateral(uint256 capacityGB, uint256 duration) public pure returns (uint256)",
-    "function getPledge(address provider, uint256 pledgeId) public view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool)"
+    "function getPledge(address provider, uint256 pledgeId) public view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool)",
+    "function pledgeCount(address provider) public view returns (uint256)",
+    "function exitPledgeEarly(uint256 pledgeId) external"
 ];
 
 const MARKETPLACE_ABI = [
@@ -70,7 +72,8 @@ const MARKETPLACE_ABI = [
 const REGISTRY_ABI = [
     "function registerProvider(string peerId, string endpoint, string region) external",
     "function providers(address) public view returns (bool, uint256, uint256, uint256, string, string, string, uint256, uint256, uint256, bool, uint256)",
-    "function isProviderActive(address provider) public view returns (bool)"
+    "function isProviderActive(address provider) public view returns (bool)",
+    "function getActiveProviders(uint256 minReputation) external view returns (address[])"
 ];
 
 const PROOF_VERIFIER_ABI = [
@@ -102,33 +105,27 @@ const PAYMENT_DISTRIBUTOR_ADDRESS = '0x0882899CB78D5E11ea5891193a3CB3C2286702eb'
 // Gas Helper Functions
 async function getGasFees() {
     try {
-        const feeData = await provider.getFeeData();
-        console.log('Fee Data:', feeData);
+        // Switch to legacy gas price for better compatibility with Amoy RPCs
+        const gasPrice = await provider.getGasPrice();
+        console.log('Legacy Gas Price:', ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei');
 
-        // Add a 20% buffer to the priority fee for faster inclusion
-        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas.mul(120).div(100);
-
-        // Ensure maxFeePerGas is at least baseFee + maxPriorityFeePerGas
-        // Ethers v5 getFeeData returns maxFeePerGas which usually includes a buffer
-        const maxFeePerGas = feeData.maxFeePerGas.mul(120).div(100);
+        // Add a 50% buffer to the gas price to handle volatility
+        const bufferedGasPrice = gasPrice.mul(150).div(100);
+        console.log('Buffered Gas Price:', ethers.utils.formatUnits(bufferedGasPrice, 'gwei'), 'gwei');
 
         return {
-            maxFeePerGas,
-            maxPriorityFeePerGas
+            gasPrice: bufferedGasPrice
         };
     } catch (error) {
         console.error('Failed to get gas fees:', error);
-        // Fallback to legacy gas price if EIP-1559 fails
-        const gasPrice = await provider.getGasPrice();
-        return {
-            gasPrice: gasPrice.mul(120).div(100)
-        };
+        // Fallback to a safe default if RPC fails
+        return {};
     }
 }
 
 function getGasLimitWithBuffer(estimate) {
-    // Add 20% buffer to gas limit
-    return estimate.mul(120).div(100);
+    // Add 30% buffer to gas limit
+    return estimate.mul(130).div(100);
 }
 const TOKEN_VESTING_ADDRESS = '0x0C890Ce1170f2Ec224B968524F85Ab917a470755';
 
@@ -207,7 +204,7 @@ async function initAppKit(retries = 0) {
 }
 
 // Unified Wallet Initialization
-function initializeWallet(address, rawProvider, source = 'Unknown') {
+async function initializeWallet(address, rawProvider, source = 'Unknown') {
     console.log(`Initializing wallet from ${source}:`, address);
 
     if (!address || !rawProvider) {
@@ -229,6 +226,10 @@ function initializeWallet(address, rawProvider, source = 'Unknown') {
         signer = tempSigner;
 
         updateWalletUI(true);
+
+        // Check if user is a provider and update UI accordingly
+        await checkProviderStatus();
+
         fetchEarnings();
 
         if (source !== 'Auto-Check') {
@@ -241,6 +242,122 @@ function initializeWallet(address, rawProvider, source = 'Unknown') {
         provider = null;
         signer = null;
         updateWalletUI(false);
+    }
+}
+
+async function checkProviderStatus() {
+    if (!userAddress || !provider) return;
+
+    try {
+        console.log('Checking provider status for:', userAddress);
+        const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
+        const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, provider);
+
+        // 1. Check Registry
+        const providerData = await registryContract.providers(userAddress);
+        console.log('Registry Provider Data:', providerData);
+
+        isProvider = providerData && providerData[0] === true;
+        console.log('Is Provider:', isProvider);
+
+        if (isProvider) {
+            // Fetch Reputation and Stats
+            const reputation = providerData[3].toNumber();
+            const dealsCompleted = providerData[7].toNumber();
+            const dealsFailed = providerData[8].toNumber();
+
+            // Calculate Uptime (Simulated based on deals)
+            const totalDeals = dealsCompleted + dealsFailed;
+            const uptime = totalDeals > 0 ? (dealsCompleted / totalDeals * 100).toFixed(1) : "100.0";
+
+            // Update Stats UI
+            const uptimeStat = document.querySelector('#provider-stat-uptime .value');
+            if (uptimeStat) uptimeStat.textContent = `${uptime}%`;
+
+            const dealsStat = document.querySelector('#provider-stat-deals .value');
+            if (dealsStat) dealsStat.textContent = dealsCompleted;
+
+            animateReputation(reputation);
+
+            // 2. Fetch All Pledges
+            try {
+                const count = await pledgeContract.pledgeCount(userAddress);
+                const numPledges = count.toNumber();
+                console.log('Pledge Count:', numPledges);
+
+                let totalCapacity = 0;
+                let totalCollateral = ethers.BigNumber.from(0);
+                let pledgesHtml = '';
+
+                if (numPledges > 0) {
+                    for (let i = 0; i < numPledges; i++) {
+                        const pledge = await pledgeContract.getPledge(userAddress, i);
+                        const capacity = pledge[0].toNumber();
+                        const collateral = pledge[2];
+                        const isActive = pledge[6];
+
+                        totalCapacity += capacity;
+                        totalCollateral = totalCollateral.add(collateral);
+
+                        const label = i === 0 ? "Initial Pledge" : `Upgrade #${i}`;
+
+                        pledgesHtml += `
+                            <div class="stat-card">
+                                <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
+                                <div class="stat-info">
+                                    <span class="label">${label} (ID: ${i})</span>
+                                    <span class="value">${formatStorage(capacity)} Pledged (${isActive ? 'Active' : 'Inactive'})</span>
+                                </div>
+                                <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
+                                    <button class="btn-secondary btn-sm" onclick="submitProof(${i})">
+                                        <i class="fa-solid fa-shield-check"></i> Submit Proof
+                                    </button>
+                                    <button class="btn-danger btn-sm" onclick="handleExitPledge(${i})">
+                                        <i class="fa-solid fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Update UI with total pledge details
+                    const pledgedValue = document.getElementById('pledged-value');
+                    if (pledgedValue) pledgedValue.textContent = formatStorage(totalCapacity);
+
+                    const collateralValue = document.getElementById('collateral-value');
+                    if (collateralValue) collateralValue.textContent = `${parseFloat(ethers.utils.formatUnits(totalCollateral, 18)).toFixed(2)} KYN`;
+
+                    const remainingValue = document.getElementById('remaining-value');
+                    if (remainingValue) remainingValue.textContent = formatStorage(totalCapacity);
+
+                    // If registered, switch to provider view if they are on "become-provider"
+                    const currentView = document.querySelector('.view.active');
+                    if (currentView && currentView.id === 'become-provider-view') {
+                        switchView('provider');
+                    }
+
+                    // Show management sections
+                    const noNodesState = document.getElementById('no-nodes-state');
+                    const activeNodesList = document.getElementById('active-nodes-list');
+                    const storageManagement = document.getElementById('storage-management');
+
+                    if (noNodesState) noNodesState.classList.add('hidden');
+                    if (activeNodesList) {
+                        activeNodesList.classList.remove('hidden');
+                        activeNodesList.innerHTML = pledgesHtml;
+                    }
+                    if (storageManagement) storageManagement.classList.remove('hidden');
+
+                } else {
+                    console.log('Provider registered but has no pledges yet.');
+                }
+
+            } catch (pledgeErr) {
+                console.warn('Error fetching pledges:', pledgeErr);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking provider status:', error);
     }
 }
 
@@ -1018,6 +1135,24 @@ function switchView(viewId) {
         // Auto-detect region when becoming a provider
         if (viewId === 'become-provider') {
             detectRegion();
+
+            // If already a provider, customize the view for "Upgrade Pledge"
+            if (isProvider) {
+                const stakeBtn = document.getElementById('stake-btn');
+                if (stakeBtn) stakeBtn.textContent = 'Approved ✓';
+
+                const stepRegister = document.getElementById('step-register');
+                if (stepRegister) stepRegister.classList.remove('disabled');
+
+                const regTitle = document.querySelector('#become-provider-view h2');
+                if (regTitle) regTitle.textContent = 'Upgrade Storage Pledge';
+
+                const submitBtn = document.querySelector('#register-node-form button[type="submit"]');
+                if (submitBtn) submitBtn.textContent = 'Upgrade Pledge';
+
+                // Pre-fill existing data if available (we could fetch this from registry)
+                addActivity('System', 'Preparing pledge upgrade...', 'system');
+            }
         }
 
         // Update title
@@ -1123,12 +1258,38 @@ async function handleStake() {
 
     try {
         stakeBtn.disabled = true;
-        stakeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking Balance...';
+        stakeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking Status...';
 
         const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, signer);
+        const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, signer);
         const amount = ethers.utils.parseUnits("1000", 18);
 
-        // Check balance before approval
+        // 1. Check if already registered
+        const providerData = await registryContract.providers(userAddress);
+        if (providerData && providerData[0] === true) {
+            showNotification('info', 'Already Registered', 'You are already a registered provider.');
+            isProvider = true;
+            await checkProviderStatus();
+            switchView('provider');
+            return;
+        }
+
+        // 2. Check current allowance
+        const allowance = await tokenContract.allowance(userAddress, CAPACITY_PLEDGE_ADDRESS);
+        if (allowance.gte(amount)) {
+            showNotification('success', 'Already Approved', 'You have already approved KYN tokens. Proceeding to registration...');
+            document.getElementById('step-register').classList.remove('disabled');
+            stakeBtn.textContent = 'Approved ✓';
+
+            // Auto-fill Peer ID if possible
+            const peerIdInput = document.getElementById('reg-peer-id');
+            if (peerIdInput && !peerIdInput.value) {
+                peerIdInput.value = 'Qm' + Math.random().toString(36).substring(2, 15);
+            }
+            return;
+        }
+
+        // 3. Check balance before approval
         const balance = await tokenContract.balanceOf(userAddress);
         if (balance.lt(amount)) {
             showNotification('error', 'Insufficient KYN Balance', `You need at least 1,000 KYN to stake. Current balance: ${ethers.utils.formatUnits(balance, 18)} KYN`);
@@ -1297,20 +1458,26 @@ async function handleRegisterNode(event) {
             const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, signer);
             const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
 
-            addActivity('System', 'Registering provider in registry...', 'system');
+            // 1. Register in ProviderRegistry (Only if not already registered)
+            const providerData = await registryContract.providers(userAddress);
+            const isAlreadyRegistered = providerData && providerData[0] === true;
 
-            // 1. Register in ProviderRegistry
-            const regGasFees = await getGasFees();
-            const regGasEstimate = await registryContract.estimateGas.registerProvider(peerId, endpoint, region);
+            if (!isAlreadyRegistered) {
+                addActivity('System', 'Registering provider in registry...', 'system');
+                const regGasFees = await getGasFees();
+                const regGasEstimate = await registryContract.estimateGas.registerProvider(peerId, endpoint, region);
 
-            const regTx = await registryContract.registerProvider(peerId, endpoint, region, {
-                ...regGasFees,
-                gasLimit: getGasLimitWithBuffer(regGasEstimate)
-            });
+                const regTx = await registryContract.registerProvider(peerId, endpoint, region, {
+                    ...regGasFees,
+                    gasLimit: getGasLimitWithBuffer(regGasEstimate)
+                });
 
-            showNotification('info', 'Registration Pending', 'Provider registration transaction submitted.');
-            await regTx.wait();
-            addActivity('System', 'Provider registered successfully', 'system');
+                showNotification('info', 'Registration Pending', 'Provider registration transaction submitted.');
+                await regTx.wait();
+                addActivity('System', 'Provider registered successfully', 'system');
+            } else {
+                addActivity('System', 'Provider already registered, skipping registry step...', 'system');
+            }
 
             // 2. Create Capacity Pledge
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Pledging...';
@@ -1335,55 +1502,8 @@ async function handleRegisterNode(event) {
 
         addActivity('User', `Registered node with ${capacity} GB capacity in ${region.toUpperCase()}`, 'user');
 
-        // Safely update elements if they exist
-        const noNodesState = document.getElementById('no-nodes-state');
-        const activeNodesList = document.getElementById('active-nodes-list');
-        const storageManagement = document.getElementById('storage-management');
-        const pledgedValue = document.getElementById('pledged-value');
-        const remainingValue = document.getElementById('remaining-value');
-
-        if (noNodesState) noNodesState.classList.add('hidden');
-        if (activeNodesList) {
-            activeNodesList.classList.remove('hidden');
-            activeNodesList.innerHTML = `
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
-                <div class="stat-info">
-                    <span class="label">Node ID: 0x${Math.random().toString(16).substring(2, 10)}...</span>
-                    <span class="value">${formatStorage(capacity)} Pledged</span>
-                </div>
-                <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
-                    <button class="btn-secondary btn-sm" onclick="submitProof(1)">
-                        <i class="fa-solid fa-shield-check"></i> Submit Proof
-                    </button>
-                    <button class="btn-secondary btn-sm" onclick="switchView('upgrade-pledge')">
-                        <i class="fa-solid fa-circle-up"></i> Upgrade
-                    </button>
-                </div>
-            </div>
-        `;
-        }
-        if (storageManagement) storageManagement.classList.remove('hidden');
-
-        // Update stats if elements exist
-        const uptimeEl = document.getElementById('provider-stat-uptime');
-        if (uptimeEl) {
-            const valueEl = uptimeEl.querySelector('.value');
-            if (valueEl) valueEl.textContent = '99.9%';
-        }
-
-        // Update global state
-        currentPledgedCapacity = parseInt(capacity);
-
-        if (pledgedValue) pledgedValue.textContent = formatStorage(currentPledgedCapacity);
-        if (remainingValue) remainingValue.textContent = formatStorage(currentPledgedCapacity);
-
-        // Update current pledge display
-        const currentCapacityDisplay = document.getElementById('current-capacity-display');
-        if (currentCapacityDisplay) currentCapacityDisplay.textContent = formatStorage(currentPledgedCapacity);
-
-        // Animate reputation
-        animateReputation(98);
+        // Refresh provider status from blockchain
+        await checkProviderStatus();
 
         // User feedback with custom notification
         showNotification('success', 'Node Registered!', `Successfully registered node with ${formatStorage(capacity)} capacity in ${region.toUpperCase()}.`);
@@ -1443,6 +1563,8 @@ function animateReputation(target) {
     const value = document.getElementById('reputation-value');
     const status = document.getElementById('reputation-status');
 
+    if (!gauge || !value || !status) return;
+
     let current = 0;
     const interval = setInterval(() => {
         if (current >= target) {
@@ -1452,13 +1574,21 @@ function animateReputation(target) {
             value.textContent = current;
             gauge.style.background = `conic-gradient(var(--primary-color) ${current * 3.6}deg, rgba(255, 255, 255, 0.05) 0deg)`;
         }
-    }, 20);
+    }, 10);
 
-    status.textContent = 'Excellent';
-    status.style.color = 'var(--success)';
+    if (target >= 80) {
+        status.textContent = 'Excellent';
+        status.style.color = 'var(--success)';
+    } else if (target >= 50) {
+        status.textContent = 'Good';
+        status.style.color = 'var(--warning)';
+    } else {
+        status.textContent = 'Poor';
+        status.style.color = 'var(--danger)';
+    }
 }
 
-function handleUpgradePledge(event) {
+async function handleUpgradePledge(event) {
     event.preventDefault();
     const additionalInput = document.getElementById('additional-capacity');
     if (!additionalInput || !additionalInput.value) {
@@ -1466,25 +1596,89 @@ function handleUpgradePledge(event) {
         return;
     }
 
+    if (!signer || !userAddress) {
+        const recovered = await recoverSigner();
+        if (!recovered) {
+            showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+            return;
+        }
+    }
+
     const additional = parseInt(additionalInput.value);
-    const previousCapacity = currentPledgedCapacity;
-    currentPledgedCapacity += additional;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
 
-    addActivity('User', `Upgraded pledge by ${additional} GB (Total: ${currentPledgedCapacity} GB)`, 'user');
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Upgrading...';
 
-    // Update displays
-    const pledgedValue = document.getElementById('pledged-value');
-    const remainingValue = document.getElementById('remaining-value');
-    const currentCapacityDisplay = document.getElementById('current-capacity-display');
-    const currentStakeDisplay = document.getElementById('current-stake-display');
+        const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
 
-    if (pledgedValue) pledgedValue.textContent = formatStorage(currentPledgedCapacity);
-    if (remainingValue) remainingValue.textContent = formatStorage(currentPledgedCapacity);
-    if (currentCapacityDisplay) currentCapacityDisplay.textContent = formatStorage(currentPledgedCapacity);
-    if (currentStakeDisplay) currentStakeDisplay.textContent = `${(currentPledgedCapacity * 10).toLocaleString()} KYN`;
+        // In this protocol, "upgrading" means creating a new pledge
+        const duration = 30 * 24 * 60 * 60; // 30 days
+        const collateral = ethers.utils.parseUnits((additional * 10).toString(), 18); // 10 KYN per GB
 
-    showNotification('success', 'Upgrade Successful!', `Added ${formatStorage(additional)} to your pledge. Total capacity: ${formatStorage(currentPledgedCapacity)} (was ${formatStorage(previousCapacity)}).`);
-    switchView('provider');
+        addActivity('System', `Initiating upgrade pledge for ${additional} GB...`, 'system');
+
+        const gasFees = await getGasFees();
+        const gasEstimate = await pledgeContract.estimateGas.createPledge(additional, duration, collateral);
+
+        const tx = await pledgeContract.createPledge(additional, duration, collateral, {
+            ...gasFees,
+            gasLimit: getGasLimitWithBuffer(gasEstimate)
+        });
+
+        showNotification('info', 'Upgrade Pending', 'Pledge upgrade transaction submitted.');
+        await tx.wait();
+
+        showNotification('success', 'Upgrade Successful!', `Added ${formatStorage(additional)} to your pledge.`);
+        addActivity('User', `Upgraded pledge by ${additional} GB`, 'user');
+
+        // Refresh status
+        await checkProviderStatus();
+        switchView('provider');
+
+    } catch (error) {
+        console.error('Upgrade failed:', error);
+        showNotification('error', 'Upgrade Failed', error.message || 'Failed to upgrade pledge.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+
+async function handleExitPledge(pledgeId) {
+    if (!confirm("WARNING: Exiting your pledge early will result in a 20% collateral penalty. Are you sure you want to leave the network?")) {
+        return;
+    }
+
+    try {
+        const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
+
+        addActivity('System', `Initiating early exit for Pledge #${pledgeId}...`, 'system');
+        showNotification('info', 'Confirm Transaction', 'Please confirm the early exit in your wallet.');
+
+        const gasFees = await getGasFees();
+        const gasEstimate = await pledgeContract.estimateGas.exitPledgeEarly(pledgeId);
+
+        const tx = await pledgeContract.exitPledgeEarly(pledgeId, {
+            ...gasFees,
+            gasLimit: getGasLimitWithBuffer(gasEstimate)
+        });
+
+        showNotification('info', 'Transaction Pending', 'Exit transaction submitted. Waiting for confirmation...');
+        await tx.wait();
+
+        showNotification('success', 'Pledge Exited', 'You have successfully exited the pledge. Your remaining collateral has been returned.');
+        addActivity('User', `Exited Pledge #${pledgeId} early`, 'user');
+
+        // Refresh status
+        await checkProviderStatus();
+
+    } catch (error) {
+        console.error('Exit pledge failed:', error);
+        showNotification('error', 'Exit Failed', error.message || 'Failed to exit pledge.');
+    }
 }
 
 async function handleCreateDeal(event) {
@@ -1527,9 +1721,28 @@ async function handleCreateDeal(event) {
             });
             await approveTx.wait();
 
-            // 2. Select 15 providers (simulated for now - in production fetch from Registry)
-            // We'll use some dummy addresses if we don't have enough real ones
-            const selectedProviders = Array(15).fill(0).map(() => ethers.Wallet.createRandom().address);
+            // 2. Select 15 providers (real ones from Registry)
+            addActivity('System', 'Selecting active providers...', 'system');
+            const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
+            let selectedProviders = [];
+            try {
+                selectedProviders = await registryContract.getActiveProviders(0); // Min reputation 0
+                console.log('Active providers found:', selectedProviders);
+            } catch (e) {
+                console.error('Failed to fetch active providers:', e);
+            }
+
+            if (selectedProviders.length < 15) {
+                console.warn('Not enough active providers, filling with dummy addresses for simulation');
+                // NOTE: This might still cause gas estimation failure if the contract strictly checks for registered providers
+                const dummyCount = 15 - selectedProviders.length;
+                const dummies = Array(dummyCount).fill(0).map(() => ethers.Wallet.createRandom().address);
+                selectedProviders = [...selectedProviders, ...dummies];
+            } else if (selectedProviders.length > 15) {
+                // Just take the first 15
+                selectedProviders = selectedProviders.slice(0, 15);
+            }
+
             const shardCIDs = Array(15).fill(0).map(() => cid + '_shard');
             const shardSizes = Array(15).fill(0).map(() => Math.ceil(roundedSize * 1024 / 10)); // Simplified
 
@@ -1680,22 +1893,153 @@ function showNotification(type, title, message) {
     }, 5000);
 }
 
-function handleCreateProposal() {
-    const recommendations = [
-        "Increase Storage Rewards by 5%",
-        "Decrease Slashing Penalty",
-        "Add New Supported Region: Antarctica",
-        "Upgrade Network Protocol v2.0",
-        "Fund Developer Grant: IPFS Integration"
-    ];
 
-    const choice = prompt("Create Proposal - Select a recommendation (1-5):\n" + recommendations.map((r, i) => `${i + 1}. ${r}`).join("\n"));
+// Governance Proposal System
+let proposals = [
+    {
+        id: 1,
+        title: "Increase Storage Rewards by 5%",
+        description: "Proposal to increase the base rewards for storage providers to incentivize network growth.",
+        votesFor: 1250,
+        votesAgainst: 450,
+        status: "active",
+        userVote: null // 'for' or 'against'
+    },
+    {
+        id: 2,
+        title: "Decrease Slashing Penalty",
+        description: "Reduce the penalty for minor downtime to support smaller providers.",
+        votesFor: 890,
+        votesAgainst: 1200,
+        status: "active",
+        userVote: null
+    }
+];
 
-    if (choice && choice >= 1 && choice <= 5) {
-        addActivity('User', `Created proposal: ${recommendations[choice - 1]}`, 'user');
-        alert(`Proposal created: ${recommendations[choice - 1]}`);
+function openProposalModal() {
+    document.getElementById('proposal-modal').classList.remove('hidden');
+}
+
+function closeProposalModal() {
+    document.getElementById('proposal-modal').classList.add('hidden');
+    document.getElementById('create-proposal-form').reset();
+}
+
+function handleCreateProposal(event) {
+    event.preventDefault();
+    const title = document.getElementById('proposal-title').value;
+    const description = document.getElementById('proposal-description').value;
+
+    const newProposal = {
+        id: proposals.length + 1,
+        title: title,
+        description: description,
+        votesFor: 0,
+        votesAgainst: 0,
+        status: "active",
+        userVote: null
+    };
+
+    proposals.unshift(newProposal);
+    renderProposals();
+    closeProposalModal();
+
+    addActivity('User', `Created proposal: ${title}`, 'user');
+    showNotification('success', 'Proposal Created', 'Your proposal has been submitted to the community.');
+}
+
+function voteProposal(id, type) {
+    const proposal = proposals.find(p => p.id === id);
+    if (!proposal || proposal.userVote) return;
+
+    if (type === 'for') {
+        proposal.votesFor++;
+        proposal.userVote = 'for';
+    } else {
+        proposal.votesAgainst++;
+        proposal.userVote = 'against';
+    }
+
+    renderProposals();
+    addActivity('User', `Voted ${type} proposal: ${proposal.title}`, 'user');
+    showNotification('success', 'Vote Cast', `You voted ${type} this proposal.`);
+}
+
+function renderProposals() {
+    const container = document.getElementById('proposals-container');
+    if (!container) return;
+
+    // Clear previous proposals but keep the header
+    const header = container.querySelector('.section-header');
+    container.innerHTML = '';
+    if (header) container.appendChild(header);
+    else container.innerHTML = '<h3>Active Proposals</h3>';
+
+    if (proposals.length === 0) {
+        container.innerHTML += `
+            <div class="empty-state">
+                <p>No active proposals at this time.</p>
+            </div>
+        `;
+        return;
+    }
+
+    proposals.forEach(p => {
+        const totalVotes = p.votesFor + p.votesAgainst;
+        const forPercent = totalVotes === 0 ? 50 : (p.votesFor / totalVotes) * 100;
+        const againstPercent = totalVotes === 0 ? 50 : (p.votesAgainst / totalVotes) * 100;
+
+        const card = document.createElement('div');
+        card.className = 'proposal-card';
+        card.innerHTML = `
+            <div class="proposal-header">
+                <h4>${p.title}</h4>
+                <span class="proposal-status status-${p.status}">${p.status.toUpperCase()}</span>
+            </div>
+            <p class="proposal-desc">${p.description}</p>
+            <div class="proposal-voting">
+                <div class="vote-stats">
+                    <span class="for"><i class="fa-solid fa-circle-check"></i> ${p.votesFor.toLocaleString()} For</span>
+                    <span class="against"><i class="fa-solid fa-circle-xmark"></i> ${p.votesAgainst.toLocaleString()} Against</span>
+                </div>
+                <div class="vote-progress-bar">
+                    <div class="progress-for" style="width: ${forPercent}%"></div>
+                    <div class="progress-against" style="width: ${againstPercent}%"></div>
+                </div>
+                <div class="vote-actions">
+                    <button class="vote-btn ${p.userVote === 'for' ? 'voted-for' : ''}" 
+                            onclick="voteProposal(${p.id}, 'for')" 
+                            ${p.userVote ? 'disabled' : ''}>
+                        <i class="fa-solid fa-thumbs-up"></i> Vote For
+                    </button>
+                    <button class="vote-btn ${p.userVote === 'against' ? 'voted-against' : ''}" 
+                            onclick="voteProposal(${p.id}, 'against')" 
+                            ${p.userVote ? 'disabled' : ''}>
+                        <i class="fa-solid fa-thumbs-down"></i> Vote Against
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    // Update Total Proposals stat if it exists
+    const totalProposalsEl = document.querySelector('#governance-view .stat-card:last-child .value');
+    if (totalProposalsEl) {
+        totalProposalsEl.textContent = proposals.length;
     }
 }
+
+// Initialize proposals on view switch
+const originalSwitchView = window.switchView;
+window.switchView = function (viewId) {
+    if (typeof originalSwitchView === 'function') {
+        originalSwitchView(viewId);
+    }
+    if (viewId === 'governance') {
+        renderProposals();
+    }
+};
 
 async function fetchEvents() {
     try {
@@ -2109,10 +2453,43 @@ async function renderProfile() {
         }
     }
 
-    // 5. TODO: Fetch real reputation and deals from contract/API
-    // For now, show placeholders indicating data is not available
-    if (reputationEl) reputationEl.textContent = '--';
-    if (totalDealsEl) totalDealsEl.textContent = '--';
+    // 5. Fetch profile data from localStorage
+    const profileData = JSON.parse(localStorage.getItem(`kyneto_profile_${userAddress}`)) || {
+        username: truncatedAddress,
+        bio: '',
+        avatar: null,
+        socials: { twitter: '', github: '' }
+    };
+
+    // Update UI with profile data
+    const usernameEl = document.getElementById('profile-username-display');
+    if (usernameEl) usernameEl.textContent = profileData.username;
+
+    const addressDisplayEl = document.getElementById('profile-address-display');
+    if (addressDisplayEl) addressDisplayEl.textContent = userAddress;
+
+    const bioEl = document.getElementById('profile-bio-display');
+    if (bioEl) bioEl.textContent = profileData.bio;
+
+    const avatarEl = document.getElementById('profile-avatar-display');
+    if (avatarEl) {
+        if (profileData.avatar) {
+            avatarEl.innerHTML = `<img src="${profileData.avatar}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+            avatarEl.innerHTML = `<i class="fa-solid fa-user-astronaut" style="font-size: 3rem; color: white;"></i>`;
+        }
+    }
+
+    const socialsEl = document.getElementById('profile-socials-display');
+    if (socialsEl) {
+        socialsEl.innerHTML = '';
+        if (profileData.socials.twitter) {
+            socialsEl.innerHTML += `<a href="https://twitter.com/${profileData.socials.twitter}" target="_blank" style="color: var(--text-secondary); font-size: 1.2rem;"><i class="fa-brands fa-x-twitter"></i></a>`;
+        }
+        if (profileData.socials.github) {
+            socialsEl.innerHTML += `<a href="https://github.com/${profileData.socials.github}" target="_blank" style="color: var(--text-secondary); font-size: 1.2rem;"><i class="fa-brands fa-github"></i></a>`;
+        }
+    }
 
     // 6. Copy main activity feed to profile feed
     const mainFeed = document.getElementById('activity-feed');
@@ -2120,5 +2497,83 @@ async function renderProfile() {
     if (mainFeed && profileFeed) {
         profileFeed.innerHTML = mainFeed.innerHTML;
     }
+}
+
+// Edit Profile Functions
+function handleEditProfile() {
+    if (!userAddress) {
+        showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+        return;
+    }
+
+    const profileData = JSON.parse(localStorage.getItem(`kyneto_profile_${userAddress}`)) || {
+        username: `${userAddress.substring(0, 8)}...${userAddress.substring(userAddress.length - 6)}`,
+        email: '',
+        bio: '',
+        avatar: null,
+        socials: { twitter: '', github: '' }
+    };
+
+    // Populate form
+    document.getElementById('edit-username').value = profileData.username;
+    document.getElementById('edit-email').value = profileData.email || '';
+    document.getElementById('edit-bio').value = profileData.bio || '';
+    document.getElementById('edit-twitter').value = profileData.socials.twitter || '';
+    document.getElementById('edit-github').value = profileData.socials.github || '';
+
+    const preview = document.getElementById('avatar-preview');
+    if (profileData.avatar) {
+        preview.innerHTML = `<img src="${profileData.avatar}">`;
+    } else {
+        preview.innerHTML = `<i class="fa-solid fa-user-astronaut"></i>`;
+    }
+
+    switchView('edit-profile');
+}
+
+function previewAvatar(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+        showNotification('error', 'File Too Large', 'Please select an image smaller than 2MB.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const preview = document.getElementById('avatar-preview');
+        preview.innerHTML = `<img src="${e.target.result}">`;
+        // Store base64 temporarily in a data attribute
+        preview.dataset.avatar = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleSaveProfile(event) {
+    event.preventDefault();
+    if (!userAddress) return;
+
+    const preview = document.getElementById('avatar-preview');
+    const avatarData = preview.dataset.avatar || (preview.querySelector('img') ? preview.querySelector('img').src : null);
+
+    const profileData = {
+        username: document.getElementById('edit-username').value,
+        email: document.getElementById('edit-email').value,
+        bio: document.getElementById('edit-bio').value,
+        avatar: avatarData,
+        socials: {
+            twitter: document.getElementById('edit-twitter').value,
+            github: document.getElementById('edit-github').value
+        }
+    };
+
+    localStorage.setItem(`kyneto_profile_${userAddress}`, JSON.stringify(profileData));
+
+    showNotification('success', 'Profile Updated', 'Your profile changes have been saved.');
+    addActivity('User', 'Updated profile information', 'user');
+
+    renderProfile();
+    switchView('profile');
 }
 
