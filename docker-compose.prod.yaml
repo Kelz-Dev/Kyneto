@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # IPFS / Kubo Node
+  # ===========================================
+  ipfs:
+    image: ipfs/kubo:latest
+    restart: unless-stopped
+    volumes:
+      - ipfs_path:/data/ipfs
+      - ipfs_fuse:/ipfs
+      - ipns_fuse:/ipns
+    environment:
+      - IPFS_PATH=/data/ipfs
+    ports:
+      - "4001:4001/tcp"
+      - "4001:4001/udp"
+      - "127.0.0.1:5001:5001"
+      - "127.0.0.1:8080:8080"
+
+  # ===========================================
+  # Kyneto Landing Page (Port 3001)
+  # ===========================================
+  landing-page:
+    build:
+      context: ./Landing Page
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=incentive_layer
+      - POSTGRES_USER=kyneto_user
+      - POSTGRES_PASSWORD=your_secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./incentive-layer/config/database-schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "kyneto_user", "-d", "incentive_layer" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # Incentive Layer REST API (Port 3002)
+  # ===========================================
+  api-server:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/api/rest-api:/app
+    environment:
+      - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
+      - PORT=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm install && npm run build && npm start"
+    ports:
+      - "3002:3000"
+
+  # ===========================================
+  # Blockchain Indexer Service
+  # ===========================================
+  indexer:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/indexer:/app
+    environment:
+      - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm install && npm run dev"
+
+  # ===========================================
+  # Erasure Coding Service
+  # ===========================================
+  erasure-coding:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/services/erasure-coding:/app
+    environment:
+      - KUBO_API_URL=http://ipfs:5001
+      - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+    depends_on:
+      - ipfs
+      - postgres
+    command: sh -c "npm install && npm run dev"
+
+  # ===========================================
+  # Incentive Layer Dashboard (Port 3003)
+  # ===========================================
+  incentive-dashboard:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/dashboard:/usr/share/nginx/html:ro
+    ports:
+      - "3003:80"
+    depends_on:
+      - api-server
+
+volumes:
+  ipfs_path:
+  ipfs_fuse:
+  ipns_fuse:
+  postgres_data:
