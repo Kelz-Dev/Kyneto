@@ -1,0 +1,41 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Deploy to Server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          # Navigate to project directory
+          cd ~/kyneto/incentive-layer
+          
+          # Pull latest changes
+          git pull origin main
+          
+          # Install dependencies for API
+          cd api/rest-api
+          npm install
+          npm run build
+          
+          # Restart API server
+          pm2 restart kyneto-api
+          
+          # Optional: Restart Nginx if config changed (usually not needed for code updates)
+          # sudo systemctl reload nginx
+          
+          echo "Deployment complete!"

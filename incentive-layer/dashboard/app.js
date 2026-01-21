@@ -1,4 +1,9 @@
 const getApiUrl = () => {
+    // Production: Use the same origin (https://kyneto.app)
+    if (window.location.hostname === 'kyneto.app' || window.location.hostname === 'www.kyneto.app') {
+        return window.location.origin;
+    }
+
     // Handle file:// protocol or empty hostname
     const hostname = window.location.hostname || 'localhost';
 
