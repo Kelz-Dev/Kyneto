@@ -35,7 +35,7 @@ jobs:
           echo "DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer" >> .env
           
           # Build and Start Containers using Production File
-          docker-compose -f docker-compose.prod.yaml up -d --build
+          docker compose -f docker-compose.prod.yaml up -d --build
           
           # Prune unused images to save space
           docker system prune -f
