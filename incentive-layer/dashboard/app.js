@@ -1002,48 +1002,6 @@ async function disconnectWallet() {
 
     // Close dropdowns
     const sidebarDropdown = document.getElementById('sidebar-dropdown');
-    const profileDropdown = document.getElementById('profile-dropdown');
-    if (sidebarDropdown) sidebarDropdown.classList.add('hidden');
-    if (profileDropdown) profileDropdown.classList.add('hidden');
-}
-
-function updateSidebarProfile() {
-    if (!userAddress) return;
-
-    const profileData = JSON.parse(localStorage.getItem(`kyneto_profile_${userAddress}`)) || {
-        username: 'User Node',
-        avatar: null
-    };
-
-    const sidebarName = document.querySelector('.sidebar-profile .name');
-    const sidebarAvatar = document.querySelector('.sidebar-profile .avatar-mini');
-
-    if (sidebarName) {
-        // Use username from profile, or fallback to "User Node"
-        sidebarName.textContent = profileData.username || 'User Node';
-    }
-
-    if (sidebarAvatar) {
-        if (profileData.avatar) {
-            sidebarAvatar.innerHTML = `<img src="${profileData.avatar}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
-        } else {
-            // Default avatar
-            sidebarAvatar.innerHTML = ''; // CSS handles background, or we can add icon
-            // For now, let's add a small icon if no avatar
-            // sidebarAvatar.innerHTML = `<i class="fa-solid fa-user" style="font-size: 1rem; color: white;"></i>`;
-            // Actually, let's keep it empty if CSS handles it, or check what it was before.
-            // Before it was <div class="avatar-mini"></div> empty.
-            // Let's assume CSS puts a background image or color.
-            // But if we want to be sure, let's put the astronaut icon like in profile.
-            sidebarAvatar.innerHTML = `<i class="fa-solid fa-user-astronaut" style="font-size: 1.2rem; color: white;"></i>`;
-            sidebarAvatar.style.display = 'flex';
-            sidebarAvatar.style.alignItems = 'center';
-            sidebarAvatar.style.justifyContent = 'center';
-        }
-    }
-}
-
-function updateWalletUI(isConnected) {
     const connectBtn = document.getElementById('connect-wallet-btn');
     const userProfile = document.getElementById('user-profile');
     const dropdownAddr = document.getElementById('dropdown-address');
@@ -1086,8 +1044,8 @@ function updateWalletUI(isConnected) {
         if (dropdownAddr) dropdownAddr.textContent = userAddress;
         if (sidebarNodeId) sidebarNodeId.textContent = userAddress;
 
-        // Update Sidebar Profile (Dynamic)
-        updateSidebarProfile();
+        // Update Global Profile UI (Sidebar & Top Bar)
+        updateGlobalProfileUI();
 
         if (sidebarStatus) {
             sidebarStatus.textContent = 'Online';
@@ -2540,8 +2498,8 @@ async function renderProfile() {
         profileFeed.innerHTML = mainFeed.innerHTML;
     }
 
-    // Ensure sidebar is synced
-    updateSidebarProfile();
+    // Ensure global UI is synced
+    updateGlobalProfileUI();
 }
 
 // Edit Profile Functions
@@ -2619,7 +2577,7 @@ function handleSaveProfile(event) {
     addActivity('User', 'Updated profile information', 'user');
 
     renderProfile();
-    updateSidebarProfile();
+    updateGlobalProfileUI();
     switchView('profile');
 }
 
