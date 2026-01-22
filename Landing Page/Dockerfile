@@ -21,6 +21,7 @@ FROM nginx:stable-alpine AS production-stage
 # Copy built files from build-stage
 COPY --from=build-stage /app/index.html /usr/share/nginx/html/
 COPY --from=build-stage /app/dist /usr/share/nginx/html/dist
+COPY --from=build-stage /app/img /usr/share/nginx/html/img
 
 # Expose port 80
 EXPOSE 80
