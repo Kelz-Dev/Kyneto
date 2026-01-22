@@ -1007,6 +1007,42 @@ async function disconnectWallet() {
     if (profileDropdown) profileDropdown.classList.add('hidden');
 }
 
+function updateSidebarProfile() {
+    if (!userAddress) return;
+
+    const profileData = JSON.parse(localStorage.getItem(`kyneto_profile_${userAddress}`)) || {
+        username: 'User Node',
+        avatar: null
+    };
+
+    const sidebarName = document.querySelector('.sidebar-profile .name');
+    const sidebarAvatar = document.querySelector('.sidebar-profile .avatar-mini');
+
+    if (sidebarName) {
+        // Use username from profile, or fallback to "User Node"
+        sidebarName.textContent = profileData.username || 'User Node';
+    }
+
+    if (sidebarAvatar) {
+        if (profileData.avatar) {
+            sidebarAvatar.innerHTML = `<img src="${profileData.avatar}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+            // Default avatar
+            sidebarAvatar.innerHTML = ''; // CSS handles background, or we can add icon
+            // For now, let's add a small icon if no avatar
+            // sidebarAvatar.innerHTML = `<i class="fa-solid fa-user" style="font-size: 1rem; color: white;"></i>`;
+            // Actually, let's keep it empty if CSS handles it, or check what it was before.
+            // Before it was <div class="avatar-mini"></div> empty.
+            // Let's assume CSS puts a background image or color.
+            // But if we want to be sure, let's put the astronaut icon like in profile.
+            sidebarAvatar.innerHTML = `<i class="fa-solid fa-user-astronaut" style="font-size: 1.2rem; color: white;"></i>`;
+            sidebarAvatar.style.display = 'flex';
+            sidebarAvatar.style.alignItems = 'center';
+            sidebarAvatar.style.justifyContent = 'center';
+        }
+    }
+}
+
 function updateWalletUI(isConnected) {
     const connectBtn = document.getElementById('connect-wallet-btn');
     const userProfile = document.getElementById('user-profile');
@@ -1050,8 +1086,9 @@ function updateWalletUI(isConnected) {
         if (dropdownAddr) dropdownAddr.textContent = userAddress;
         if (sidebarNodeId) sidebarNodeId.textContent = userAddress;
 
-        // Update Sidebar
-        if (sidebarName) sidebarName.textContent = 'User Node';
+        // Update Sidebar Profile (Dynamic)
+        updateSidebarProfile();
+
         if (sidebarStatus) {
             sidebarStatus.textContent = 'Online';
             sidebarStatus.style.color = 'var(--success)';
@@ -2502,6 +2539,9 @@ async function renderProfile() {
     if (mainFeed && profileFeed) {
         profileFeed.innerHTML = mainFeed.innerHTML;
     }
+
+    // Ensure sidebar is synced
+    updateSidebarProfile();
 }
 
 // Edit Profile Functions
@@ -2579,6 +2619,7 @@ function handleSaveProfile(event) {
     addActivity('User', 'Updated profile information', 'user');
 
     renderProfile();
+    updateSidebarProfile();
     switchView('profile');
 }
 
