@@ -249,6 +249,15 @@ contract ProofVerifier is Ownable {
     }
 
     /**
+     * @dev Get the challenged leaf indices for a specific challenge
+     */
+    function getChallengeIndices(
+        uint256 challengeId
+    ) external view returns (uint256[] memory) {
+        return postChallenges[challengeId].leafIndices;
+    }
+
+    /**
      * @dev Check if provider needs to submit PoSt for a deal
      */
     function needsPoSt(

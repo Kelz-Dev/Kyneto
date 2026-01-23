@@ -48,7 +48,8 @@ class ProviderDaemon {
             const proverABI = [
                 'event PoStChallengeCreated(uint256 indexed challengeId, uint256 dealId, address provider)',
                 'function submitPoSt(uint256 challengeId, bytes32[] calldata leafData, bytes32[][] calldata proofs) external',
-                'function postChallenges(uint256) view returns (uint256 dealId, address provider, uint256 challengeTimestamp, uint256 deadline, bool submitted, bool verified)'
+                'function postChallenges(uint256) view returns (uint256 dealId, address provider, uint256 challengeTimestamp, uint256 deadline, bool submitted, bool verified)',
+                'function getChallengeIndices(uint256 challengeId) view returns (uint256[])'
             ];
             this.proverContract = new ethers.Contract(proverAddress, proverABI, this.wallet);
         }
@@ -119,8 +120,10 @@ class ProviderDaemon {
                 throw new Error(`Failed to load Merkle tree for shard ${cid}`);
             }
 
-            // For this demo, we'll use fixed indices [0..9] as planned
-            const indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            // Fetch real challenged indices from contract
+            logger.info(`🔍 Fetching challenged indices for challenge #${challengeId}...`);
+            const indices = await this.proverContract.getChallengeIndices(challengeId);
+            logger.info(`🎯 Challenged indices: [${indices.join(', ')}]`);
 
             const leafData: string[] = [];
             const proofs: string[][] = [];
