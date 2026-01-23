@@ -64,6 +64,7 @@ coverage.json
 **/dist/
 **/deployed-addresses-*.json
 .env
+publish_provider.ps1
 
 # Logs and OS files
 *.log

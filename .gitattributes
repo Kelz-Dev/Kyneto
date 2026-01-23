@@ -1,5 +1,7 @@
 # Default to text
 * text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
 
 # True text
 *.md text eol=auto

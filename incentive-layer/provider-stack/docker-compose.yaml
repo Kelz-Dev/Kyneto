@@ -14,9 +14,10 @@ services:
 
   # Kyneto Provider Node
   provider-node:
-    build:
-      context: ..
-      dockerfile: provider-stack/Dockerfile.node
+    image: kelechialichi/provider-daemon:latest
+    # build:
+    #   context: ..
+    #   dockerfile: provider-stack/Dockerfile.node
     environment:
       - PRIVATE_KEY=${PRIVATE_KEY}
       - RPC_URL=${RPC_URL}

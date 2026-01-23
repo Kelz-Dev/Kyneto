@@ -13,6 +13,8 @@
     "dotenv": "^16.3.1",
     "ethers": "^6.9.0",
     "ipfs-http-client": "^60.0.1",
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.3.11",
     "winston": "^3.11.0"
   },
   "devDependencies": {
