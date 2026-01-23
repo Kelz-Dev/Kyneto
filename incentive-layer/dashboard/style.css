@@ -162,9 +162,7 @@ body {
 .collapsed-sidebar .logo h1,
 .collapsed-sidebar .logo span,
 .collapsed-sidebar .nav-item span,
-.collapsed-sidebar .sidebar-footer .text,
-.collapsed-sidebar .profile-info-mini,
-.collapsed-sidebar .sidebar-profile i {
+.collapsed-sidebar .sidebar-footer .text {
     display: none;
 }
 
@@ -179,8 +177,13 @@ body {
 }
 
 .collapsed-sidebar .sidebar-profile {
-    justify-content: center;
-    padding: 12px 0;
+    justify-content: flex-start;
+    padding: 12px;
+    width: 260px;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    margin-left: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .collapsed-sidebar .main-content {
@@ -1170,10 +1173,10 @@ td {
 .sidebar-dropdown {
     top: auto !important;
     bottom: calc(100% + 12px) !important;
-    left: 0;
+    left: 10px;
     right: auto;
-    width: 100%;
-    transform-origin: bottom center;
+    width: 260px;
+    transform-origin: bottom left;
     animation: dropdownFadeUp 0.3s ease-out;
 }
 
