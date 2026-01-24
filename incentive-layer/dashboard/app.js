@@ -74,8 +74,8 @@ const CAPACITY_PLEDGE_ABI = [
 const MARKETPLACE_ABI = [
     "function createDeal(tuple(string fileCID, uint256 fileSizeGB, uint256 durationDays, uint256 pricePerGBMonthUSD, address[] selectedProviders, string[] shardCIDs, uint256[] shardSizes, uint256 alertDays) params) external returns (uint256)",
     "function renewDeal(uint256 dealId, uint256 additionalDays) external",
-    "function getDeal(uint256 dealId) external view returns (address, string, uint256, uint256, uint256, uint256, uint256, uint256, uint8)",
-    "function deals(uint256 dealId) public view returns (address, string, uint256, uint256, uint256, uint256, uint256, uint256, address[], uint256, uint8, uint256, uint256)",
+    "function getDeal(uint256 dealId) external view returns (address client, string fileCID, uint256 fileSizeGB, uint256 duration, uint256 totalCost, uint256 startTime, uint256 endTime, uint256 activeShards, uint8 status)",
+    "function deals(uint256 dealId) public view returns (address client, string fileCID, uint256 fileSizeGB, uint256 duration, uint256 pricePerGBMonth, uint256 totalCost, uint256 startTime, uint256 endTime, address[] providers, uint256 activeShards, uint8 status, uint256 escrowedAmount, uint256 alertDays)",
     "function dealCount() public view returns (uint256)",
     "function totalFeesCollected() public view returns (uint256)",
     "function kynPriceUSD() public view returns (uint256)"
@@ -178,7 +178,7 @@ async function checkExpirations() {
 
         for (let i = 0; i < count.toNumber(); i++) {
             const deal = await marketplaceContract.deals(i);
-            if (deal.client.toLowerCase() === userAddress.toLowerCase() && deal.status === 0) { // Active
+            if (deal.client.toLowerCase() === userAddress.toLowerCase() && (deal.status === 0 || deal.status === 4)) { // Active or InGracePeriod
                 const endTime = deal.endTime.toNumber();
                 const alertDays = deal.alertDays.toNumber() || 3;
                 const timeLeft = endTime - now;
@@ -2856,16 +2856,21 @@ async function handleRenewDeal(dealId, additionalDays) {
         // Fetch deal to calculate cost
         const deal = await marketplaceContract.deals(dealId);
         const totalMonths = Math.ceil(additionalDays / 30);
+
+        // Ensure we are using BigNumber methods correctly (ethers v5)
         const renewalCost = deal.fileSizeGB.mul(deal.pricePerGBMonth).mul(totalMonths);
         const protocolFee = renewalCost.mul(300).div(10000);
         const totalCost = renewalCost.add(protocolFee);
 
         addActivity('System', 'Approving KYN for renewal...', 'system');
-        const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost);
+
+        // Get gas fees for better reliability
+        const gasFees = await getGasFees();
+        const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost, gasFees);
         await approveTx.wait();
 
         addActivity('System', 'Executing renewal...', 'system');
-        const renewTx = await marketplaceContract.renewDeal(dealId, additionalDays);
+        const renewTx = await marketplaceContract.renewDeal(dealId, additionalDays, gasFees);
         await renewTx.wait();
 
         showNotification('success', 'Deal Renewed!', `Deal #${dealId} extended by ${additionalDays} days.`);
@@ -2873,7 +2878,7 @@ async function handleRenewDeal(dealId, additionalDays) {
 
         // Refresh UI
         await checkExpirations();
-        if (typeof renderMyDeals === 'function') renderMyDeals();
+        if (typeof fetchMyDeals === 'function') fetchMyDeals(currentDealsTab);
 
     } catch (error) {
         console.error('Renewal failed:', error);

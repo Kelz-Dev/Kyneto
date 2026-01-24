@@ -1,0 +1,16 @@
+{
+  "network": "amoy",
+  "chainId": 80002,
+  "deployer": "0xCc4b190d625b45eA3158B494bF754e4Cd600310c",
+  "contracts": {
+    "token": "0xC33eA878fC9819Fa2d60fD60EF6A89EbA871930A",
+    "registry": "0x2Cc10CdCbF9D2b7b6b8AcE8b607d8652772075Dd",
+    "pledges": "0x2E158F19704B8A1C0D00CE562c2E3ee923e235E5",
+    "prover": "0xfac091c63921709A7F5375aA465Bba42E5755695",
+    "slashing": "0x0f4927b287b441af412019636887847A8639D17C",
+    "marketplace": "0x242545610D645Ac3526c7c9b3866Ccc66e333322",
+    "payments": "0x78F97B5E5f270d2c83d2e0bbb98ac00784E53a1F"
+  },
+  "deployedAt": "2026-01-24T06:15:34.252Z",
+  "version": "2.0.0-renewals"
+}
