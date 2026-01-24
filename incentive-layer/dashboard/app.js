@@ -21,6 +21,7 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
+const DASHBOARD_VERSION = '2.0.1-stable';
 
 // Global Error Handler for Debugging
 window.onerror = function (msg, url, line, col, error) {
@@ -1241,11 +1242,12 @@ async function disconnectWallet() {
     }
 
     userAddress = null;
+    signer = null;
     updateWalletUI(false);
     addActivity('System', 'Wallet disconnected', 'system');
+}
 
-    // Close dropdowns
-    const sidebarDropdown = document.getElementById('sidebar-dropdown');
+function updateWalletUI(isConnected) {
     const connectBtn = document.getElementById('connect-wallet-btn');
     const userProfile = document.getElementById('user-profile');
     const dropdownAddr = document.getElementById('dropdown-address');
@@ -1332,6 +1334,38 @@ async function disconnectWallet() {
         }
 
         console.log('UI Updated: Disconnected state');
+    }
+}
+
+function updateGlobalProfileUI() {
+    if (!userAddress) return;
+
+    const profileData = JSON.parse(localStorage.getItem(`kyneto_profile_${userAddress}`)) || {
+        username: `${userAddress.substring(0, 8)}...${userAddress.substring(userAddress.length - 6)}`,
+        avatar: null
+    };
+
+    // Update Top Bar
+    const topName = document.querySelector('.user-profile .name'); // Note: Added if exists
+    const topAvatar = document.querySelector('.user-profile .avatar');
+    if (topAvatar) {
+        if (profileData.avatar) {
+            topAvatar.innerHTML = `<img src="${profileData.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+        } else {
+            topAvatar.innerHTML = '';
+        }
+    }
+
+    // Update Sidebar
+    const sidebarName = document.querySelector('.sidebar-profile .name');
+    const sidebarAvatar = document.querySelector('.sidebar-profile .avatar-mini');
+    if (sidebarName) sidebarName.textContent = profileData.username;
+    if (sidebarAvatar) {
+        if (profileData.avatar) {
+            sidebarAvatar.innerHTML = `<img src="${profileData.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+        } else {
+            sidebarAvatar.innerHTML = '';
+        }
     }
 }
 
