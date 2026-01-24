@@ -2171,3 +2171,12 @@ input:checked+.slider:before {
         gap: 2rem;
     }
 }
+/* --- Version Label --- */
+.version-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    margin: 5px 0 10px 15px;
+    font-family: 'Outfit', sans-serif;
+    display: block;
+}

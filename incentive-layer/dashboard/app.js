@@ -31,7 +31,7 @@ window.onerror = function (msg, url, line, col, error) {
     return false;
 };
 
-console.log('App.js loaded. API_URL:', API_URL);
+console.log(`Kyneto Dashboard v${DASHBOARD_VERSION} loaded. API_URL: ${API_URL}`);
 
 // Critical Dependency Check
 if (typeof ethers === 'undefined') {
