@@ -115,7 +115,9 @@ services:
   # Incentive Layer Dashboard
   # ===========================================
   incentive-dashboard:
-    image: nginx:alpine
+    build:
+      context: ./incentive-layer/dashboard
+      dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
       - ./incentive-layer/dashboard:/usr/share/nginx/html:ro
