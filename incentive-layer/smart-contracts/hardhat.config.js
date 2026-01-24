@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
 // Load environment variables (create .env file)
 // PRIVATE_KEY=your_private_key

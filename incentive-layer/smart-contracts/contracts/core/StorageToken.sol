@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -24,6 +24,9 @@ contract StorageToken is ERC20, Ownable {
     mapping(address => bool) public authorizedMinters;
     // Authorized burners (for slashing)
     mapping(address => bool) public authorizedBurners;
+
+    // Global stats
+    uint256 public totalTokensBurned;
 
     // Events
     event MinterAuthorized(address indexed minter);
@@ -54,6 +57,7 @@ contract StorageToken is ERC20, Ownable {
      */
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
+        totalTokensBurned += amount;
         emit TokensBurned(msg.sender, amount);
     }
 
@@ -64,6 +68,7 @@ contract StorageToken is ERC20, Ownable {
     function burnFrom(address from, uint256 amount) external {
         require(authorizedBurners[msg.sender], "Not authorized to burn");
         _burn(from, amount);
+        totalTokensBurned += amount;
         emit TokensBurned(from, amount);
     }
 

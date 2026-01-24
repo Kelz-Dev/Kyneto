@@ -24,8 +24,8 @@ contract PaymentDistributor is Ownable, ReentrancyGuard {
     uint256 public usageRatePerGBMonth = 3000000000000000; // 0.003 tokens
     uint256 public postBonusPerSubmission = 100000000000000000; // 0.1 tokens
 
-    // Protocol fee (5% basis)
-    uint256 public constant PROTOCOL_FEE_RATE = 500; // 5%
+    // Protocol fee (3% basis)
+    uint256 public constant PROTOCOL_FEE_RATE = 300; // 3%
     uint256 public protocolFeeCollected;
 
     // Reserve for repair operations (5%)
@@ -133,14 +133,12 @@ contract PaymentDistributor is Ownable, ReentrancyGuard {
         address[] memory providers = marketplace.getDealProviders(dealId);
 
         // Calculate distribution
-        uint256 totalMonths = (durationDays + 29) / 30;
-        uint256 perShardReward = (fileSizeGB *
-            usageRatePerGBMonth *
-            totalMonths) / 15;
-
-        // Deduct protocol fee and reserve
+        // Providers get 90% of the total cost (after protocol fees and reserve)
         uint256 protocolFee = (totalCost * PROTOCOL_FEE_RATE) / 10000;
         uint256 reserve = (totalCost * RESERVE_RATE) / 10000;
+        uint256 providerPool = totalCost - protocolFee - reserve;
+
+        uint256 perShardReward = providerPool / 15;
 
         protocolFeeCollected += protocolFee;
         repairReserve += reserve;

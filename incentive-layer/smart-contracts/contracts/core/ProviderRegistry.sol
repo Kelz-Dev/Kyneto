@@ -21,6 +21,7 @@ contract ProviderRegistry is Ownable {
         uint256 totalSlashingEvents;
         bool active; // Can be deactivated for cooldown period
         uint256 deactivatedUntil; // Timestamp when provider can reactivate
+        uint256 minPriceUSD; // Minimum price in USD (6 decimals)
     }
 
     mapping(address => Provider) public providers;
@@ -55,7 +56,8 @@ contract ProviderRegistry is Ownable {
     function registerProvider(
         string calldata peerId,
         string calldata endpoint,
-        string calldata region
+        string calldata region,
+        uint256 minPriceUSD
     ) external {
         require(!providers[msg.sender].registered, "Already registered");
         require(bytes(peerId).length > 0, "Invalid peer ID");
@@ -72,7 +74,8 @@ contract ProviderRegistry is Ownable {
             totalDealsFailed: 0,
             totalSlashingEvents: 0,
             active: true,
-            deactivatedUntil: 0
+            deactivatedUntil: 0,
+            minPriceUSD: minPriceUSD
         });
 
         providerList.push(msg.sender);
@@ -85,12 +88,14 @@ contract ProviderRegistry is Ownable {
      */
     function updateProvider(
         string calldata endpoint,
-        string calldata region
+        string calldata region,
+        uint256 minPriceUSD
     ) external {
         require(providers[msg.sender].registered, "Not registered");
 
         providers[msg.sender].endpoint = endpoint;
         providers[msg.sender].region = region;
+        providers[msg.sender].minPriceUSD = minPriceUSD;
 
         emit ProviderUpdated(msg.sender);
     }
@@ -246,36 +251,40 @@ contract ProviderRegistry is Ownable {
     /**
      * @dev Get list of active providers (for shard placement)
      */
-    function getActiveProviders(
+    /**
+     * @dev Get list of eligible providers based on price and reputation
+     */
+    function getEligibleProviders(
+        uint256 maxPriceUSD,
         uint256 minReputation
     ) external view returns (address[] memory) {
-        uint256 activeCount = 0;
+        uint256 eligibleCount = 0;
 
-        // Count active providers
         for (uint256 i = 0; i < providerList.length; i++) {
             address provider = providerList[i];
             if (
                 providers[provider].active &&
-                providers[provider].reputationScore >= minReputation
+                providers[provider].reputationScore >= minReputation &&
+                providers[provider].minPriceUSD <= maxPriceUSD
             ) {
-                activeCount++;
+                eligibleCount++;
             }
         }
 
-        // Build array of active providers
-        address[] memory activeProviders = new address[](activeCount);
+        address[] memory eligibleProviders = new address[](eligibleCount);
         uint256 index = 0;
         for (uint256 i = 0; i < providerList.length; i++) {
             address provider = providerList[i];
             if (
                 providers[provider].active &&
-                providers[provider].reputationScore >= minReputation
+                providers[provider].reputationScore >= minReputation &&
+                providers[provider].minPriceUSD <= maxPriceUSD
             ) {
-                activeProviders[index] = provider;
+                eligibleProviders[index] = provider;
                 index++;
             }
         }
 
-        return activeProviders;
+        return eligibleProviders;
     }
 }

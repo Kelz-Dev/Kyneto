@@ -57,7 +57,8 @@ const ERC20_ABI = [
     "function approve(address spender, uint256 amount) public returns (bool)",
     "function allowance(address owner, address spender) public view returns (uint256)",
     "function balanceOf(address account) public view returns (uint256)",
-    "function decimals() public view returns (uint8)"
+    "function decimals() public view returns (uint8)",
+    "function totalTokensBurned() public view returns (uint256)"
 ];
 
 const CAPACITY_PLEDGE_ABI = [
@@ -65,20 +66,28 @@ const CAPACITY_PLEDGE_ABI = [
     "function calculateMinimumCollateral(uint256 capacityGB, uint256 duration) public pure returns (uint256)",
     "function getPledge(address provider, uint256 pledgeId) public view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool)",
     "function pledgeCount(address provider) public view returns (uint256)",
-    "function exitPledgeEarly(uint256 pledgeId) external"
+    "function exitPledgeEarly(uint256 pledgeId) external",
+    "function totalPledgedCapacityGB() public view returns (uint256)",
+    "function totalActiveCollateral() public view returns (uint256)"
 ];
 
 const MARKETPLACE_ABI = [
-    "function createDeal(string fileCID, uint256 fileSizeGB, uint256 durationDays, uint256 pricePerGBMonth, address[] selectedProviders, string[] shardCIDs, uint256[] shardSizes) external returns (uint256)",
+    "function createDeal(tuple(string fileCID, uint256 fileSizeGB, uint256 durationDays, uint256 pricePerGBMonthUSD, address[] selectedProviders, string[] shardCIDs, uint256[] shardSizes, uint256 alertDays) params) external returns (uint256)",
+    "function renewDeal(uint256 dealId, uint256 additionalDays) external",
     "function getDeal(uint256 dealId) external view returns (address, string, uint256, uint256, uint256, uint256, uint256, uint256, uint8)",
-    "function dealCount() public view returns (uint256)"
+    "function deals(uint256 dealId) public view returns (address, string, uint256, uint256, uint256, uint256, uint256, uint256, address[], uint256, uint8, uint256, uint256)",
+    "function dealCount() public view returns (uint256)",
+    "function totalFeesCollected() public view returns (uint256)",
+    "function kynPriceUSD() public view returns (uint256)"
 ];
 
 const REGISTRY_ABI = [
-    "function registerProvider(string peerId, string endpoint, string region) external",
-    "function providers(address) public view returns (bool, uint256, uint256, uint256, string, string, string, uint256, uint256, uint256, bool, uint256)",
+    "function registerProvider(string peerId, string endpoint, string region, uint256 minPriceUSD) external",
+    "function updateProvider(string endpoint, string region, uint256 minPriceUSD) external",
+    "function providers(address) public view returns (bool, uint256, uint256, uint256, string, string, string, uint256, uint256, uint256, bool, uint256, uint256)",
     "function isProviderActive(address provider) public view returns (bool)",
-    "function getActiveProviders(uint256 minReputation) external view returns (address[])"
+    "function getEligibleProviders(uint256 maxPriceUSD, uint256 minReputation) external view returns (address[])",
+    "function getProviderCount() public view returns (uint256)"
 ];
 
 const PROOF_VERIFIER_ABI = [
@@ -92,6 +101,102 @@ const SLASHING_ABI = [
     "function slashingHistory(address, uint256) public view returns (uint256, uint256, string, bool, bool)"
 ];
 
+let notifications = [];
+const MAX_NOTIFICATIONS = 10;
+
+function toggleNotificationDropdown() {
+    const dropdown = document.getElementById('notification-dropdown');
+    if (dropdown) dropdown.classList.toggle('hidden');
+}
+
+function addNotification(type, title, message, dealId = null) {
+    const notification = {
+        id: Date.now(),
+        type,
+        title,
+        message,
+        dealId,
+        time: new Date().toLocaleTimeString(),
+        read: false
+    };
+    notifications.unshift(notification);
+    if (notifications.length > MAX_NOTIFICATIONS) notifications.pop();
+    updateNotificationUI();
+}
+
+function updateNotificationUI() {
+    const list = document.getElementById('notification-list');
+    const badge = document.getElementById('notification-badge');
+    if (!list || !badge) return;
+
+    if (notifications.length === 0) {
+        list.innerHTML = '<div class="empty-notifications">No new notifications</div>';
+        badge.classList.add('hidden');
+        return;
+    }
+
+    const unreadCount = notifications.filter(n => !n.read).length;
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+
+    list.innerHTML = notifications.map(n => `
+        <div class="notification-item ${n.type} ${n.read ? 'read' : ''}" onclick="markAsRead(${n.id})">
+            <div class="icon">
+                <i class="fa-solid ${n.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info'}"></i>
+            </div>
+            <div class="content">
+                <div class="title">${n.title}</div>
+                <div class="message">${n.message}</div>
+                <div class="time">${n.time}</div>
+                ${n.dealId ? `<button class="btn-renew-mini" onclick="event.stopPropagation(); handleRenewDeal(${n.dealId}, 30)">Renew Now</button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function markAsRead(id) {
+    const n = notifications.find(n => n.id === id);
+    if (n) n.read = true;
+    updateNotificationUI();
+}
+
+function clearNotifications() {
+    notifications = [];
+    updateNotificationUI();
+}
+
+async function checkExpirations() {
+    if (!userAddress || !STORAGE_MARKETPLACE_ADDRESS) return;
+    try {
+        const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
+        const count = await marketplaceContract.dealCount();
+        const now = Math.floor(Date.now() / 1000);
+
+        for (let i = 0; i < count.toNumber(); i++) {
+            const deal = await marketplaceContract.deals(i);
+            if (deal.client.toLowerCase() === userAddress.toLowerCase() && deal.status === 0) { // Active
+                const endTime = deal.endTime.toNumber();
+                const alertDays = deal.alertDays.toNumber() || 3;
+                const timeLeft = endTime - now;
+
+                if (timeLeft < 0) {
+                    addNotification('warning', 'Deal Expired', `Deal #${i} has expired and is in grace period.`, i);
+                } else if (timeLeft < alertDays * 24 * 60 * 60) {
+                    const daysLeft = Math.ceil(timeLeft / (24 * 60 * 60));
+                    addNotification('info', 'Expiring Soon', `Deal #${i} expires in ${daysLeft} days.`, i);
+                }
+            }
+        }
+    } catch (e) { console.error('Expiration check failed:', e); }
+}
+
+// Run check every 5 minutes
+setInterval(checkExpirations, 5 * 60 * 1000);
+
 const DISTRIBUTOR_ABI = [
     "function withdrawEarnings() external",
     "function getAvailableEarnings(address provider) external view returns (uint256)",
@@ -99,13 +204,13 @@ const DISTRIBUTOR_ABI = [
 ];
 
 // Contract Addresses (Hardcoded for Polygon Amoy - Update these with your deployed addresses)
-const KYN_TOKEN_ADDRESS = '0x943a1F4583dB1aC8B03FD58f753133d29B510B17';
-const CAPACITY_PLEDGE_ADDRESS = '0x16Af84FA7117152a48F49d2eACab961cbae0818b';
-const STORAGE_MARKETPLACE_ADDRESS = '0xc19c805eAfeAe35839D4b27113ec2ca91E8dCa61';
-const PROVIDER_REGISTRY_ADDRESS = '0xad47e6E5cc48526aF2cA26E0BE40c5fE0B4a8027';
-const PROOF_VERIFIER_ADDRESS = '0x85069D1dD2Ec3bc404A61bf0C157a5dF159383a9';
-const SLASHING_MANAGER_ADDRESS = '0x76fE15c685b01890E1E08B0aaf122d33A719d2f9';
-const PAYMENT_DISTRIBUTOR_ADDRESS = '0x0882899CB78D5E11ea5891193a3CB3C2286702eb';
+const KYN_TOKEN_ADDRESS = '0xC33eA878fC9819Fa2d60fD60EF6A89EbA871930A';
+const CAPACITY_PLEDGE_ADDRESS = '0x2E158F19704B8A1C0D00CE562c2E3ee923e235E5';
+const STORAGE_MARKETPLACE_ADDRESS = '0x242545610D645Ac3526c7c9b3866Ccc66e333322';
+const PROVIDER_REGISTRY_ADDRESS = '0x2Cc10CdCbF9D2b7b6b8AcE8b607d8652772075Dd';
+const PROOF_VERIFIER_ADDRESS = '0xfac091c63921709A7F5375aA465Bba42E5755695';
+const SLASHING_MANAGER_ADDRESS = '0x0f4927b287b441af412019636887847A8639D17C';
+const PAYMENT_DISTRIBUTOR_ADDRESS = '0x78F97B5E5f270d2c83d2e0bbb98ac00784E53a1F';
 
 // Gas Helper Functions
 async function getGasFees() {
@@ -409,6 +514,60 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
+        // Deal Summary Live Update
+        const dealSizeInput = document.getElementById('deal-size');
+        const dealPriceInput = document.getElementById('deal-price');
+        const dealDurationInput = document.getElementById('deal-duration');
+
+        if (dealSizeInput && dealPriceInput && dealDurationInput) {
+            const updateSummary = async () => {
+                const size = parseFloat(dealSizeInput.value) || 0;
+                const priceUSD = parseFloat(dealPriceInput.value) || 0;
+                const duration = parseInt(dealDurationInput.value) || 0;
+
+                // Fetch current KYN price from contract
+                let kynPrice = 100000; // Default $0.10
+                if (provider) {
+                    try {
+                        const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
+                        const price = await marketplaceContract.kynPriceUSD();
+                        kynPrice = price.toNumber();
+                    } catch (e) { console.warn('Failed to fetch KYN price, using default'); }
+                }
+
+                const totalMonths = Math.ceil(duration / 30);
+                const storageCostUSD = size * priceUSD * totalMonths;
+                const protocolFeeUSD = storageCostUSD * 0.03;
+                const totalCostUSD = storageCostUSD + protocolFeeUSD;
+
+                // Convert to KYN
+                const storageCostKYN = (storageCostUSD * 1000000) / kynPrice;
+                const protocolFeeKYN = (protocolFeeUSD * 1000000) / kynPrice;
+                const totalCostKYN = storageCostKYN + protocolFeeKYN;
+
+                const storageElem = document.getElementById('summary-storage-cost');
+                const feeElem = document.getElementById('summary-protocol-fee');
+                const totalElem = document.getElementById('summary-total-cost');
+
+                if (totalElem) totalElem.textContent = `${totalCostKYN.toFixed(2)} KYN ($${totalCostUSD.toFixed(2)})`;
+
+                // Show eligible provider count
+                const providerPoolElem = document.getElementById('eligible-provider-count');
+                if (providerPoolElem && provider) {
+                    try {
+                        const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
+                        const eligible = await registryContract.getEligibleProviders(pricePerGBMonthUSD, 0);
+                        providerPoolElem.textContent = `${eligible.length} eligible providers found`;
+                        providerPoolElem.style.color = eligible.length >= 15 ? 'var(--success)' : 'var(--danger)';
+                    } catch (e) { console.warn('Failed to fetch eligible providers'); }
+                }
+            };
+
+            dealSizeInput.addEventListener('input', updateSummary);
+            dealPriceInput.addEventListener('input', updateSummary);
+            dealDurationInput.addEventListener('input', updateSummary);
+        }
+
         // Click outside to close dropdowns
         document.addEventListener('click', (e) => {
             const profileTrigger = document.querySelector('.profile-trigger');
@@ -532,7 +691,11 @@ function handleFileSelect(file) {
         fileSize.textContent = formatBytes(file.size);
 
         // Auto-fill deal size
-        if (dealSizeInput) dealSizeInput.value = sizeInGB.toFixed(4);
+        if (dealSizeInput) {
+            dealSizeInput.value = sizeInGB.toFixed(4);
+            // Trigger input event to update fee summary
+            dealSizeInput.dispatchEvent(new Event('input'));
+        }
 
         // Detect and display file category
         const category = detectFileCategory(file.name);
@@ -588,12 +751,56 @@ function removeFile() {
 
 async function fetchStats() {
     try {
-        const response = await fetch(`${API_URL}/api/stats`);
-        if (!response.ok && response.status !== 304) throw new Error('API Offline');
+        // Try to fetch from API first (for historical data if any)
+        let apiStats = {};
+        try {
+            const response = await fetch(`${API_URL}/api/stats`);
+            if (response.ok) apiStats = await response.json();
+        } catch (e) { console.warn('API Stats offline, falling back to contracts'); }
 
-        const stats = response.status === 304 ? null : await response.json();
-        if (stats) updateStatsUI(stats);
-        setOnlineStatus(true);
+        // Fetch real-time data from contracts if provider is available
+        if (provider) {
+            const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, provider);
+            const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
+            const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
+            const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, provider);
+
+            const [
+                totalCapacity,
+                activeDeals,
+                providerCount,
+                feesCollected,
+                tokensBurned
+            ] = await Promise.all([
+                pledgeContract.totalPledgedCapacityGB(),
+                marketplaceContract.dealCount(),
+                registryContract.getProviderCount(),
+                marketplaceContract.totalFeesCollected(),
+                tokenContract.totalTokensBurned()
+            ]);
+
+            const stats = {
+                active_deals: activeDeals.toNumber(),
+                active_providers: providerCount.toNumber(),
+                total_capacity_gb: totalCapacity.toNumber(),
+                total_utilization_gb: apiStats.total_utilization_gb || 0, // Keep API utilization for now
+                total_protocol_revenue: ethers.utils.formatUnits(feesCollected, 18),
+                total_tokens_burned: ethers.utils.formatUnits(tokensBurned, 18)
+            };
+
+            updateStatsUI(stats);
+            setOnlineStatus(true);
+            return;
+        }
+
+        // Fallback to API if no provider
+        if (Object.keys(apiStats).length > 0) {
+            updateStatsUI(apiStats);
+            setOnlineStatus(true);
+        } else {
+            throw new Error('No data source available');
+        }
+
     } catch (error) {
         console.error('Error fetching stats:', error);
         setOnlineStatus(false);
@@ -619,8 +826,15 @@ function updateStatsUI(stats) {
     if (deals) deals.textContent = stats.active_deals || 0;
     if (providers) providers.textContent = stats.active_providers || 0;
     if (capacity) capacity.textContent = `${stats.total_capacity_gb || 0} GB`;
-    if (revenue) revenue.textContent = `${stats.total_protocol_revenue || 0} KYN`;
-    if (burned) burned.textContent = `${stats.total_tokens_burned || 0} KYN`;
+
+    // Format KYN values to 2 decimal places if they are strings/numbers
+    const formatKYN = (val) => {
+        const num = parseFloat(val);
+        return isNaN(num) ? "0.00" : num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    if (revenue) revenue.textContent = `${formatKYN(stats.total_protocol_revenue)} KYN`;
+    if (burned) burned.textContent = `${formatKYN(stats.total_tokens_burned)} KYN`;
 
     const utilization = stats.total_capacity_gb > 0
         ? Math.round((stats.total_utilization_gb / stats.total_capacity_gb) * 100)
@@ -630,9 +844,39 @@ function updateStatsUI(stats) {
 
 async function fetchDeals() {
     try {
-        const response = await fetch(`${API_URL}/api/deals`);
-        const data = await response.json();
-        renderDeals(data.deals);
+        let deals = [];
+        try {
+            const response = await fetch(`${API_URL}/api/deals`);
+            if (response.ok) {
+                const data = await response.json();
+                deals = data.deals || [];
+            }
+        } catch (e) { console.warn('API Deals offline, falling back to contracts'); }
+
+        // If API failed or returned no deals, try contract fallback
+        if (deals.length === 0 && provider) {
+            const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
+            const count = await marketplaceContract.dealCount();
+            const numDeals = count.toNumber();
+
+            // Fetch last 5 deals
+            const start = Math.max(0, numDeals - 5);
+            for (let i = numDeals - 1; i >= start; i--) {
+                try {
+                    const deal = await marketplaceContract.getDeal(i);
+                    deals.push({
+                        deal_id: i,
+                        client_address: deal[0],
+                        file_cid: deal[1],
+                        file_size_gb: deal[2].toNumber(),
+                        status: ['active', 'completed', 'failed', 'cancelled'][deal[8]],
+                        created_at: new Date(deal[5].toNumber() * 1000).toISOString()
+                    });
+                } catch (e) { console.error(`Failed to fetch deal ${i}:`, e); }
+            }
+        }
+
+        renderDeals(deals);
     } catch (error) {
         console.error('Error fetching deals:', error);
         renderDeals([]);
@@ -1454,6 +1698,7 @@ async function handleRegisterNode(event) {
             const endpoint = document.getElementById('reg-endpoint').value;
             const capacity = Math.ceil(document.getElementById('reg-capacity').value);
             const region = document.getElementById('provider-region').value;
+            const minPriceUSD = Math.round(parseFloat(document.getElementById('reg-min-price').value) * 1000000); // 6 decimals
 
             const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, signer);
             const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
@@ -1465,9 +1710,9 @@ async function handleRegisterNode(event) {
             if (!isAlreadyRegistered) {
                 addActivity('System', 'Registering provider in registry...', 'system');
                 const regGasFees = await getGasFees();
-                const regGasEstimate = await registryContract.estimateGas.registerProvider(peerId, endpoint, region);
+                const regGasEstimate = await registryContract.estimateGas.registerProvider(peerId, endpoint, region, minPriceUSD);
 
-                const regTx = await registryContract.registerProvider(peerId, endpoint, region, {
+                const regTx = await registryContract.registerProvider(peerId, endpoint, region, minPriceUSD, {
                     ...regGasFees,
                     gasLimit: getGasLimitWithBuffer(regGasEstimate)
                 });
@@ -1684,6 +1929,8 @@ async function handleExitPledge(pledgeId) {
 async function handleCreateDeal(event) {
     event.preventDefault();
     const size = document.getElementById('deal-size').value;
+    const price = document.getElementById('deal-price').value;
+    const duration = document.getElementById('deal-duration').value;
     const cid = document.getElementById('file-cid').value || 'Qm' + Math.random().toString(36).substring(2, 15);
 
     if (!signer || !userAddress) {
@@ -1705,31 +1952,42 @@ async function handleCreateDeal(event) {
             const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
             const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, signer);
 
-            // 1. Calculate cost (simulated: 0.1 KYN per GB/Month)
-            const durationDays = 30;
-            const pricePerGBMonth = ethers.utils.parseUnits("0.1", 18);
+            // 1. Calculate cost
+            const durationDays = parseInt(duration);
+            const pricePerGBMonthUSD = Math.round(parseFloat(price) * 1000000); // 6 decimals
             const roundedSize = Math.ceil(size);
-            const totalCost = pricePerGBMonth.mul(roundedSize);
+
+            // Fetch KYN price for approval
+            const kynPrice = await marketplaceContract.kynPriceUSD();
+            const totalMonths = Math.ceil(durationDays / 30);
+
+            // providerPaymentUSD = size * priceUSD * months
+            const providerPaymentUSD = BigInt(roundedSize) * BigInt(pricePerGBMonthUSD) * BigInt(totalMonths);
+            const protocolFeeUSD = (providerPaymentUSD * 300n) / 10000n;
+            const totalCostUSD = providerPaymentUSD + protocolFeeUSD;
+
+            // Convert totalCostUSD to KYN (18 decimals)
+            const totalCostKYN = (totalCostUSD * BigInt(10 ** 18)) / BigInt(kynPrice.toNumber());
 
             addActivity('System', 'Approving KYN for deal...', 'system');
             const approveGasFees = await getGasFees();
-            const approveGasEstimate = await tokenContract.estimateGas.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost);
+            const approveGasEstimate = await tokenContract.estimateGas.approve(STORAGE_MARKETPLACE_ADDRESS, totalCostKYN);
 
-            const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost, {
+            const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCostKYN, {
                 ...approveGasFees,
                 gasLimit: getGasLimitWithBuffer(approveGasEstimate)
             });
             await approveTx.wait();
 
-            // 2. Select 15 providers (real ones from Registry)
-            addActivity('System', 'Selecting active providers...', 'system');
+            // 2. Select 15 providers (Matchmaking based on price)
+            addActivity('System', 'Finding eligible providers...', 'system');
             const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
             let selectedProviders = [];
             try {
-                selectedProviders = await registryContract.getActiveProviders(0); // Min reputation 0
-                console.log('Active providers found:', selectedProviders);
+                selectedProviders = await registryContract.getEligibleProviders(pricePerGBMonthUSD, 0); // Min reputation 0
+                console.log('Eligible providers found:', selectedProviders);
             } catch (e) {
-                console.error('Failed to fetch active providers:', e);
+                console.error('Failed to fetch eligible providers:', e);
             }
 
             if (selectedProviders.length < 15) {
@@ -1748,25 +2006,24 @@ async function handleCreateDeal(event) {
 
             addActivity('System', 'Initiating marketplace deal...', 'system');
 
+            const alertDays = parseInt(document.getElementById('deal-alert-days').value) || 3;
+
             const dealGasFees = await getGasFees();
-            const dealGasEstimate = await marketplaceContract.estimateGas.createDeal(
-                cid,
-                roundedSize,
-                durationDays,
-                pricePerGBMonth,
-                selectedProviders,
-                shardCIDs,
-                shardSizes
-            );
+            const dealParams = {
+                fileCID: cid,
+                fileSizeGB: roundedSize,
+                durationDays: durationDays,
+                pricePerGBMonthUSD: pricePerGBMonthUSD,
+                selectedProviders: selectedProviders,
+                shardCIDs: shardCIDs,
+                shardSizes: shardSizes,
+                alertDays: alertDays
+            };
+
+            const dealGasEstimate = await marketplaceContract.estimateGas.createDeal(dealParams);
 
             const dealTx = await marketplaceContract.createDeal(
-                cid,
-                roundedSize,
-                durationDays,
-                pricePerGBMonth,
-                selectedProviders,
-                shardCIDs,
-                shardSizes,
+                dealParams,
                 {
                     ...dealGasFees,
                     gasLimit: getGasLimitWithBuffer(dealGasEstimate)
@@ -2372,6 +2629,10 @@ function renderMyDealsTable(deals, type) {
                 <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="View Details">
                     <i class="fa-solid fa-eye"></i>
                 </button>
+                ${type === 'client' ? `
+                <button class="btn-primary btn-sm" onclick="handleRenewDeal(${deal.deal_id}, 30)" title="Renew (30 Days)">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -2580,4 +2841,42 @@ function handleSaveProfile(event) {
     updateGlobalProfileUI();
     switchView('profile');
 }
+async function handleRenewDeal(dealId, additionalDays) {
+    if (!signer) {
+        showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+        return;
+    }
 
+    try {
+        const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
+        const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, signer);
+
+        addActivity('System', `Initiating renewal for Deal #${dealId}...`, 'system');
+
+        // Fetch deal to calculate cost
+        const deal = await marketplaceContract.deals(dealId);
+        const totalMonths = Math.ceil(additionalDays / 30);
+        const renewalCost = deal.fileSizeGB.mul(deal.pricePerGBMonth).mul(totalMonths);
+        const protocolFee = renewalCost.mul(300).div(10000);
+        const totalCost = renewalCost.add(protocolFee);
+
+        addActivity('System', 'Approving KYN for renewal...', 'system');
+        const approveTx = await tokenContract.approve(STORAGE_MARKETPLACE_ADDRESS, totalCost);
+        await approveTx.wait();
+
+        addActivity('System', 'Executing renewal...', 'system');
+        const renewTx = await marketplaceContract.renewDeal(dealId, additionalDays);
+        await renewTx.wait();
+
+        showNotification('success', 'Deal Renewed!', `Deal #${dealId} extended by ${additionalDays} days.`);
+        addActivity('User', `Renewed Deal #${dealId}`, 'user');
+
+        // Refresh UI
+        await checkExpirations();
+        if (typeof renderMyDeals === 'function') renderMyDeals();
+
+    } catch (error) {
+        console.error('Renewal failed:', error);
+        showNotification('error', 'Renewal Failed', error.message || 'Failed to renew deal.');
+    }
+}

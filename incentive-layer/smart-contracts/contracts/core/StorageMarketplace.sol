@@ -17,14 +17,17 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     ProviderRegistry public immutable registry;
     CapacityPledge public immutable pledges;
 
-    // Protocol Fees
+    // Protocol Fees & Pricing
     address public treasury;
-    uint256 public protocolFeeBasisPoints = 200; // 2.00%
+    uint256 public protocolFeeBasisPoints = 300; // 3.00%
     uint256 public constant MAX_FEE_BASIS_POINTS = 1000; // 10% max
+    uint256 public constant MIN_PRICE_USD = 5000; // $0.005 (6 decimals)
+    uint256 public kynPriceUSD = 100000; // $0.10 (6 decimals) - Initial price
     uint256 public totalFeesCollected;
 
     uint256 public constant SHARDS_PER_FILE = 15; // 10 data + 5 parity
     uint256 public constant MIN_PROVIDERS = 10; // Minimum to reconstruct
+    uint256 public constant GRACE_PERIOD = 7 days;
 
     struct Deal {
         address client;
@@ -40,6 +43,7 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         uint256 activeShards; // Count of active shards
         DealStatus status;
         uint256 escrowedAmount;
+        uint256 alertDays; // User preference for expiration alerts
     }
 
     struct ShardAllocation {
@@ -53,7 +57,8 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         Active,
         Completed,
         Failed,
-        Cancelled
+        Cancelled,
+        InGracePeriod
     }
 
     mapping(uint256 => Deal) public deals;
@@ -76,6 +81,11 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         string shardCID
     );
     event DealCompleted(uint256 indexed dealId);
+    event DealRenewed(
+        uint256 indexed dealId,
+        uint256 newEndTime,
+        uint256 totalCost
+    );
     event DealFailed(uint256 indexed dealId, string reason);
     event ShardLost(
         uint256 indexed dealId,
@@ -89,6 +99,7 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     );
     event ProtocolFeeUpdated(uint256 newFee);
     event TreasuryUpdated(address newTreasury);
+    event KynPriceUpdated(uint256 newPrice);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
     struct Retrieval {
@@ -187,10 +198,11 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         string fileCID;
         uint256 fileSizeGB;
         uint256 durationDays;
-        uint256 pricePerGBMonth;
+        uint256 pricePerGBMonthUSD; // In USD (6 decimals)
         address[] selectedProviders;
         string[] shardCIDs;
         uint256[] shardSizes;
+        uint256 alertDays;
     }
 
     function createDeal(
@@ -209,6 +221,13 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
             "Must have 15 shard sizes"
         );
 
+        require(params.pricePerGBMonthUSD >= MIN_PRICE_USD, "Price too low");
+
+        // Convert USD price to KYN
+        // priceKYN = (priceUSD * 10^18) / kynPriceUSD
+        uint256 pricePerGBMonth = (params.pricePerGBMonthUSD * 10 ** 18) /
+            kynPriceUSD;
+
         // Verify all providers are active
         for (uint256 i = 0; i < params.selectedProviders.length; i++) {
             require(
@@ -224,7 +243,7 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         // Calculate total cost and fees
         uint256 totalMonths = (params.durationDays + 29) / 30; // Round up to months
         uint256 providerPayment = params.fileSizeGB *
-            params.pricePerGBMonth *
+            pricePerGBMonth *
             totalMonths;
         uint256 protocolFee = (providerPayment * protocolFeeBasisPoints) /
             10000;
@@ -245,13 +264,14 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         deal.fileCID = params.fileCID;
         deal.fileSizeGB = params.fileSizeGB;
         deal.duration = params.durationDays;
-        deal.pricePerGBMonth = params.pricePerGBMonth;
+        deal.pricePerGBMonth = pricePerGBMonth;
         deal.totalCost = totalCost;
         deal.startTime = block.timestamp;
         deal.endTime = block.timestamp + (params.durationDays * 1 days);
         deal.status = DealStatus.Active;
         deal.escrowedAmount = totalCost;
         deal.activeShards = SHARDS_PER_FILE;
+        deal.alertDays = params.alertDays;
 
         // Assign shards to providers
         for (uint256 i = 0; i < SHARDS_PER_FILE; i++) {
@@ -289,9 +309,6 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
 
         deal.status = DealStatus.Completed;
 
-        // This function just marks as complete
-        // PaymentDistributor will handle actual payment distribution
-
         // Update provider stats
         for (uint256 i = 0; i < deal.providers.length; i++) {
             if (deal.shardAllocations[deal.providers[i]].active) {
@@ -303,6 +320,46 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev Renew an existing deal
+     */
+    function renewDeal(
+        uint256 dealId,
+        uint256 additionalDays
+    ) external nonReentrant {
+        Deal storage deal = deals[dealId];
+        require(
+            deal.status == DealStatus.Active ||
+                deal.status == DealStatus.InGracePeriod,
+            "Deal not renewable"
+        );
+        require(deal.client == msg.sender, "Not your deal");
+
+        // Calculate cost for additional days
+        uint256 totalMonths = (additionalDays + 29) / 30;
+
+        // Use the original price stored in the deal (pricePerGBMonth is tokens per GB/month)
+        uint256 renewalCost = deal.fileSizeGB *
+            deal.pricePerGBMonth *
+            totalMonths;
+
+        uint256 protocolFee = (renewalCost * protocolFeeBasisPoints) / 10000;
+        uint256 totalCost = renewalCost + protocolFee;
+
+        require(
+            token.transferFrom(msg.sender, address(this), totalCost),
+            "Payment failed"
+        );
+
+        totalFeesCollected += protocolFee;
+        deal.endTime += (additionalDays * 1 days);
+        deal.duration += additionalDays;
+        deal.escrowedAmount += totalCost;
+        deal.status = DealStatus.Active;
+
+        emit DealRenewed(dealId, deal.endTime, totalCost);
+    }
+
+    /**
      * @dev Report a lost shard (provider went offline)
      * Called by monitoring service
      */
@@ -311,7 +368,11 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         address provider
     ) external onlyOwner {
         Deal storage deal = deals[dealId];
-        require(deal.status == DealStatus.Active, "Deal not active");
+        require(
+            deal.status == DealStatus.Active ||
+                deal.status == DealStatus.InGracePeriod,
+            "Deal not active"
+        );
         require(
             deal.shardAllocations[provider].active,
             "Shard already inactive"
@@ -356,7 +417,11 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         string calldata newShardCID
     ) external onlyOwner {
         Deal storage deal = deals[dealId];
-        require(deal.status == DealStatus.Active, "Deal not active");
+        require(
+            deal.status == DealStatus.Active ||
+                deal.status == DealStatus.InGracePeriod,
+            "Deal not active"
+        );
         require(
             !deal.shardAllocations[oldProvider].active,
             "Old shard still active"
@@ -484,6 +549,15 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         require(_treasury != address(0), "Invalid address");
         treasury = _treasury;
         emit TreasuryUpdated(_treasury);
+    }
+
+    /**
+     * @dev Update KYN price in USD (only owner)
+     */
+    function updateKynPrice(uint256 _priceUSD) external onlyOwner {
+        require(_priceUSD > 0, "Invalid price");
+        kynPriceUSD = _priceUSD;
+        emit KynPriceUpdated(_priceUSD);
     }
 
     /**

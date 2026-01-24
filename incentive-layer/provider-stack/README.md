@@ -18,19 +18,19 @@ If you are the developer distributing this stack:
 
 ## Quick Start (For Testers)
 
-1.  **Navigate to the provider stack directory:**
+1.  **Navigate to the provider stack directory `provider-stack` :**
     ```bash
-    cd incentive-layer/provider-stack
+    cd provider-stack
     ```
 
-2.  **Configure Environment:**
-    Copy the example environment file:
+2.  **Configure Environment `provider-stack/.env` :**
+    Copy the example environment file, and rename it to `.env`:
     ```bash
     cp .env.example .env
     ```
     Open `.env` and set your `PRIVATE_KEY`. The contract addresses are already pre-configured for the Amoy Testnet.
 
-3.  **Run the Node:**
+3.  **Run the Node `provider-stack/docker-compose.yml` :**
     ```bash
     docker-compose up -d
     ```
@@ -38,7 +38,7 @@ If you are the developer distributing this stack:
     - **IPFS Node**: Handles file storage and retrieval.
     - **Provider Daemon**: Manages pledges, deals, and proofs.
 
-4.  **Verify Status:**
+4.  **Verify Status `provider-stack/docker-compose.yml` :**
     Check the logs to ensure everything is running smoothly:
     ```bash
     docker-compose logs -f provider-node
@@ -50,5 +50,5 @@ Once your node is running, it will automatically attempt to register and create 
 
 ## Troubleshooting
 
-- **"Wallet not connected"**: Ensure your private key is correct in `.env`.
+- **"Wallet not connected"**: Ensure your private key is correct in `provider-stack/.env`.
 - **"Insufficient funds"**: You need POL for gas fees. Get some from the [Polygon Faucet](https://faucet.polygon.technology/).

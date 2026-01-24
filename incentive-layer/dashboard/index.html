@@ -120,6 +120,21 @@
                     <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">
                         <i class="fa-solid fa-moon"></i>
                     </button>
+                    <div class="notification-container">
+                        <button id="notification-btn" class="notification-btn" onclick="toggleNotificationDropdown()">
+                            <i class="fa-solid fa-bell"></i>
+                            <span id="notification-badge" class="notification-badge hidden">0</span>
+                        </button>
+                        <div id="notification-dropdown" class="notification-dropdown hidden">
+                            <div class="dropdown-header">
+                                <span>Notifications</span>
+                                <button class="clear-all" onclick="clearNotifications()">Clear All</button>
+                            </div>
+                            <div id="notification-list" class="notification-list">
+                                <div class="empty-notifications">No new notifications</div>
+                            </div>
+                        </div>
+                    </div>
                     <button id="connect-wallet-btn" class="btn-primary" onclick="connectWallet()">
                         <i class="fa-solid fa-wallet"></i> Connect Wallet
                     </button>
@@ -606,6 +621,13 @@
                                             required>
                                     </div>
                                     <div class="form-group">
+                                        <label>Minimum Price ($/GB/Month)</label>
+                                        <input type="number" id="reg-min-price" placeholder="0.01" step="0.001"
+                                            value="0.01" required>
+                                        <p class="input-hint">Your node will only accept deals at or above this price.
+                                        </p>
+                                    </div>
+                                    <div class="form-group">
                                         <label id="region-label">Region</label>
                                         <select id="provider-region" required
                                             style="width: 100%; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
@@ -805,8 +827,37 @@
                             <input type="number" id="deal-size" placeholder="10" step="0.001" required>
                         </div>
                         <div class="form-group">
+                            <label>Price (KYN/GB/Month)</label>
+                            <input type="number" id="deal-price" placeholder="0.01" step="0.001" value="0.01" required>
+                            <p class="input-hint">Recommended: 0.005 - 0.02 KYN. Minimum: 0.005 KYN.</p>
+                        </div>
+                        <div class="form-group">
                             <label>Duration (Days)</label>
-                            <input type="number" placeholder="30" required>
+                            <input type="number" id="deal-duration" placeholder="30" value="30" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Expiration Alert (Days before)</label>
+                            <input type="number" id="deal-alert-days" placeholder="3" min="1" max="14" value="3">
+                            <p class="input-hint">Get notified when your deal is close to expiring.</p>
+                        </div>
+                        <div class="deal-summary-premium">
+                            <div class="summary-item">
+                                <span>Storage Cost</span>
+                                <span id="summary-storage-cost">0.00 KYN</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Protocol Fee (3%)</span>
+                                <span id="summary-protocol-fee">0.00 KYN</span>
+                            </div>
+                            <div class="summary-divider"></div>
+                            <div class="summary-item total">
+                                <span>Total Payment</span>
+                                <span id="summary-total-cost">0.00 KYN ($0.00)</span>
+                            </div>
+                            <div id="eligible-provider-count" class="input-hint"
+                                style="text-align: right; margin-top: 5px; font-weight: 500;">
+                                0 eligible providers found
+                            </div>
                         </div>
                         <button type="submit" class="btn-primary">Initiate Deal</button>
                     </form>
