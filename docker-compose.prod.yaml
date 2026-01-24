@@ -115,6 +115,7 @@ services:
     build:
       context: ./incentive-layer/dashboard
       dockerfile: Dockerfile
+    image: kyneto-dashboard:latest
     restart: unless-stopped
     ports:
       - "3003:80"
