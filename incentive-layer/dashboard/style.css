@@ -2173,10 +2173,15 @@ input:checked+.slider:before {
 }
 /* --- Version Label --- */
 .version-label {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: var(--text-secondary);
-    opacity: 0.5;
-    margin: 5px 0 10px 15px;
-    font-family: 'Outfit', sans-serif;
-    display: block;
+    opacity: 0.4;
+    margin: 8px 0 12px 16px;
+    font-family: 'Space Mono', monospace;
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    letter-spacing: 0.5px;
 }
