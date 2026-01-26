@@ -8,29 +8,28 @@ This guide explains how to run a Kyneto Provider Node on the Polygon Amoy Testne
 - A Polygon Amoy wallet with some POL (for gas) and KYN tokens (for staking).
 - Your wallet's **Private Key**.
 
-## For Maintainers (Building the Image)
-
-If you are the developer distributing this stack:
-1.  Run the publish script to build and push the image to Docker Hub:
-    ```powershell
-    .\publish_provider.ps1
-    ```
 
 ## Quick Start (For Testers)
 
-1.  **Navigate to the provider stack directory `provider-stack` :**
+1. **Clone your public repo locally:**
+    ```bash
+    git clone https://github.com/CLONDE-io/Kyneto-Provider-Stack.git
+    cd Kyneto-Provider-Stack
+    ```
+
+2. **Navigate to the provider stack directory folder on your local system`provider-stack` :**
     ```bash
     cd provider-stack
     ```
 
-2.  **Configure Environment `provider-stack/.env` :**
+3.  **Configure Environment `provider-stack/.env` :**
     Copy the example environment file, and rename it to `.env`:
     ```bash
     cp .env.example .env
     ```
     Open `.env` and set your `PRIVATE_KEY`. The contract addresses are already pre-configured for the Amoy Testnet.
 
-3.  **Run the Node `provider-stack/docker-compose.yml` :**
+4.  **Run the Node `provider-stack/docker-compose.yml` :**
     ```bash
     docker-compose up -d
     ```
@@ -38,7 +37,7 @@ If you are the developer distributing this stack:
     - **IPFS Node**: Handles file storage and retrieval.
     - **Provider Daemon**: Manages pledges, deals, and proofs.
 
-4.  **Verify Status `provider-stack/docker-compose.yml` :**
+5.  **Verify Status `provider-stack/docker-compose.yml` :**
     Check the logs to ensure everything is running smoothly:
     ```bash
     docker-compose logs -f provider-node
