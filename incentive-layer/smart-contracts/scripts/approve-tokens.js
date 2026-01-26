@@ -16,7 +16,7 @@ async function main() {
     console.log("🔐 Approving KYN token allowances for wallet:", wallet.address);
     console.log("=".repeat(60));
 
-    const KYN_TOKEN_ADDRESS = "0x943a1F4583dB1aC8B03FD58f753133d29B510B17";
+    const KYN_TOKEN_ADDRESS = "0xC33eA878fC9819Fa2d60fD60EF6A89EbA871930A";
     const CAPACITY_PLEDGE_ADDRESS = "0x16Af84FA7117152a48F49d2eACab961cbae0818b";
     const MARKETPLACE_ADDRESS = "0xc19c805eAfeAe35839D4b27113ec2ca91E8dCa61";
 

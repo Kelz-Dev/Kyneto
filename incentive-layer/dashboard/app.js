@@ -338,6 +338,9 @@ async function initializeWallet(address, rawProvider, source = 'Unknown') {
 
         updateWalletUI(true);
 
+        // Load and apply preserved user settings
+        loadUserSettingsOnConnect();
+
         // Check if user is a provider and update UI accordingly
         await checkProviderStatus();
 
@@ -353,6 +356,112 @@ async function initializeWallet(address, rawProvider, source = 'Unknown') {
         provider = null;
         signer = null;
         updateWalletUI(false);
+    }
+}
+
+// Load and apply user settings when wallet connects
+function loadUserSettingsOnConnect() {
+    console.log('Loading preserved user settings...');
+
+    try {
+        // 1. Load notification/display/node settings
+        const savedSettings = localStorage.getItem('kyneto_settings');
+        if (savedSettings) {
+            settings = JSON.parse(savedSettings);
+            console.log('Loaded user settings:', settings);
+
+            // Apply settings to UI
+            applySettingsToUI();
+        }
+
+        // 2. Load theme preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.body.setAttribute('data-theme', savedTheme);
+            console.log('Applied saved theme:', savedTheme);
+        }
+
+        // 3. Load user profile
+        const savedProfile = localStorage.getItem('kyneto_user_profile');
+        if (savedProfile) {
+            const profile = JSON.parse(savedProfile);
+            applyProfileToUI(profile);
+            console.log('Loaded user profile:', profile);
+        }
+    } catch (e) {
+        console.log('Failed to load user settings:', e);
+    }
+}
+
+// Apply loaded settings to UI elements
+function applySettingsToUI() {
+    try {
+        // Notification toggles
+        const notifyDeals = document.getElementById('notify-deals');
+        const notifySlashing = document.getElementById('notify-slashing');
+        const notifyNetwork = document.getElementById('notify-network');
+
+        if (notifyDeals) notifyDeals.checked = settings.notifications?.deals ?? true;
+        if (notifySlashing) notifySlashing.checked = settings.notifications?.slashing ?? true;
+        if (notifyNetwork) notifyNetwork.checked = settings.notifications?.network ?? false;
+
+        // Display settings
+        const currencySelect = document.getElementById('setting-currency');
+        const unitSelect = document.getElementById('setting-unit');
+
+        if (currencySelect) currencySelect.value = settings.display?.currency ?? 'KYN';
+        if (unitSelect) unitSelect.value = settings.display?.unit ?? 'GB';
+
+        // Node settings
+        const autoRenew = document.getElementById('setting-auto-renew');
+        const prefRegion = document.getElementById('setting-pref-region');
+
+        if (autoRenew) autoRenew.checked = settings.node?.autoRenew ?? false;
+        if (prefRegion) prefRegion.value = settings.node?.region ?? 'na';
+
+        console.log('Applied settings to UI');
+    } catch (e) {
+        console.log('Failed to apply settings to UI:', e);
+    }
+}
+
+// Apply loaded profile to UI elements
+function applyProfileToUI(profile) {
+    try {
+        if (!profile) return;
+
+        // Update profile display elements
+        const usernameDisplay = document.getElementById('profile-username-display');
+        const bioDisplay = document.getElementById('profile-bio-display');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const profileAvatarDisplay = document.getElementById('profile-avatar-display');
+
+        if (usernameDisplay && profile.username) {
+            usernameDisplay.textContent = profile.username;
+        }
+        if (bioDisplay && profile.bio) {
+            bioDisplay.textContent = profile.bio;
+        }
+
+        // Apply avatar if saved
+        if (profile.avatar) {
+            if (avatarPreview) {
+                avatarPreview.innerHTML = `<img src="${profile.avatar}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+            }
+            if (profileAvatarDisplay) {
+                profileAvatarDisplay.innerHTML = `<img src="${profile.avatar}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+            }
+        }
+
+        // Update sidebar name
+        const sidebarName = document.querySelector('.sidebar-profile .name');
+        if (sidebarName && profile.username) {
+            sidebarName.textContent = profile.username;
+        }
+
+        console.log('Applied profile to UI');
+    } catch (e) {
+        console.log('Failed to apply profile to UI:', e);
     }
 }
 
@@ -1220,6 +1329,39 @@ async function recoverSigner() {
 
 
 async function disconnectWallet() {
+    console.log('Disconnecting wallet and clearing all cached data...');
+
+    // 0. PRESERVE important user settings before clearing
+    let preservedSettings = null;
+    let preservedTheme = null;
+    let preservedProfile = null;
+
+    try {
+        // Save user settings (notification preferences, display settings, etc.)
+        const savedSettings = localStorage.getItem('kyneto_settings');
+        if (savedSettings) {
+            preservedSettings = savedSettings;
+            console.log('Preserved user settings');
+        }
+
+        // Save theme preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            preservedTheme = savedTheme;
+            console.log('Preserved theme preference');
+        }
+
+        // Save user profile data (username, bio, avatar, etc.)
+        const savedProfile = localStorage.getItem('kyneto_user_profile');
+        if (savedProfile) {
+            preservedProfile = savedProfile;
+            console.log('Preserved user profile');
+        }
+    } catch (e) {
+        console.log('Failed to preserve settings:', e);
+    }
+
+    // 1. Disconnect from AppKit/WalletConnect
     if (modal) {
         try {
             await modal.disconnect();
@@ -1228,7 +1370,7 @@ async function disconnectWallet() {
         }
     }
 
-    // Attempt to revoke MetaMask permissions
+    // 2. Attempt to revoke MetaMask permissions
     if (typeof window.ethereum !== 'undefined') {
         try {
             await window.ethereum.request({
@@ -1241,10 +1383,85 @@ async function disconnectWallet() {
         }
     }
 
+    // 3. Clear all localStorage data
+    try {
+        localStorage.clear();
+        console.log('LocalStorage cleared');
+    } catch (e) {
+        console.log('Failed to clear localStorage:', e);
+    }
+
+    // 4. Clear all sessionStorage data
+    try {
+        sessionStorage.clear();
+        console.log('SessionStorage cleared');
+    } catch (e) {
+        console.log('Failed to clear sessionStorage:', e);
+    }
+
+    // 5. Clear IndexedDB (WalletConnect stores data here)
+    try {
+        const databases = await window.indexedDB.databases();
+        for (const db of databases) {
+            if (db.name) {
+                window.indexedDB.deleteDatabase(db.name);
+                console.log(`Deleted IndexedDB: ${db.name}`);
+            }
+        }
+    } catch (e) {
+        console.log('Failed to clear IndexedDB:', e);
+    }
+
+    // 6. Clear cookies for this domain
+    try {
+        document.cookie.split(";").forEach((c) => {
+            document.cookie = c.replace(/^ +/, "")
+                .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        console.log('Cookies cleared');
+    } catch (e) {
+        console.log('Failed to clear cookies:', e);
+    }
+
+    // 7. RESTORE preserved settings
+    try {
+        if (preservedSettings) {
+            localStorage.setItem('kyneto_settings', preservedSettings);
+            console.log('Restored user settings');
+        }
+        if (preservedTheme) {
+            localStorage.setItem('theme', preservedTheme);
+            console.log('Restored theme preference');
+        }
+        if (preservedProfile) {
+            localStorage.setItem('kyneto_user_profile', preservedProfile);
+            console.log('Restored user profile');
+        }
+    } catch (e) {
+        console.log('Failed to restore settings:', e);
+    }
+
+    // 7. Reset global state
     userAddress = null;
     signer = null;
-    updateWalletUI(false);
-    addActivity('System', 'Wallet disconnected', 'system');
+    provider = null;
+    isProvider = false;
+
+    // 8. Show disconnect notification before redirect
+    showNotification('info', 'Wallet Disconnected', 'Redirecting to home page...');
+
+    // 9. Redirect to landing page (go back to root)
+    setTimeout(() => {
+        // Navigate to the landing page (parent directory or root)
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('/dashboard')) {
+            // If we're at /dashboard, go to root
+            window.location.href = window.location.origin + '/';
+        } else {
+            // Otherwise just reload to reinitialize
+            window.location.reload();
+        }
+    }, 500);
 }
 
 function updateWalletUI(isConnected) {

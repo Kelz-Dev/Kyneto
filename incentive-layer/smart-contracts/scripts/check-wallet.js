@@ -26,7 +26,7 @@ async function main() {
     }
 
     // 2. Check KYN Balance
-    const KYN_TOKEN_ADDRESS = "0x943a1F4583dB1aC8B03FD58f753133d29B510B17";
+    const KYN_TOKEN_ADDRESS = "0xC33eA878fC9819Fa2d60fD60EF6A89EbA871930A";
     const tokenAbi = [
         "function balanceOf(address account) public view returns (uint256)",
         "function allowance(address owner, address spender) public view returns (uint256)"

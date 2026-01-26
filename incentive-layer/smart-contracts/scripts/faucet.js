@@ -23,8 +23,8 @@ async function main() {
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const wallet = new ethers.Wallet(privateKey, provider);
 
-    // KYN Token Address from app.js
-    const KYN_TOKEN_ADDRESS = "0x943a1F4583dB1aC8B03FD58f753133d29B510B17";
+    // KYN Token Address from app.js (deployed on Polygon Amoy)
+    const KYN_TOKEN_ADDRESS = "0xC33eA878fC9819Fa2d60fD60EF6A89EbA871930A";
 
     const abi = [
         "function transfer(address to, uint256 amount) public returns (bool)",
