@@ -560,6 +560,7 @@ async function checkProviderStatus() {
                     const noNodesState = document.getElementById('no-nodes-state');
                     const activeNodesList = document.getElementById('active-nodes-list');
                     const storageManagement = document.getElementById('storage-management');
+                    const upgradeBtn = document.getElementById('btn-upgrade-pledge');
 
                     if (noNodesState) noNodesState.classList.add('hidden');
                     if (activeNodesList) {
@@ -567,14 +568,36 @@ async function checkProviderStatus() {
                         activeNodesList.innerHTML = pledgesHtml;
                     }
                     if (storageManagement) storageManagement.classList.remove('hidden');
+                    if (upgradeBtn) upgradeBtn.classList.remove('hidden');
 
                 } else {
                     console.log('Provider registered but has no pledges yet.');
+                    // Reset UI to "Become a Provider" state
+                    const noNodesState = document.getElementById('no-nodes-state');
+                    const activeNodesList = document.getElementById('active-nodes-list');
+                    const storageManagement = document.getElementById('storage-management');
+                    const upgradeBtn = document.getElementById('btn-upgrade-pledge');
+
+                    if (noNodesState) noNodesState.classList.remove('hidden');
+                    if (activeNodesList) activeNodesList.classList.add('hidden');
+                    if (storageManagement) storageManagement.classList.add('hidden');
+                    if (upgradeBtn) upgradeBtn.classList.add('hidden');
                 }
 
             } catch (pledgeErr) {
                 console.warn('Error fetching pledges:', pledgeErr);
             }
+        } else {
+            // Not a provider, ensure UI is in "Become a Provider" state
+            const noNodesState = document.getElementById('no-nodes-state');
+            const activeNodesList = document.getElementById('active-nodes-list');
+            const storageManagement = document.getElementById('storage-management');
+            const upgradeBtn = document.getElementById('btn-upgrade-pledge');
+
+            if (noNodesState) noNodesState.classList.remove('hidden');
+            if (activeNodesList) activeNodesList.classList.add('hidden');
+            if (storageManagement) storageManagement.classList.add('hidden');
+            if (upgradeBtn) upgradeBtn.classList.add('hidden');
         }
     } catch (error) {
         console.error('Error checking provider status:', error);
