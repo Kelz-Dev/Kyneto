@@ -31,10 +31,9 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "."
+        source: "docker-compose.prod.yaml,Landing Page,incentive-layer"
         target: "kyneto"
         rm: true
-        exclude: ".git,.github"
 
     - name: Start Application
       uses: appleboy/ssh-action@master
