@@ -29,9 +29,6 @@ services:
     restart: unless-stopped
     ports:
       - "3001:80"
-    volumes:
-      - ./Landing Page/index.html:/usr/share/nginx/html/index.html
-      - ./Landing Page/dist:/usr/share/nginx/html/dist
 
   # ===========================================
   # PostgreSQL Database

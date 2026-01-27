@@ -1,26 +1,48 @@
 {
-    "name": "kyneto-landing-page",
-    "version": "1.0.0",
-    "description": "Kyneto Protocol Landing Page",
-    "main": "index.html",
-    "scripts": {
-        "dev": "concurrently \"npm run watch:sass\" \"live-server\"",
-        "watch:sass": "sass --watch scss/main.scss dist/css/compiled.css",
-        "build:sass": "sass scss/main.scss dist/css/compiled.css --style=compressed --no-source-map",
-        "build:postcss": "postcss dist/css/compiled.css -o dist/css/main.css",
-        "build": "npm run build:sass && npm run build:postcss"
-    },
-    "dependencies": {
-        "preline": "^2.0.3",
-        "lucide-static": "^0.321.0"
-    },
-    "devDependencies": {
-        "autoprefixer": "^10.4.17",
-        "concurrently": "^8.2.2",
-        "live-server": "^1.2.2",
-        "postcss": "^8.4.35",
-        "postcss-cli": "^11.0.0",
-        "sass": "^1.71.1",
-        "tailwindcss": "^3.4.1"
-    }
+  "name": "cryptor",
+  "version": "1.0.0",
+  "description": "Cryptor - React Js NFT Marketplace & Cryptocurrency ICO Landing Template",
+  "private": true,
+  "dependencies": {
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "bootstrap": "^5.3.2",
+    "react": "^18.2.0",
+    "react-apexcharts": "^1.4.1",
+    "react-bootstrap": "^2.9.2",
+    "react-countup": "^6.5.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^4.12.0",
+    "react-modal-video": "^2.0.1",
+    "react-router-dom": "^6.21.1",
+    "react-scripts": "5.0.1",
+    "sass": "^1.69.6",
+    "tiny-slider-react": "^0.5.7",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
 }

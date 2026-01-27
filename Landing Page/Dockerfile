@@ -12,16 +12,17 @@ RUN npm install
 # Copy project files
 COPY . .
 
-# Build CSS
+# Build React app
 RUN npm run build
 
 # Production stage
 FROM nginx:stable-alpine AS production-stage
 
 # Copy built files from build-stage
-COPY --from=build-stage /app/index.html /usr/share/nginx/html/
-COPY --from=build-stage /app/dist /usr/share/nginx/html/dist
-COPY --from=build-stage /app/img /usr/share/nginx/html/img
+COPY --from=build-stage /app/build /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
