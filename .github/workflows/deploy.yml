@@ -25,13 +25,19 @@ jobs:
           mkdir -p ~/kyneto
           cd ~/kyneto
           
-          # Clean up old files to ensure fresh state (avoid git conflicts)
-          # We preserve .env if it exists, though we overwrite it below anyway
+          # Save existing remote URL if present, otherwise fallback to SSH
+          REMOTE_URL=$(git config --get remote.origin.url || echo "git@github.com:${{ github.repository }}.git")
+          echo "Using remote URL: $REMOTE_URL"
+          
+          # Clean up old git state to ensure fresh start
           rm -rf .git
           git init
-          git remote add origin https://github.com/${{ github.repository }}
+          git remote add origin "$REMOTE_URL"
           git fetch origin main
           git reset --hard origin/main
+          
+          # Remove untracked files (including nested .git folders)
+          git clean -fdx
           
           # Create .env file for Docker Compose
           echo "POSTGRES_USER=${{ secrets.POSTGRES_USER || 'kyneto_user' }}" > .env
