@@ -16,7 +16,10 @@ jobs:
 
     - name: Deploy to Server
       uses: appleboy/ssh-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
+        envs: GITHUB_TOKEN
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
@@ -25,14 +28,14 @@ jobs:
           mkdir -p ~/kyneto
           cd ~/kyneto
           
-          # Save existing remote URL if present, otherwise fallback to SSH
-          REMOTE_URL=$(git config --get remote.origin.url || echo "git@github.com:${{ github.repository }}.git")
+          # Save existing remote URL if present, otherwise fallback to HTTPS with Token
+          REMOTE_URL=$(git config --get remote.origin.url || echo "https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}.git")
           echo "Using remote URL: $REMOTE_URL"
           
           # Clean up old git state to ensure fresh start
           rm -rf .git
           git init
-          git remote add origin "$REMOTE_URL"
+          git remote add origin "https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository }}.git"
           git fetch origin main
           git reset --hard origin/main
           
