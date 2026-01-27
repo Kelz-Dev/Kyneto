@@ -21,11 +21,17 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # Navigate to project directory
+          # Navigate to project directory (or create if missing)
+          mkdir -p ~/kyneto
           cd ~/kyneto
           
-          # Pull latest changes
-          git pull origin main
+          # Clean up old files to ensure fresh state (avoid git conflicts)
+          # We preserve .env if it exists, though we overwrite it below anyway
+          rm -rf .git
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          git fetch origin main
+          git reset --hard origin/main
           
           # Create .env file for Docker Compose
           echo "POSTGRES_USER=${{ secrets.POSTGRES_USER || 'kyneto_user' }}" > .env
