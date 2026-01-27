@@ -75,7 +75,7 @@ export default function Index() {
                             </div>
 
                             <div className="text-center mt-4">
-                                <Link to="/market-price" className="text-primary">View Marketplace <FiArrowRight /></Link>
+                                <a href="http://kyneto.app:3003" target="_blank" rel="noreferrer" className="text-primary">View Marketplace <FiArrowRight /></a>
                             </div>
                         </div>
                     </div>
@@ -173,7 +173,7 @@ export default function Index() {
                                 <p className="text-muted para-desc mx-auto">Join a global network of storage providers and earn rewards for securing the world's data.</p>
                                 <p className="text-muted para-desc mx-auto mb-0">Kyneto provides institutional-grade decentralized storage solutions with built-in verification and automated incentives.</p>
                                 <div className="mt-4">
-                                    <Link to="/token" className="btn btn-primary">Token sale</Link>
+                                    <a href="http://kyneto.app:3003" target="_blank" rel="noreferrer" className="btn btn-primary">Token sale</a>
                                     <Link to="#" onClick={() => setOpen(true)} className="btn btn-icon btn-pills btn-primary m-1 lightbox"><FiVideo className="icons" /></Link><small className="fw-medium align-middle ms-1">Watch Now</small>
                                 </div>
                                 <ModalVideo

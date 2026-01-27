@@ -62,6 +62,9 @@ export default function Navbar({ headClass, navClass, navDark }) {
                     </div>
 
                     <ul className="buy-button list-inline mb-0">
+                        <li className="list-inline-item mb-0 me-1">
+                            <a href="http://kyneto.app:3003" target="_blank" rel="noreferrer" className="btn btn-primary">Launch App</a>
+                        </li>
                         <li className="list-inline-item search-icon mb-0">
                             <Link to="#" onClick={() => setShow(true)}>
                                 <div className="btn btn-icon btn-pills btn-primary"><LuUser2 /></div>
