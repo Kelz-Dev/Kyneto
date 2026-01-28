@@ -42,7 +42,16 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
+          # Install Docker and Docker Compose if missing
+          if ! [ -x "$(command -v docker)" ]; then
+            echo "Installing Docker..."
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker ${{ secrets.EC2_USERNAME }}
+          fi
+          
           cd kyneto
-          docker compose -f docker-compose.prod.yaml up -d --build
-          docker system prune -f
+          # Use sudo for docker commands to avoid permission issues on first run
+          sudo docker compose -f docker-compose.prod.yaml up -d --build
+          sudo docker system prune -f
           echo "Deployment complete!"
