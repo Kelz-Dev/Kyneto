@@ -26,6 +26,7 @@ ARG MAKE_TARGET=build
 RUN --mount=type=cache,target=/go/pkg/mod \
   --mount=type=cache,target=/root/.cache/go-build \
   mkdir -p .git/objects \
+  && chmod +x plugin/loader/preload.sh \
   && GOOS=$TARGETOS GOARCH=$TARGETARCH GOFLAGS=-buildvcs=false make ${MAKE_TARGET} IPFS_PLUGINS=$IPFS_PLUGINS
 
 # Extract required runtime tools from Debian.
@@ -33,20 +34,20 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # for the busybox base image we're using.
 FROM debian:bookworm-slim AS utilities
 RUN set -eux; \
-	apt-get update; \
-	apt-get install -y --no-install-recommends \
-		tini \
-    # Using gosu (~2MB) instead of su-exec (~20KB) because it's easier to
-    # install on Debian. Useful links:
-    # - https://github.com/ncopa/su-exec#why-reinvent-gosu
-    # - https://github.com/tianon/gosu/issues/52#issuecomment-441946745
-		gosu \
-    # fusermount enables IPFS mount commands
-    fuse \
-    ca-certificates \
-	; \
-	apt-get clean; \
-	rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+  tini \
+  # Using gosu (~2MB) instead of su-exec (~20KB) because it's easier to
+  # install on Debian. Useful links:
+  # - https://github.com/ncopa/su-exec#why-reinvent-gosu
+  # - https://github.com/tianon/gosu/issues/52#issuecomment-441946745
+  gosu \
+  # fusermount enables IPFS mount commands
+  fuse \
+  ca-certificates \
+  ; \
+  apt-get clean; \
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Final minimal image with shell for debugging (busybox provides sh)
 FROM busybox:stable-glibc
