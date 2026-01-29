@@ -14,6 +14,7 @@ COPY . .
 
 # Build React app with memory optimizations
 ENV GENERATE_SOURCEMAP=false
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
 # Production stage
