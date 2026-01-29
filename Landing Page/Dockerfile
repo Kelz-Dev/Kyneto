@@ -7,12 +7,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci
 
 # Copy project files
 COPY . .
 
-# Build React app
+# Build React app with memory optimizations
+ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 # Production stage

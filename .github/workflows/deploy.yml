@@ -42,6 +42,16 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
+          # Setup swap space (2GB) if it doesn't exist
+          if [ ! -f /swapfile ]; then
+            echo "Setting up 2GB swap file..."
+            sudo fallocate -l 2G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
+            echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+          fi
+
           # Install Docker and Docker Compose if missing
           if ! [ -x "$(command -v docker)" ]; then
             echo "Installing Docker..."
