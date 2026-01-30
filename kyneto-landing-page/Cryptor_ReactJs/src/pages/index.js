@@ -20,6 +20,7 @@ import ModalVideo from 'react-modal-video';
 import '../../node_modules/react-modal-video/scss/modal-video.scss'
 
 export default function Index() {
+    console.log("Kyneto Landing Page Loaded");
     let [isOpen, setOpen] = useState(false);
     let [days, setDays] = useState(0);
     let [hours, setHours] = useState(0);
