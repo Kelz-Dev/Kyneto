@@ -24,7 +24,7 @@ services:
   # ===========================================
   landing-page:
     build:
-      context: ./Kyneto Landing Page/Cryptor_ReactJs
+      context: ./kyneto-landing-page/Cryptor_ReactJs
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
