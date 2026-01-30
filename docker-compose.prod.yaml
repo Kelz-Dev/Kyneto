@@ -30,6 +30,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "3003:3003"
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
 
@@ -120,8 +121,9 @@ services:
       dockerfile: Dockerfile
     image: kyneto-dashboard:latest
     restart: unless-stopped
-    ports:
-      - "3003:80"
+    # Remove external port mapping to route via Nginx SSL
+    # ports:
+    #   - "3003:80"
     depends_on:
       - api-server
 
