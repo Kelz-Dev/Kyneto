@@ -28,7 +28,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3001:80"
+      - "80:80"
 
   # ===========================================
   # PostgreSQL Database
