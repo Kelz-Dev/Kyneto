@@ -27,6 +27,11 @@ COPY --from=build-stage /app/build /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Set permissions and ownership
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html && \
+    echo "<h1>Debug: Nginx is serving files</h1>" > /usr/share/nginx/html/debug.html
+
 # Expose port 80
 EXPOSE 80
 
