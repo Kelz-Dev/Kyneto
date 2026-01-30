@@ -86,7 +86,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npm run build && npm start"
 
   # ===========================================
   # Erasure Coding Service
@@ -106,7 +106,7 @@ services:
     depends_on:
       - ipfs
       - postgres
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npm run build && npm start"
 
   # ===========================================
   # Incentive Layer Dashboard (Port 3003)
