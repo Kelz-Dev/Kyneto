@@ -30,7 +30,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "3003:3003"
+    # Port 3003 removed as it is now handled via /dashboard on port 443
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
 
@@ -71,12 +71,13 @@ services:
       postgres:
         condition: service_healthy
     command: sh -c "npm install && npm run build && npm start"
-    ports:
-      - "3002:3000"
+    # Routed via Nginx /api/ on port 443
+    # ports:
+    #   - "3002:3000"
 
-  # ===========================================
-  # Blockchain Indexer Service
-  # ===========================================
+    # ===========================================
+    # Blockchain Indexer Service
+    # ===========================================
   indexer:
     image: node:20-alpine
     working_dir: /app
