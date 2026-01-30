@@ -33,7 +33,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "docker-compose.prod.yaml,Landing Page,incentive-layer"
         target: "kyneto"
-        rm: true
+        rm: false
 
     - name: Start Application
       uses: appleboy/ssh-action@master
