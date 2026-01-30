@@ -31,7 +31,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.prod.yaml,Landing Page,incentive-layer,.env"
+        source: "docker-compose.prod.yaml,Landing Page,Kyneto Landing Page,incentive-layer,.env"
         target: "kyneto"
         rm: false
 
