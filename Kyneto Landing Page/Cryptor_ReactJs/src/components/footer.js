@@ -25,7 +25,7 @@ export default function Footer() {
                                     <Link to="#" className="logo-footer">
                                         <img src={logoLight} height="28" alt="" />
                                     </Link>
-                                    <p className="text-foot mt-4">With Cryptor Trade, you can be sure your trading skills are matched with excellent service.</p>
+                                    <p className="text-foot mt-4">With Kyneto, you can be sure your data is matched with excellent storage service.</p>
                                     <ul className="list-unstyled social-icon foot-social-icon mb-0 mt-4">
                                         <li className="list-inline-item"><Link to="https://1.envato.market/cryptor-react" target="_blank" className="rounded"><AiOutlineShoppingCart className="align-middle" /></Link></li>
                                         <li className="list-inline-item"><Link to="https://dribbble.com/shreethemes" target="_blank" className="rounded"><RiDribbbleLine className="align-middle" /></Link></li>
@@ -54,7 +54,7 @@ export default function Footer() {
                                     </ul>
                                 </div>
 
-                                <div className="col-lg-2 col-md-4 col-12 mt-4 mt-sm-0 pt-2 pt-sm-0">
+                                {/* <div className="col-lg-2 col-md-4 col-12 mt-4 mt-sm-0 pt-2 pt-sm-0">
                                     <h5 className="text-light footer-head">NFT Market</h5>
                                     <ul className="list-unstyled footer-list mt-4">
                                         <li><Link to="/index-nft" className="text-foot"><FiChevronRight className="me-1" />NFTs</Link></li>
@@ -63,10 +63,10 @@ export default function Footer() {
                                         <li><Link to="/nft-creators" className="text-foot"><FiChevronRight className="me-1" />Creators</Link></li>
                                         <li><Link to="/nft-faqs" className="text-foot"><FiChevronRight className="me-1" />How It Works</Link></li>
                                     </ul>
-                                </div>
+                                </div> */}
 
                                 <div className="col-lg-4 col-md-4 col-12 mt-4 mt-sm-0 pt-2 pt-sm-0">
-                                    <h5 className="text-light footer-head">Start trading with Cryptor</h5>
+                                    <h5 className="text-light footer-head">Start with Kyneto</h5>
 
                                     <ul className="list-unstyled footer-list mt-4 mb-2">
                                         <li className="list-inline-item mx-1"><Link to="/login" className="btn btn-soft-primary">Signin</Link></li>
@@ -87,7 +87,7 @@ export default function Footer() {
                     <div className="row align-items-center">
                         <div className="col-sm-8">
                             <div className="text-sm-start text-center">
-                                <p className="mb-0 text-foot">© {new Date().getFullYear()} Cryptor. Design & Develop with <TbHeartFilled className="text-danger" /> by <Link to="https://shreethemes.in/" target="_blank" className="text-reset">Shreethemes</Link>.</p>
+                                <p className="mb-0 text-foot">© {new Date().getFullYear()} Kyneto.</p>
                             </div>
                         </div>
 

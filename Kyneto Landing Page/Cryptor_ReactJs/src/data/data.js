@@ -46,6 +46,8 @@ import blog6 from '../assets/images/blog/06.jpg'
 import blog7 from '../assets/images/blog/07.jpg'
 import blog8 from '../assets/images/blog/08.jpg'
 
+export const chartData = []
+/*
 export const chartData = [
     {
         image: coin1,
@@ -280,6 +282,7 @@ export const chartData = [
         height: '90'
     },
 ]
+*/
 
 export const aboutData = [
     {
@@ -327,35 +330,43 @@ export const appLink = [
 export const successMap = [
     {
         icon: LuPencil,
-        date: 'Q1 2024',
-        title: 'Protocol Design',
+        date: 'Q1 2025',
+        title: 'Protocol Simulation & Synthetic Data Engineering',
         bg: false
     },
     {
         icon: FaBitcoin,
-        date: 'Q2 2024',
-        title: 'Incentive Layer Alpha',
+        date: 'Q2 2025',
+        title: 'Kyneto Testnet Alpha on Polygon Amoy',
         bg: false
     },
     {
         icon: FiClipboard,
-        date: 'Q3 2024',
-        title: 'Provider Stack Beta',
+        date: 'Q3 2025',
+        title: 'Incentive Layer Implementation & Provider Beta',
         bg: false
     },
     {
         icon: FaMoneyBillAlt,
-        date: 'Q4 2024',
-        title: 'Mainnet Launch',
+        date: 'Q4 2025',
+        title: 'Security Audits & Public Testnet',
         bg: true
     },
     {
         icon: FiAirplay,
-        date: 'Q1 2025',
-        title: 'Ecosystem Expansion',
+        date: 'Q1 2026',
+        title: 'Mainnet Phase 1 & Token Generation Event (TGE)',
+        bg: false
+    },
+    {
+        icon: FiAirplay,
+        date: 'Q2 2026',
+        title: 'Institutional Integration & Marketplace Expansion',
         bg: false
     },
 ]
+export const clientData = []
+/*
 export const clientData = [
     {
         image: client1,
@@ -406,6 +417,7 @@ export const clientData = [
         no: '#Kyneto_5468214'
     },
 ]
+*/
 export const coinImg = [coin1, coin2, coin3, coin4, coin5, coin6, coin7, coin8, coin9, coin10, coin11, coin12, coin13, coin14, coin15]
 export const counterData = [
     {

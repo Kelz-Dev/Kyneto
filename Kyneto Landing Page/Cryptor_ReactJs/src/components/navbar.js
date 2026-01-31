@@ -144,16 +144,8 @@ export default function Navbar({ headClass, navClass, navDark }) {
 
                     <div id="navigation" style={{ display: toggle ? 'block' : 'none' }}>
                         <ul className={navClass}>
-                            <li className={`has-submenu parent-menu-item ${["/", "/index", "/index-two", "/index-three", "/index-four", "/index-five", "/index-six"].includes(manu) ? 'active' : ''}`}>
-                                <Link to="#" onClick={() => setSubManu(subManu === "index-item" ? "" : "index-item")}>Home</Link><span className="menu-arrow"></span>
-                                <ul className={`submenu ${["", "/index", "/index-two", "/index-three", "/index-four", "/index-five", "/index-six", "index-item"].includes(subManu) ? 'open' : ''}`}>
-                                    <li className={manu === "/index" ? 'active' : ''}><Link to="/index" className="sub-menu-item">Hero One</Link></li>
-                                    <li className={manu === "/index-two" ? 'active' : ''}><Link to="/index-two" className="sub-menu-item">Hero Two</Link></li>
-                                    <li className={manu === "/index-three" ? 'active' : ''}><Link to="/index-three" className="sub-menu-item">Hero Three</Link></li>
-                                    <li className={manu === "/index-four" ? 'active' : ''}><Link to="/index-four" className="sub-menu-item">Hero Four</Link></li>
-                                    <li className={manu === "/index-five" ? 'active' : ''}><Link to="/index-five" className="sub-menu-item">Hero Five </Link></li>
-                                    <li className={manu === "/index-six" ? 'active' : ''}><Link to="/index-six" className="sub-menu-item">Hero Six </Link></li>
-                                </ul>
+                            <li className={manu === "/" || manu === "/index" ? 'active' : ''}>
+                                <Link to="/" className="sub-menu-item">Home</Link>
                             </li>
 
                             <li className={manu === "/market-price" ? 'active' : ''}><Link to="/market-price" className="sub-menu-item">Market</Link></li>
@@ -197,7 +189,7 @@ export default function Navbar({ headClass, navClass, navDark }) {
                                     <li><Link to="/contact" className="sub-menu-item">Contact Us</Link></li>
                                 </ul>
                             </li>
-                            <li><Link to="/index-nft" target="_blank" className="sub-menu-item"> NFT Market</Link></li>
+                            {/* <li><Link to="/index-nft" target="_blank" className="sub-menu-item"> NFT Market</Link></li> */}
                         </ul>
                     </div>
                 </div>

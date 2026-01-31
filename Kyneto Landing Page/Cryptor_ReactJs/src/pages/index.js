@@ -26,7 +26,7 @@ export default function Index() {
     let [minutes, setMinutes] = useState(0);
     let [seconds, setSeconds] = useState(0);
 
-    let deadline = "December, 31, 2024";
+    let deadline = "December, 31, 2026";
 
     let getTime = () => {
         let time = Date.parse(deadline) - Date.now();
@@ -140,7 +140,7 @@ export default function Index() {
                                     </div>
                                 </div>
 
-                                <p className="text-muted text-center">Mainnet launch countdown <span className="text-dark fw-medium">December 31st 2024</span></p>
+                                <p className="text-muted text-center">Mainnet launch countdown <span className="text-dark fw-medium">December 31st 2026</span></p>
 
                                 <div className="progress-box mt-4">
                                     <div className="progress rounded-md" style={{ height: '16px' }}>
@@ -155,9 +155,9 @@ export default function Index() {
                                 </div>
 
                                 <ul className="list-unstyled mb-0 mt-4">
-                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Soft Cap:</span> &nbsp;10000 USD</li>
-                                    <li className="h6 ms-0 my-2"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Min. transaction Amount:</span> &nbsp;1000 USD</li>
-                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Target:</span> &nbsp;900000 USD</li>
+                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Soft Cap:</span> &nbsp;1,000,000 KYN</li>
+                                    <li className="h6 ms-0 my-2"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Min. Staking Amount:</span> &nbsp;10,000 KYN</li>
+                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Target:</span> &nbsp;10,000,000 KYN</li>
                                 </ul>
 
                                 <div className="mt-4">
