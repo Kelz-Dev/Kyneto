@@ -46,240 +46,16 @@ import blog6 from '../assets/images/blog/06.jpg'
 import blog7 from '../assets/images/blog/07.jpg'
 import blog8 from '../assets/images/blog/08.jpg'
 
+export const chartData = []
+/*
 export const chartData = [
     {
         image: coin1,
-        name: 'Bitcoin',
-        tag: 'BTC',
-        value1: '+15.55%',
-        value2: '+$ 155',
-        value3: '$ 41245',
-        profit: true,
-        options: {
-            series: [{
-                data: [20, 45, 40, 64, 35, 25, 35]
-            }],
-            chart: {
-                type: 'area',
-                height: 90,
-                width: '100%',
-                sparkline: {
-                    enabled: true
-                }
-            },
-            stroke: {
-                curve: 'smooth',
-                width: 3,
-            },
-            colors: ['#52cc99'],
-            fill: {
-                type: 'gradient',
-                gradient: {
-                    shadeIntensity: 1,
-                    inverseColors: false,
-                    opacityFrom: 0.45,
-                    opacityTo: 0.05,
-                    stops: [20, 100, 100, 100]
-                },
-            },
-            tooltip: {
-                fixed: {
-                    enabled: false
-                },
-                x: {
-                    show: false
-                },
-                y: {
-                    title: {
-                        formatter: function (seriesName) {
-                            return ''
-                        }
-                    }
-                },
-                marker: {
-                    show: false
-                }
-            }
-        },
-        type: 'area',
-        width: '100%',
-        height: '90'
+        // ... (rest of the array)
     },
-    {
-        image: coin2,
-        name: 'Ethereum',
-        tag: 'ETS',
-        value1: '-25.01%',
-        value2: '-$ 524',
-        value3: '$ 1458',
-        profit: false,
-        options: {
-            series: [{
-                data: [10, 25, 30, 54, 45, 39, 15]
-            }],
-            chart: {
-                type: 'area',
-                height: 90,
-                width: '100%',
-                sparkline: {
-                    enabled: true
-                }
-            },
-            stroke: {
-                curve: 'smooth',
-                width: 3,
-            },
-            colors: ['#ff6647'],
-            fill: {
-                type: 'gradient',
-                gradient: {
-                    shadeIntensity: 1,
-                    inverseColors: false,
-                    opacityFrom: 0.45,
-                    opacityTo: 0.05,
-                    stops: [20, 100, 100, 100]
-                },
-            },
-            tooltip: {
-                fixed: {
-                    enabled: false
-                },
-                x: {
-                    show: false
-                },
-                y: {
-                    title: {
-                        formatter: function (seriesName) {
-                            return ''
-                        }
-                    }
-                },
-                marker: {
-                    show: false
-                }
-            }
-        },
-        type: 'area',
-        width: '100%',
-        height: '90'
-    },
-    {
-        image: coin3,
-        name: 'Monero',
-        tag: 'XMR',
-        value1: '+3.08%',
-        value2: '+$ 58',
-        value3: '$ 448',
-        profit: true,
-        options: {
-            series: [{
-                data: [15, 20, 10, 45, 20, 10, 5]
-            }],
-            chart: {
-                type: 'area',
-                height: 90,
-                width: '100%',
-                sparkline: {
-                    enabled: true
-                }
-            },
-            stroke: {
-                curve: 'smooth',
-                width: 3,
-            },
-            colors: ['#52cc99'],
-            fill: {
-                type: 'gradient',
-                gradient: {
-                    shadeIntensity: 1,
-                    inverseColors: false,
-                    opacityFrom: 0.45,
-                    opacityTo: 0.05,
-                    stops: [20, 100, 100, 100]
-                },
-            },
-            tooltip: {
-                fixed: {
-                    enabled: false
-                },
-                x: {
-                    show: false
-                },
-                y: {
-                    title: {
-                        formatter: function (seriesName) {
-                            return ''
-                        }
-                    }
-                },
-                marker: {
-                    show: false
-                }
-            }
-        },
-        type: 'area',
-        width: '100%',
-        height: '90'
-    },
-    {
-        image: coin4,
-        name: 'Litecoin',
-        tag: 'LTC',
-        value1: '-5.05%',
-        value2: '-$ 48',
-        value3: '$ 478',
-        profit: false,
-        options: {
-            series: [{
-                data: [3, 5, 7, 11, 8, 5, 7]
-            }],
-            chart: {
-                type: 'area',
-                height: 90,
-                width: '100%',
-                sparkline: {
-                    enabled: true
-                }
-            },
-            stroke: {
-                curve: 'smooth',
-                width: 3,
-            },
-            colors: ['#ff6647'],
-            fill: {
-                type: 'gradient',
-                gradient: {
-                    shadeIntensity: 1,
-                    inverseColors: false,
-                    opacityFrom: 0.45,
-                    opacityTo: 0.05,
-                    stops: [20, 100, 100, 100]
-                },
-            },
-            tooltip: {
-                fixed: {
-                    enabled: false
-                },
-                x: {
-                    show: false
-                },
-                y: {
-                    title: {
-                        formatter: function (seriesName) {
-                            return ''
-                        }
-                    }
-                },
-                marker: {
-                    show: false
-                }
-            }
-        },
-        type: 'area',
-        width: '100%',
-        height: '90'
-    },
+    // ...
 ]
+*/
 
 export const aboutData = [
     {
@@ -327,85 +103,51 @@ export const appLink = [
 export const successMap = [
     {
         icon: LuPencil,
-        date: 'Q1 2024',
-        title: 'Protocol Design',
+        date: 'Q1 2025',
+        title: 'Protocol Simulation & Synthetic Data Engineering',
         bg: false
     },
     {
         icon: FaBitcoin,
-        date: 'Q2 2024',
-        title: 'Incentive Layer Alpha',
+        date: 'Q2 2025',
+        title: 'Kyneto Testnet Alpha on Polygon Amoy',
         bg: false
     },
     {
         icon: FiClipboard,
-        date: 'Q3 2024',
-        title: 'Provider Stack Beta',
+        date: 'Q3 2025',
+        title: 'Incentive Layer Implementation & Provider Beta',
         bg: false
     },
     {
         icon: FaMoneyBillAlt,
-        date: 'Q4 2024',
-        title: 'Mainnet Launch',
+        date: 'Q4 2025',
+        title: 'Security Audits & Public Testnet',
         bg: true
     },
     {
         icon: FiAirplay,
-        date: 'Q1 2025',
-        title: 'Ecosystem Expansion',
+        date: 'Q1 2026',
+        title: 'Mainnet Phase 1 & Token Generation Event (TGE)',
+        bg: false
+    },
+    {
+        icon: FiAirplay,
+        date: 'Q2 2026',
+        title: 'Institutional Integration & Marketplace Expansion',
         bg: false
     },
 ]
+export const clientData = []
+/*
 export const clientData = [
     {
         image: client1,
-        title: 'Sent fr.',
-        name: '@thomas_israel',
-        value: '$667',
-        id: 'Tran. ID',
-        no: '#Kyneto_5468214'
+        // ... (rest of the array)
     },
-    {
-        image: client2,
-        title: 'Rec. fr.',
-        name: '@carl_oliver',
-        value: '$667',
-        id: 'Tran. ID',
-        no: '#Kyneto_5468214'
-    },
-    {
-        image: client3,
-        title: 'Sent fr.',
-        name: '@barbara_mcintosh',
-        value: '$667',
-        id: 'Tran. ID',
-        no: '#Kyneto_5468214'
-    },
-    {
-        image: client4,
-        title: 'Rec. fr',
-        name: '@christa_smith',
-        value: '$667',
-        id: 'Tran. ID',
-        no: '#Kyneto_5468214'
-    },
-    {
-        image: client5,
-        title: 'Sent fr.',
-        name: '@dean_tolle',
-        value: '$667',
-        id: 'Tran. ID',
-        no: '#Kyneto_5468214'
-    },
-    {
-        image: client6,
-        title: 'Rec fr.',
-        name: '@jill_webb',
-        value: '$667',
-        id: 'Tran. ID',
-        no: '#Kyneto_5468214'
-    },
+    // ...
 ]
+*/
 export const coinImg = [coin1, coin2, coin3, coin4, coin5, coin6, coin7, coin8, coin9, coin10, coin11, coin12, coin13, coin14, coin15]
 export const counterData = [
     {
