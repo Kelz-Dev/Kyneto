@@ -52,7 +52,7 @@ export default function Index() {
                         <div className="col-12">
                             <div className="title-heading">
                                 <h4 className="display-6 text-white fw-medium title-dark mb-4">The Future of <br /> Decentralized Storage</h4>
-                                <p className="text-white-50 para-desc">Kyneto is a persistent, verifiable, and incentivized storage layer built on IPFS. Secure your data with cryptographic proofs.</p>
+                                <p className="text-white-50 para-desc">Kyneto is a persistent, verifiable, and incentivized storage layer built on the <b>Polygon blockchain</b>. Secure your data with institutional-grade cryptographic proofs.</p>
 
                                 <div className="subcribe-form mt-4 pt-2">
                                     <form className="m-0" style={{ maxWidth: '550px' }}>
@@ -142,39 +142,29 @@ export default function Index() {
 
                                 <p className="text-muted text-center">Mainnet launch countdown <span className="text-dark fw-medium">December 31st 2026</span></p>
 
-                                <div className="progress-box mt-4">
-                                    <div className="progress rounded-md" style={{ height: '16px' }}>
-                                        <div className="progress-bar position-relative bg-gradient-primary rounded-md" style={{ width: '60%' }}>
-                                            <div className="progress-value d-block text-muted h6">Funded 60% = $ 600000</div>
-                                        </div>
-                                    </div>
-                                    <div className="d-flex justify-content-between mt-2">
-                                        <h6 className="title text-muted text-start mb-0">$ 1000</h6>
-                                        <h6 className="title text-muted text-end mb-0">$ 1000000</h6>
-                                    </div>
-                                </div>
+                                <p className="text-muted text-center">Network Protocol status: <span className="text-dark fw-medium">Testnet Phase (Polygon Amoy)</span></p>
 
                                 <ul className="list-unstyled mb-0 mt-4">
-                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Soft Cap:</span> &nbsp;1,000,000 KYN</li>
-                                    <li className="h6 ms-0 my-2"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Min. Staking Amount:</span> &nbsp;10,000 KYN</li>
-                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Target:</span> &nbsp;10,000,000 KYN</li>
+                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Data Durability:</span> &nbsp;99.99%</li>
+                                    <li className="h6 ms-0 my-2"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Resilience:</span> &nbsp;10+5 Erasure Coding</li>
+                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Storage Protocol:</span> &nbsp;Decentralized Kubo Sharding</li>
                                 </ul>
 
                                 <div className="mt-4">
-                                    <Link to="#" className="btn btn-primary w-100">Join Now</Link>
+                                    <a href="https://kyneto.app/dashboard/" target="_blank" rel="noreferrer" className="btn btn-primary w-100">Access Portal</a>
                                 </div>
                             </div>
                         </div>
 
                         <div className="col-lg-6 offset-lg-1 col-md-5 col-12 order-1 order-md-2">
                             <div className="section-title">
-                                <span className="badge bg-soft-success rounded-md">Sale tokens</span>
+                                <span className="badge bg-soft-success rounded-md">Protocol Ecosystem</span>
                                 <h4 className="title mt-3 mb-4">The Kyneto Network is Growing!</h4>
-                                <p className="text-muted para-desc mx-auto">Join a global network of storage providers and earn rewards for securing the world's data.</p>
-                                <p className="text-muted para-desc mx-auto mb-0">Kyneto provides institutional-grade decentralized storage solutions with built-in verification and automated incentives.</p>
+                                <p className="text-muted para-desc mx-auto">Join a global network of storage providers and secure the world's data with institutional-grade infrastructure.</p>
+                                <p className="text-muted para-desc mx-auto mb-0">Kyneto provides persistent decentralized storage solutions with built-in verification and automated self-healing loops.</p>
                                 <div className="mt-4">
-                                    <a href="https://kyneto.app/dashboard/" target="_blank" rel="noreferrer" className="btn btn-primary">Token sale</a>
-                                    <Link to="#" onClick={() => setOpen(true)} className="btn btn-icon btn-pills btn-primary m-1 lightbox"><FiVideo className="icons" /></Link><small className="fw-medium align-middle ms-1">Watch Now</small>
+                                    <a href="https://kyneto.app/dashboard/" target="_blank" rel="noreferrer" className="btn btn-primary">Ecosystem Portal</a>
+                                    <Link to="#" onClick={() => setOpen(true)} className="btn btn-icon btn-pills btn-primary m-1 lightbox" style={{ cursor: 'default', opacity: 0.6, pointerEvents: 'none' }}><FiVideo className="icons" /></Link><small className="fw-medium align-middle ms-1">Watch Now</small>
                                 </div>
                                 <ModalVideo
                                     channel="youtube"

@@ -60,18 +60,18 @@ export const chartData = [
 export const aboutData = [
     {
         icon: GoShieldCheck,
-        title: 'Decentralized Proofs',
-        desc: 'Kyneto uses Proof of Spacetime (PoSt) to ensure your data is persistently stored and verified.'
+        title: 'Verifiable Storage',
+        desc: 'Kyneto uses Proof of Spacetime (PoSt) and Proof of Replication (PoRep) to ensure your data is persistently stored and cryptographically verified on Polygon.'
     },
     {
         icon: LiaNewspaper,
-        title: 'Incentive Layer',
-        desc: 'A robust economic model that rewards providers for honest storage and slashes malicious actors.'
+        title: 'Erasure Coding (10+5)',
+        desc: 'Advanced Reed-Solomon erasure coding splits files into 15 shards across independent providers, surviving up to 5 simultaneous node failures with only 1.5x overhead.'
     },
     {
         icon: PiBrowsersBold,
-        title: 'Merkle Verification',
-        desc: 'Cryptographic integrity checks ensure that every byte of your data remains untampered.'
+        title: 'Incentivized Network',
+        desc: 'A robust economic model on Polygon Amoy rewards honest providers with KYN tokens while slashing malicious actors to ensure 99.99% data durability.'
     },
 ]
 export const appLink = [
@@ -156,9 +156,9 @@ export const counterData = [
         value: ''
     },
     {
-        title: 'Team Member',
-        target: '50',
-        value: '+'
+        title: 'Network Shards',
+        target: '15',
+        value: ''
     },
     {
         title: 'Storage Providers',
@@ -166,7 +166,7 @@ export const counterData = [
         value: '+'
     },
     {
-        title: 'Data Secured (PB)',
+        title: 'Data Capacity (PB)',
         target: '10',
         value: '+'
     },
@@ -176,95 +176,14 @@ export const companyPartner = [partner1, partner2, partner3, partner4, partner5,
 export const tradeData = [
     {
         image: coin1,
-        name: 'Bitcoin',
-        tag: 'BTC',
-        price: '$34587',
-        change1: '-2.5%',
-        change2: '-$745',
-        marketcap: '$725,354M',
-        profit: false
-    },
-    {
-        image: coin4,
-        name: 'Litecoin',
-        tag: 'LTC',
-        price: '$216',
-        change1: '+.264%',
-        change2: '+$.264',
-        marketcap: '$11,100M',
+        name: 'Kyneto Protocol',
+        tag: 'KYN',
+        price: 'Verified',
+        change1: 'High Performance',
+        change2: 'Secure',
+        marketcap: 'Polygon Amoy',
         profit: true
     },
-    {
-        image: coin5,
-        name: 'Auroracoin',
-        tag: 'ARC',
-        price: '$452',
-        change1: '-1.9%',
-        change2: '-$1.9',
-        marketcap: '$45,785M',
-        profit: false
-    },
-    {
-        image: coin11,
-        name: 'Coinye',
-        tag: 'CNY',
-        price: '$154',
-        change1: '+1.05%',
-        change2: '+$1.05',
-        marketcap: '$85,478M',
-        profit: true
-    },
-    {
-        image: coin2,
-        name: 'Ethereum Coin',
-        tag: 'ETH',
-        price: '$854',
-        change1: '+1.705%',
-        change2: '+$1.705',
-        marketcap: '$112,452M',
-        profit: true
-    },
-    {
-        image: coin13,
-        name: 'Potcoin',
-        tag: 'PTC',
-        price: '$548',
-        change1: '-3.2%',
-        change2: '-$3.2',
-        marketcap: '$4,712M',
-        profit: false
-    },
-    {
-        image: coin15,
-        name: 'Zcash Coin',
-        tag: 'ZCC',
-        price: '$965',
-        change1: '+1.465%',
-        change2: '+$1.465',
-        marketcap: '$487,552M',
-        profit: true
-    },
-    {
-        image: coin14,
-        name: 'Prime coin',
-        tag: 'XPM',
-        price: '$4875',
-        change1: '-1.08%',
-        change2: '-$1.08',
-        marketcap: '$55,221M',
-        profit: false
-    },
-    {
-        image: coin10,
-        name: 'Blocknet',
-        tag: 'BLOCK',
-        price: '$478',
-        change1: '+2.8%',
-        change2: '+$2.8',
-        marketcap: '$66,552M',
-        profit: true
-    },
-
 ]
 
 export const teamData = [
@@ -314,22 +233,22 @@ export const accordionData = [
     {
         id: 1,
         title: 'What is Kyneto?',
-        desc: 'Kyneto is a decentralized storage protocol built on top of IPFS, providing a persistent and incentivized layer for data storage.'
+        desc: 'Kyneto is a next-generation Decentralized Storage Provider built on the Polygon network. It acts as a unified high-performance layer that abstracts the complexity of IPFS for end-users.'
     },
     {
         id: 2,
-        title: 'How does the Incentive Layer work?',
-        desc: 'Providers pledge storage and stake KYN tokens. They are rewarded for providing proofs of storage and slashed if they fail to do so.'
+        title: 'Why is Kyneto built on Polygon?',
+        desc: 'Polygon provides the ultra-low gas fees required for daily Proof-of-Spacetime (PoSt) verifications and web-speed finality for storage deals, ensuring economic viability and enterprise-grade performance.'
     },
     {
         id: 3,
-        title: 'Why choose Kyneto over Filecoin?',
-        desc: 'Kyneto focuses on high-performance, verifiable storage with a more accessible provider stack and seamless IPFS integration.'
+        title: 'What is the "Persistence Gap"?',
+        desc: 'Traditional IPFS has no storage guarantees. Kyneto bridges this gap using a custom incentive layer and cryptographic proofs to ensure data remains available even if original providers go offline.'
     },
     {
         id: 4,
-        title: 'How do I become a provider?',
-        desc: 'You can join the network by running the Kyneto Provider Daemon and pledging your available disk space.'
+        title: 'How does KYN protocol utility work?',
+        desc: 'KYN tokens power the ecosystem orchestration. Providers use KYN as collateral to ensure accountability, for which they receive protocol-defined rewards derived from successful storage and PoSt verification.'
     },
 ]
 export const tokenAbout = [
