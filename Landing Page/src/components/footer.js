@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-import logoLight from '../assets/images/kyneto-logo.png'
-import iconImg from '../assets/images/kyneto-logo.png'
+import logoLight from '../assets/images/kyneto-logo-real.png'
+import iconImg from '../assets/images/kyneto-logo-real.png'
 
 import { AiOutlineShoppingCart, RiDribbbleLine, FaBehance, FaLinkedin, FaFacebookF, FaInstagram, FaTwitter, FiMail, MdOutlineInsertDriveFile, FiChevronRight, FiArrowUp, TbHeartFilled } from '../assets/icons/vander'
 

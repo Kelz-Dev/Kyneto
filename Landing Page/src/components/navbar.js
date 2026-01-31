@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
-import logoDark from '../assets/images/kyneto-logo.png'
-import logoLight from '../assets/images/kyneto-logo.png'
-import logoIcon from '../assets/images/kyneto-logo.png'
+import logoDark from '../assets/images/kyneto-logo-real.png'
+import logoLight from '../assets/images/kyneto-logo-real.png'
+import logoIcon from '../assets/images/kyneto-logo-real.png'
 
 import Offcanvas from 'react-bootstrap/Offcanvas';
 
