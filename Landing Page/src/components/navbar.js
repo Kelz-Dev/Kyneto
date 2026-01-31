@@ -148,13 +148,13 @@ export default function Navbar({ headClass, navClass, navDark }) {
                                 <Link to="/" className="sub-menu-item">Home</Link>
                             </li>
 
-                            <li className={manu === "/market-price" ? 'active' : ''}><Link to="/market-price" className="sub-menu-item">Market</Link></li>
-                            <li className={manu === "/token" ? 'active' : ''}><Link to="/token" className="sub-menu-item"> Token</Link></li>
-                            <li className={manu === "/ico-listing" ? 'active' : ''}><Link to="/ico-listing" className="sub-menu-item">ICO Listing</Link></li>
-                            <li className={manu === "/crypto-wallets" ? 'active' : ''}><Link to="/crypto-wallets" className="sub-menu-item">Wallets</Link></li>
+                            <li className={manu === "/market-price" ? 'active' : ''}><Link to="#" className="sub-menu-item" style={{ cursor: 'default', opacity: 0.6 }}>Market</Link></li>
+                            <li className={manu === "/token" ? 'active' : ''}><Link to="#" className="sub-menu-item" style={{ cursor: 'default', opacity: 0.6 }}> Token</Link></li>
+                            <li className={manu === "/ico-listing" ? 'active' : ''}><Link to="#" className="sub-menu-item" style={{ cursor: 'default', opacity: 0.6 }}>ICO Listing</Link></li>
+                            <li className={manu === "/crypto-wallets" ? 'active' : ''}><Link to="#" className="sub-menu-item" style={{ cursor: 'default', opacity: 0.6 }}>Wallets</Link></li>
 
                             <li className={`has-submenu parent-parent-menu-item ${["/aboutus", "/features", "/team", "/roadmap", "/mission", "/career", "/whitepaper", "/help-faqs", "/help-overview", "/help-guides", "/help-support", "/blog", "/blog-detail", "/login", "/signup", "/reset-password", "/comingsoon", "/error", "/contact"].includes(manu) ? 'active' : ''}`}>
-                                <Link to="#" onClick={() => setSubManu(subManu === 'page-item' ? '' : 'page-item')}>Pages</Link><span className="menu-arrow"></span>
+                                <Link to="#" style={{ cursor: 'default', opacity: 0.6 }}>Pages</Link><span className="menu-arrow"></span>
                                 <ul className={`submenu ${["/aboutus", "/features", "/team", "/roadmap", "/mission", "/career", "/whitepaper", "/help-faqs", "/help-overview", "/help-guides", "/help-support", "/blog", "/blog-detail", "/login", "/signup", "/reset-password", "/comingsoon", "/error", "/contact", "page-item", 'help-item', 'blog-item', 'auth-item'].includes(subManu) ? 'open' : ''}`}>
                                     <li className={manu === "/aboutus" ? 'active' : ''}><Link to="/aboutus" className="sub-menu-item"> About Us</Link></li>
                                     <li className={manu === "/features" ? 'active' : ''}><Link to="/features" className="sub-menu-item"> Features</Link></li>
