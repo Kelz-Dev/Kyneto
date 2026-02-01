@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import bg1 from '../assets/images/bg/bg04.png'
 import crypto from '../assets/images/crypto.png'
-import iconImg from '../assets/images/icon-gradient.png'
+import iconImg from '../assets/images/kyneto-logo-real.png'
 
 import Navbar from "../components/navbar";
 import Charts from "../components/chart";
@@ -144,10 +144,10 @@ export default function Index() {
 
                                 <p className="text-muted text-center">Network Protocol status: <span className="text-dark fw-medium">Testnet Phase (Polygon Amoy)</span></p>
 
-                                <ul className="list-unstyled mb-0 mt-4">
-                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Data Durability:</span> &nbsp;99.99%</li>
-                                    <li className="h6 ms-0 my-2"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Resilience:</span> &nbsp;10+5 Erasure Coding</li>
-                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Storage Protocol:</span> &nbsp;Decentralized Kubo Sharding</li>
+                                <ul className="list-unstyled mb-0 mt-4 text-start">
+                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Data Durability:</span> &nbsp;<span className="text-primary fw-bold">99.99%</span></li>
+                                    <li className="h6 ms-0 my-2"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Resilience:</span> &nbsp;<span className="text-primary fw-bold">10+5 Erasure Coding</span></li>
+                                    <li className="h6 ms-0 mb-0"><FiArrowRightCircle className="text-primary align-middle fs-5 me-1" /><span className="text-muted">Storage Protocol:</span> &nbsp;<span className="text-primary fw-bold">Decentralized Kubo Sharding</span></li>
                                 </ul>
 
                                 <div className="mt-4">
