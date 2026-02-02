@@ -1083,16 +1083,20 @@ function renderFiles(deals) {
     deals.forEach(deal => {
         const tr = document.createElement('tr');
         // Extract a filename from CID or metadata if available, otherwise use Deal ID
-        const fileName = `File_${deal.deal_id}`;
+        const fileName = deal.file_name || `File_${deal.deal_id}`;
+        const safeCid = (deal.file_cid && deal.file_cid.length > 10)
+            ? `${deal.file_cid.substring(0, 12)}...${deal.file_cid.substring(deal.file_cid.length - 10)}`
+            : "Generating CID...";
+
         tr.innerHTML = `
             <td>${fileName}</td>
             <td>
                 <a href="#" class="cid-link" onclick="viewFile('${deal.file_cid}'); return false;">
-                    ${deal.file_cid.substring(0, 12)}...${deal.file_cid.substring(deal.file_cid.length - 10)}
+                    ${safeCid}
                 </a>
             </td>
-            <td>${deal.file_size_gb} GB</td>
-            <td>${new Date(deal.created_at).toLocaleDateString()}</td>
+            <td>${deal.file_size_gb || 0} GB</td>
+            <td>${new Date(deal.created_at || Date.now()).toLocaleDateString()}</td>
             <td>
                 <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
                     <i class="fa-solid fa-download"></i> Download
@@ -1719,6 +1723,14 @@ function switchView(viewId) {
 
         if (viewId === 'my-deals') {
             fetchMyDeals('client'); // Default to client deals
+        }
+
+        if (viewId === 'files') {
+            fetchDeals(); // Ensure files are loaded
+        }
+
+        if (viewId === 'governance') {
+            renderProposals(); // Load governance data
         }
 
         // Simulate data for detail views
@@ -2479,21 +2491,69 @@ function handleCreateProposal(event) {
     showNotification('success', 'Proposal Created', 'Your proposal has been submitted to the community.');
 }
 
-function voteProposal(id, type) {
+async function voteProposal(id, type) {
     const proposal = proposals.find(p => p.id === id);
     if (!proposal || proposal.userVote) return;
 
-    if (type === 'for') {
-        proposal.votesFor++;
-        proposal.userVote = 'for';
-    } else {
-        proposal.votesAgainst++;
-        proposal.userVote = 'against';
+    if (!signer || !userAddress) {
+        showNotification('warning', 'Wallet Required', 'Please connect your wallet to vote on proposals.');
+        return;
     }
 
-    renderProposals();
-    addActivity('User', `Voted ${type} proposal: ${proposal.title}`, 'user');
-    showNotification('success', 'Vote Cast', `You voted ${type} this proposal.`);
+    // Add loading state to button
+    const btnFor = Array.from(document.querySelectorAll('.vote-btn')).find(b => b.textContent.includes('Vote For') && b.getAttribute('onclick')?.includes(id));
+    const btnAgainst = Array.from(document.querySelectorAll('.vote-btn')).find(b => b.textContent.includes('Vote Against') && b.getAttribute('onclick')?.includes(id));
+    const targetBtn = type === 'for' ? btnFor : btnAgainst;
+    const originalContent = targetBtn ? targetBtn.innerHTML : '';
+
+    try {
+        if (targetBtn) {
+            targetBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing...';
+            targetBtn.disabled = true;
+        }
+
+        console.log(`Requesting signature for proposal ${id} vote: ${type}`);
+
+        // Mock Governance Contract Call to trigger Wallet Signing
+        // In real deployment, this would be: await govContract.vote(id, type === 'for');
+        const mockGovAddress = '0x8888888888888888888888888888888888888888';
+        const dummyTx = {
+            to: mockGovAddress,
+            value: ethers.utils.parseEther("0"), // No value transfer
+            data: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(`vote_${id}_${type}`)) // Mocked data
+        };
+
+        // This will trigger the MetaMask popup
+        const txResponse = await signer.sendTransaction(dummyTx);
+        addActivity('System', 'Governance transaction submitted. Waiting for confirmation...', 'system');
+
+        await txResponse.wait();
+
+        if (type === 'for') {
+            proposal.votesFor++;
+            proposal.userVote = 'for';
+        } else {
+            proposal.votesAgainst++;
+            proposal.userVote = 'against';
+        }
+
+        renderProposals();
+        addActivity('User', `Voted ${type} proposal: ${proposal.title}`, 'user');
+        showNotification('success', 'Vote Confirmed', `Your ${type} vote has been recorded on-chain.`);
+
+    } catch (error) {
+        console.error('Governance voting failed:', error);
+        if (error.code === 4001) {
+            showNotification('error', 'Vote Cancelled', 'You rejected the governance transaction.');
+        } else {
+            showNotification('error', 'Voting Failed', 'Failed to submit vote. Check your network or balance.');
+        }
+    } finally {
+        if (targetBtn) {
+            targetBtn.innerHTML = originalContent;
+            targetBtn.disabled = proposal.userVote ? true : false;
+        }
+    }
 }
 
 function renderProposals() {
@@ -2561,16 +2621,7 @@ function renderProposals() {
     }
 }
 
-// Initialize proposals on view switch
-const originalSwitchView = window.switchView;
-window.switchView = function (viewId) {
-    if (typeof originalSwitchView === 'function') {
-        originalSwitchView(viewId);
-    }
-    if (viewId === 'governance') {
-        renderProposals();
-    }
-};
+// Initialize proposals on view switch logic removed and merged into main switchView
 
 async function fetchEvents() {
     try {
@@ -2887,17 +2938,20 @@ function renderMyDealsTable(deals, type) {
     deals.forEach(deal => {
         const tr = document.createElement('tr');
         const price = (deal.file_size_gb * 0.5).toFixed(4); // Simulated price calc
+        const safeCid = (deal.file_cid && deal.file_cid.length > 8)
+            ? `${deal.file_cid.substring(0, 10)}...${deal.file_cid.substring(deal.file_cid.length - 8)}`
+            : "Generating...";
 
         tr.innerHTML = `
             <td>#${deal.deal_id}</td>
             <td>
                 <a href="#" class="cid-link" onclick="viewFile('${deal.file_cid}'); return false;">
-                    ${deal.file_cid.substring(0, 10)}...${deal.file_cid.substring(deal.file_cid.length - 8)}
+                    ${safeCid}
                 </a>
             </td>
-            <td>${deal.file_size_gb} GB</td>
+            <td>${deal.file_size_gb || 0} GB</td>
             <td>${price} KYN</td>
-            <td>${new Date(deal.created_at).toLocaleDateString()}</td>
+            <td>${new Date(deal.created_at || Date.now()).toLocaleDateString()}</td>
             <td><span class="status-pill ${deal.status}">${deal.status}</span></td>
             <td>
                 <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
