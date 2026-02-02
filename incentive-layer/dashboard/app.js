@@ -1021,6 +1021,9 @@ function renderDeals(deals) {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    // Also update My Files table if it exists
+    renderFiles(deals);
+
     if (deals.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -1058,8 +1061,7 @@ function renderDeals(deals) {
         tbody.appendChild(tr);
     });
 
-    // Also update My Files table if it exists
-    renderFiles(deals);
+    // Updated via call at start of function
 }
 
 function renderFiles(deals) {
@@ -2963,7 +2965,7 @@ function renderMyDealsTable(deals, type) {
             <td><span class="status-pill ${deal.status}">${deal.status}</span></td>
             <td>
                 <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
-                    <i class="fa-solid fa-download"></i>
+                    <i class="fa-solid fa-download"></i> Download
                 </button>
                 ${type === 'client' ? `
                 <button class="btn-primary btn-sm" onclick="handleRenewDeal(${deal.deal_id}, 30)" title="Renew (30 Days)">
