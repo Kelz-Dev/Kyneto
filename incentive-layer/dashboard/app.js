@@ -1046,8 +1046,8 @@ function renderDeals(deals) {
             <td>${deal.file_size_gb || 0} GB</td>
             <td>${new Date(deal.created_at).toLocaleDateString()}</td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="View Details">
-                    <i class="fa-solid fa-eye"></i> View
+                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
+                    <i class="fa-solid fa-download"></i> Download
                 </button>
             </td>
         `;
@@ -1094,8 +1094,8 @@ function renderFiles(deals) {
             <td>${deal.file_size_gb} GB</td>
             <td>${new Date(deal.created_at).toLocaleDateString()}</td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Retrieve File">
-                    <i class="fa-solid fa-download"></i> Retrieve
+                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
+                    <i class="fa-solid fa-download"></i> Download
                 </button>
             </td>
         `;
@@ -1156,7 +1156,7 @@ function viewFile(cid) {
     // Use a public IPFS gateway for viewing
     const gatewayUrl = `https://ipfs.io/ipfs/${cid.replace('ipfs://', '')}`;
     window.open(gatewayUrl, '_blank');
-    addActivity('User', `Viewing file: ${cid}`, 'user');
+    addActivity('User', `Downloading file: ${cid}`, 'user');
 }
 
 function initWebSocket() {
@@ -2900,8 +2900,8 @@ function renderMyDealsTable(deals, type) {
             <td>${new Date(deal.created_at).toLocaleDateString()}</td>
             <td><span class="status-pill ${deal.status}">${deal.status}</span></td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="View Details">
-                    <i class="fa-solid fa-eye"></i>
+                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
+                    <i class="fa-solid fa-download"></i>
                 </button>
                 ${type === 'client' ? `
                 <button class="btn-primary btn-sm" onclick="handleRenewDeal(${deal.deal_id}, 30)" title="Renew (30 Days)">

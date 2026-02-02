@@ -8,6 +8,7 @@ import iconImg from '../assets/images/kyneto-logo-real.png'
 import Navbar from "../components/navbar";
 import Charts from "../components/chart";
 import RoadMap from '../components/roadMap';
+import RetrieveData from "../components/retrieveData";
 import About from "../components/about";
 import Client from '../components/client';
 import FooterTop from '../components/footerTop';
@@ -119,6 +120,8 @@ export default function Index() {
 
                     <RoadMap />
                 </div>
+
+                <RetrieveData />
 
                 <div className="container mt-100 mt-60">
                     <div className="row align-items-center">
