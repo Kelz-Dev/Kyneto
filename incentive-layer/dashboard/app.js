@@ -1040,11 +1040,15 @@ function renderDeals(deals) {
 
     deals.forEach(deal => {
         const tr = document.createElement('tr');
+        const safeCid = (deal.file_cid && deal.file_cid.length > 8)
+            ? `${deal.file_cid.substring(0, 12)}...${deal.file_cid.substring(deal.file_cid.length - 10)}`
+            : "Generating...";
+
         tr.innerHTML = `
             <td>#${deal.deal_id}</td>
             <td><span class="status-pill ${deal.status}">${deal.status}</span></td>
             <td>${deal.file_size_gb || 0} GB</td>
-            <td>${new Date(deal.created_at).toLocaleDateString()}</td>
+            <td>${new Date(deal.created_at || Date.now()).toLocaleDateString()}</td>
             <td>
                 <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
                     <i class="fa-solid fa-download"></i> Download
@@ -1719,6 +1723,10 @@ function switchView(viewId) {
 
         if (viewId === 'profile') {
             renderProfile();
+        }
+
+        if (viewId === 'dashboard') {
+            fetchDeals(); // Ensure stats and deals are fresh on the main dashboard
         }
 
         if (viewId === 'my-deals') {
