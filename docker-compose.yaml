@@ -123,6 +123,19 @@ services:
     depends_on:
       - api-server
 
+  # ===========================================
+  # ML Sidecar (Predictive Analytics API)
+  # ===========================================
+  ml-sidecar:
+    build:
+      context: ./Machine_Learning_sidecar
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    depends_on:
+      - api-server
+
 volumes:
   ipfs_path:
   ipfs_fuse:

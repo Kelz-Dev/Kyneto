@@ -1,0 +1,12 @@
+# Kyneto Sidecar - Python Dependencies
+# =====================================
+# Install with: pip install -r requirements.txt
+
+pandas>=1.5.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+flask>=2.0.0
+
+# Optional: XGBoost for better model performance
+# If not installed, the code falls back to RandomForest
+xgboost>=1.7.0
