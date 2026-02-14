@@ -14,7 +14,7 @@ Machine_Learning_sidecar/
 ├── api.py             # Flask API (port 5050) with prediction endpoints
 ├── requirements.txt   # Python dependencies
 ├── Dockerfile         # Container build for deployment
-├── data/              # Generated CSV datasets
+├── data/              # Generated CSV datasets & DATA_DICTIONARY.md
 └── models/            # Trained model artifacts (.pkl)
 ```
 
@@ -32,11 +32,18 @@ The API will start on `http://localhost:5050`.
 
 ## Quick Start (Docker)
 
+### Development
 From the root `kubo-master/` directory:
-
 ```bash
 docker compose up ml-sidecar --build
 ```
+
+### Production
+```bash
+docker compose -f docker-compose.prod.yaml up ml-sidecar --build
+```
+> [!NOTE]
+> The ML models are automatically trained during the Docker build process (`RUN python train_models.py` in Dockerfile), ensuring the container is ready-to-serve upon startup.
 
 ## API Endpoints
 
