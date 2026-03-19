@@ -482,13 +482,35 @@ async function checkProviderStatus() {
 
         if (isProvider) {
             // Fetch Reputation and Stats
-            const reputation = providerData[3].toNumber();
+            let reputation = providerData[3].toNumber(); // Base contract score
             const dealsCompleted = providerData[7].toNumber();
             const dealsFailed = providerData[8].toNumber();
 
-            // Calculate Uptime (Simulated based on deals)
             const totalDeals = dealsCompleted + dealsFailed;
-            const uptime = totalDeals > 0 ? (dealsCompleted / totalDeals * 100).toFixed(1) : "100.0";
+            let uptime = "100.0";
+
+            try {
+                // Fetch dynamic provider data from backend 
+                const apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                if (apiResponse.ok) {
+                    const apiData = await apiResponse.json();
+                    if (apiData.provider && apiData.provider.registered_at) {
+                        const lastHeartbeat = new Date(apiData.provider.last_heartbeat || Date.now()).getTime();
+                        const registeredAt = new Date(apiData.provider.registered_at).getTime();
+                        const now = Date.now();
+
+                        // If we haven't seen a heartbeat in 5 minutes, deduct uptime
+                        if (now - lastHeartbeat > 5 * 60 * 1000) {
+                            const offlineTime = now - lastHeartbeat;
+                            const totalTime = Math.max(now - registeredAt, 1);
+                            const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
+                            uptime = (onlineRatio * 100).toFixed(1);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not fetch dynamic uptime, fallback to 100%');
+            }
 
             // Update Stats UI
             const uptimeStat = document.querySelector('#provider-stat-uptime .value');
@@ -497,7 +519,23 @@ async function checkProviderStatus() {
             const dealsStat = document.querySelector('#provider-stat-deals .value');
             if (dealsStat) dealsStat.textContent = dealsCompleted;
 
-            animateReputation(reputation);
+            // Make Reputation Dynamic
+            let dynamicReputation = 50; // base score
+            const uptimeParsed = parseFloat(uptime);
+
+            // Uptime contribution (up to +25 points)
+            if (uptimeParsed >= 99.0) dynamicReputation += 25;
+            else if (uptimeParsed >= 90.0) dynamicReputation += 15;
+            else if (uptimeParsed < 50.0) dynamicReputation -= 25;
+
+            // Deals contribution (up to +25 points)
+            if (totalDeals > 0) {
+                const successRatio = dealsCompleted / totalDeals;
+                dynamicReputation += Math.round((successRatio * 25) - ((1 - successRatio) * 25));
+            }
+
+            dynamicReputation = Math.max(0, Math.min(100, dynamicReputation));
+            animateReputation(dynamicReputation);
 
             // 2. Fetch All Pledges
             try {
@@ -1072,7 +1110,7 @@ async function fetchStats() {
             const stats = {
                 active_deals: activeDeals.toNumber(),
                 active_providers: providerCount.toNumber(),
-                total_capacity_gb: totalCapacity.toNumber(),
+                total_capacity_gb: totalCapacity.toNumber() || (providerCount.toNumber() * 10),
                 total_utilization_gb: apiStats.total_utilization_gb || 0, // Keep API utilization for now
                 total_protocol_revenue: ethers.utils.formatUnits(feesCollected, 18),
                 total_tokens_burned: ethers.utils.formatUnits(tokensBurned, 18)
@@ -1210,7 +1248,7 @@ function renderDeals(deals) {
             <td>${deal.file_size_gb || 0} GB</td>
             <td>${new Date(deal.created_at || Date.now()).toLocaleDateString()}</td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
+                <button class="btn-secondary btn-sm" onclick="downloadFile('${deal.file_cid}', '${deal.deal_id}')" title="Download File">
                     <i class="fa-solid fa-download"></i> Download
                 </button>
             </td>
@@ -1254,14 +1292,14 @@ function renderFiles(deals) {
         tr.innerHTML = `
             <td>${fileName}</td>
             <td>
-                <a href="#" class="cid-link" onclick="viewFile('${deal.file_cid}'); return false;">
+                <a href="#" class="cid-link" onclick="downloadFile('${deal.file_cid}', '${deal.deal_id}'); return false;">
                     ${safeCid}
                 </a>
             </td>
             <td>${deal.file_size_gb || 0} GB</td>
             <td>${new Date(deal.created_at || Date.now()).toLocaleDateString()}</td>
             <td>
-                <button class="btn-secondary btn-sm" onclick="viewFile('${deal.file_cid}')" title="Download File">
+                <button class="btn-secondary btn-sm" onclick="downloadFile('${deal.file_cid}', '${deal.deal_id}')" title="Download File">
                     <i class="fa-solid fa-download"></i> Download
                 </button>
             </td>
@@ -1318,12 +1356,72 @@ function renderMarketplace(deals) {
     });
 }
 
-function viewFile(cid) {
+async function downloadFile(cid, dealId) {
     if (!cid) return;
-    // Use a public IPFS gateway for viewing
-    const gatewayUrl = `https://ipfs.io/ipfs/${cid.replace('ipfs://', '')}`;
-    window.open(gatewayUrl, '_blank');
-    addActivity('User', `Downloading file: ${cid}`, 'user');
+    try {
+        addActivity('System', `Downloading file: ${cid}`, 'system');
+        const gatewayUrl = `https://ipfs.io/ipfs/${cid.replace('ipfs://', '')}`;
+
+        // Don't wait if we don't have dealId or provider to decrypt
+        if (!dealId || !provider || !userAddress || typeof KynetoEncrypt === 'undefined') {
+            window.open(gatewayUrl, '_blank');
+            return;
+        }
+
+        let shouldDecrypt = false;
+        let keyData = null;
+
+        try {
+            const keyStatus = await fetch(`${API_URL}/api/deals/${dealId}/key`);
+            if (keyStatus.ok) {
+                keyData = await keyStatus.json();
+                shouldDecrypt = keyData.is_encrypted;
+            }
+        } catch (e) {
+            console.warn('Could not fetch encryption key status', e);
+        }
+
+        if (shouldDecrypt) {
+            addActivity('Security', `Decrypting file locally via KynetoEncrypt...`, 'system');
+
+            const res = await fetch(gatewayUrl);
+            const encryptedBuffer = await res.arrayBuffer();
+
+            try {
+                const decrypted = await KynetoEncrypt.decryptFile(
+                    encryptedBuffer,
+                    keyData.encrypted_key,
+                    keyData.encryption_iv,
+                    keyData.encryption_auth_tag,
+                    provider,
+                    userAddress
+                );
+
+                // Trigger download of decrypted arrayBuffer
+                const blob = new Blob([decrypted]);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `kyneto_decrypted_deal_${dealId}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                addActivity('System', `Download and decryption successful`, 'system');
+            } catch (encryptError) {
+                console.error('Decryption failed:', encryptError);
+                alert('Decryption failed. Please ensure you are connected with the correct wallet.');
+            }
+        } else {
+            // Unencrypted, just open the gateway
+            window.open(gatewayUrl, '_blank');
+        }
+    } catch (e) {
+        console.error('Download error:', e);
+        alert('Could not download or decrypt the file.');
+    }
 }
 
 function initWebSocket() {
@@ -2316,6 +2414,27 @@ async function handleUpgradePledge(event) {
         const duration = 30 * 24 * 60 * 60; // 30 days
         const collateral = ethers.utils.parseUnits((additional * 10).toString(), 18); // 10 KYN per GB
 
+        // 1. Check existing allowance
+        const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, signer);
+        const allowance = await tokenContract.allowance(userAddress, CAPACITY_PLEDGE_ADDRESS);
+
+        if (allowance.lt(collateral)) {
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Approving KYN...';
+            addActivity('System', 'Initiating KYN approval for pledge upgrade...', 'system');
+            showNotification('info', 'Confirm Transaction', `Please approve ${additional * 10} KYN in your wallet.`);
+
+            const gasFeesApprove = await getGasFees();
+            const gasEstimateApprove = await tokenContract.estimateGas.approve(CAPACITY_PLEDGE_ADDRESS, collateral);
+            const approveTx = await tokenContract.approve(CAPACITY_PLEDGE_ADDRESS, collateral, {
+                ...gasFeesApprove,
+                gasLimit: getGasLimitWithBuffer(gasEstimateApprove)
+            });
+            showNotification('info', 'Approval Pending', 'Waiting for KYN approval transaction...');
+            await approveTx.wait();
+            showNotification('success', 'Approval Successful', 'KYN tokens successfully approved. Proceeding to upgrade pledge...');
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Upgrading...';
+        }
+
         addActivity('System', `Initiating upgrade pledge for ${additional} GB...`, 'system');
 
         const gasFees = await getGasFees();
@@ -2346,37 +2465,66 @@ async function handleUpgradePledge(event) {
 }
 
 async function handleExitPledge(pledgeId) {
-    if (!confirm("WARNING: Exiting your pledge early will result in a 20% collateral penalty. Are you sure you want to leave the network?")) {
-        return;
-    }
+    showConfirmModal(
+        'Exit Network?',
+        'WARNING: Exiting your pledge early will result in a 20% collateral penalty. Are you sure you want to leave the network?',
+        async () => {
+            try {
+                const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
 
-    try {
-        const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, signer);
+                addActivity('System', `Initiating early exit for Pledge #${pledgeId}...`, 'system');
+                showNotification('info', 'Confirm Transaction', 'Please confirm the early exit in your wallet.');
 
-        addActivity('System', `Initiating early exit for Pledge #${pledgeId}...`, 'system');
-        showNotification('info', 'Confirm Transaction', 'Please confirm the early exit in your wallet.');
+                const gasFees = await getGasFees();
+                const gasEstimate = await pledgeContract.estimateGas.exitPledgeEarly(pledgeId);
 
-        const gasFees = await getGasFees();
-        const gasEstimate = await pledgeContract.estimateGas.exitPledgeEarly(pledgeId);
+                const tx = await pledgeContract.exitPledgeEarly(pledgeId, {
+                    ...gasFees,
+                    gasLimit: getGasLimitWithBuffer(gasEstimate)
+                });
 
-        const tx = await pledgeContract.exitPledgeEarly(pledgeId, {
-            ...gasFees,
-            gasLimit: getGasLimitWithBuffer(gasEstimate)
-        });
+                showNotification('info', 'Transaction Pending', 'Exit transaction submitted. Waiting for confirmation...');
+                await tx.wait();
 
-        showNotification('info', 'Transaction Pending', 'Exit transaction submitted. Waiting for confirmation...');
-        await tx.wait();
+                showNotification('success', 'Pledge Exited', 'You have successfully exited the pledge. Your remaining collateral has been returned.');
+                addActivity('User', `Exited Pledge #${pledgeId} early`, 'user');
 
-        showNotification('success', 'Pledge Exited', 'You have successfully exited the pledge. Your remaining collateral has been returned.');
-        addActivity('User', `Exited Pledge #${pledgeId} early`, 'user');
+                // Refresh status
+                await checkProviderStatus();
 
-        // Refresh status
-        await checkProviderStatus();
+            } catch (error) {
+                console.error('Exit pledge failed:', error);
+                showNotification('error', 'Exit Failed', error.message || 'Failed to exit pledge.');
+            }
+        }
+    );
+}
 
-    } catch (error) {
-        console.error('Exit pledge failed:', error);
-        showNotification('error', 'Exit Failed', error.message || 'Failed to exit pledge.');
-    }
+// --- Custom Confirmation Modal Logic ---
+let currentConfirmCallback = null;
+
+function showConfirmModal(title, message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) return;
+
+    document.getElementById('confirm-modal-title').textContent = title;
+    document.getElementById('confirm-modal-message').textContent = message;
+
+    const yesBtn = document.getElementById('confirm-modal-yes');
+    const newYesBtn = yesBtn.cloneNode(true);
+    yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+
+    newYesBtn.addEventListener('click', () => {
+        closeConfirmModal();
+        if (onConfirm) onConfirm();
+    });
+
+    modal.classList.remove('hidden');
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirm-modal');
+    if (modal) modal.classList.add('hidden');
 }
 
 async function handleCreateDeal(event) {

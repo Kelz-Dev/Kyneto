@@ -452,7 +452,7 @@
                         <div class="section-header">
                             <h3><i class="fa-solid fa-server"></i> Active Nodes</h3>
                             <button id="btn-upgrade-pledge" class="btn-primary btn-sm hidden"
-                                onclick="switchView('upgrade-pledge-view')" style="margin-left: auto;">
+                                onclick="switchView('become-provider')" style="margin-left: auto;">
                                 <i class="fa-solid fa-circle-up"></i> Upgrade Pledge
                             </button>
                         </div>
@@ -1274,6 +1274,26 @@
                 </section>
             </div>
         </main>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="confirm-modal-title">Confirm Action</h2>
+                <div class="close-modal" onclick="closeConfirmModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </div>
+            </div>
+            <div class="modal-body" style="margin-bottom: 20px;">
+                <p id="confirm-modal-message"
+                    style="color: var(--text-secondary); line-height: 1.6; font-size: 1.05rem;">Are you sure?</p>
+            </div>
+            <div class="modal-actions" style="display: flex; gap: 15px; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+                <button class="btn-primary" id="confirm-modal-yes">Confirm</button>
+            </div>
+        </div>
     </div>
 
     <script src="kyneto-encrypt-browser.js"></script>
