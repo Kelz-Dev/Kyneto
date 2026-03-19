@@ -22,6 +22,21 @@ except ImportError:
     HAS_XGBOOST = False
     print("[WARN] XGBoost not installed, using RandomForest as fallback")
 
+# Try to import CatBoost
+try:
+    from catboost import CatBoostClassifier
+    HAS_CATBOOST = True
+except ImportError:
+    HAS_CATBOOST = False
+    print("[WARN] CatBoost not installed")
+
+# Import Keras for ANN
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.preprocessing import StandardScaler
+
 # Paths
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')
@@ -126,18 +141,75 @@ def train_failure_prediction_model(df: pd.DataFrame):
     print(f"   Precision: {precision_score(y_test, cart_pred, zero_division=0)*100:.2f}%")
     print(f"   Recall:    {recall_score(y_test, cart_pred, zero_division=0)*100:.2f}%")
     
+    # Train CatBoost
+    catboost_model = None
+    if HAS_CATBOOST:
+        print("\n[CHART] Training CatBoost model...")
+        catboost_model = CatBoostClassifier(
+            iterations=100,
+            depth=5,
+            learning_rate=0.1,
+            random_seed=42,
+            verbose=False
+        )
+        catboost_model.fit(X_train, y_train)
+        cat_pred = catboost_model.predict(X_test)
+        
+        print("\n   CatBoost Results:")
+        print(f"   Accuracy:  {accuracy_score(y_test, cat_pred)*100:.2f}%")
+        print(f"   Precision: {precision_score(y_test, cat_pred, zero_division=0)*100:.2f}%")
+        print(f"   Recall:    {recall_score(y_test, cat_pred, zero_division=0)*100:.2f}%")
+        
+    # Train ANN (Keras)
+    print("\n[CHART] Training Keras ANN (Sequential) model...")
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    ann_model = Sequential([
+        Dense(32, activation='relu', input_shape=(X_train_scaled.shape[1],)),
+        Dropout(0.2),
+        Dense(16, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+    
+    ann_model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+    
+    ann_model.fit(X_train_scaled, y_train, epochs=200, validation_split=0.1, callbacks=[early_stop], verbose=0)
+    
+    ann_pred_prob = ann_model.predict(X_test_scaled, verbose=0)
+    ann_pred = (ann_pred_prob > 0.5).astype(int).flatten()
+    
+    print("\n   ANN Results:")
+    print(f"   Accuracy:  {accuracy_score(y_test, ann_pred)*100:.2f}%")
+    print(f"   Precision: {precision_score(y_test, ann_pred, zero_division=0)*100:.2f}%")
+    print(f"   Recall:    {recall_score(y_test, ann_pred, zero_division=0)*100:.2f}%")
+    
     # Save models
     xgb_path = os.path.join(MODELS_DIR, 'xgboost_failure.pkl')
     cart_path = os.path.join(MODELS_DIR, 'cart_failure.pkl')
+    ann_path = os.path.join(MODELS_DIR, 'keras_failure.h5')
+    ann_scaler_path = os.path.join(MODELS_DIR, 'ann_failure_scaler.pkl')
     
     with open(xgb_path, 'wb') as f:
         pickle.dump({'model': xgb_model, 'features': feature_cols}, f)
     with open(cart_path, 'wb') as f:
         pickle.dump({'model': cart_model, 'features': feature_cols}, f)
+        
+    # Save Keras Model
+    ann_model.save(ann_path)
+    with open(ann_scaler_path, 'wb') as f:
+        pickle.dump({'scaler': scaler, 'features': feature_cols}, f)
+        
+    if HAS_CATBOOST:
+        cat_path = os.path.join(MODELS_DIR, 'catboost_failure.pkl')
+        with open(cat_path, 'wb') as f:
+            pickle.dump({'model': catboost_model, 'features': feature_cols}, f)
     
     print(f"\n[OK] Models saved to {MODELS_DIR}")
     
-    return xgb_model, cart_model
+    return xgb_model, cart_model, catboost_model, ann_model
 
 
 def train_reliability_classification_model(df: pd.DataFrame):
@@ -195,18 +267,73 @@ def train_reliability_classification_model(df: pd.DataFrame):
     
     print(f"   CART Accuracy: {accuracy_score(y_test, cart_pred)*100:.2f}%")
     
+    # Train CatBoost
+    catboost_model = None
+    if HAS_CATBOOST:
+        print("\n[CHART] Training CatBoost classifier...")
+        catboost_model = CatBoostClassifier(
+            iterations=100,
+            depth=5,
+            learning_rate=0.1,
+            random_seed=42,
+            loss_function='MultiClass',
+            verbose=False
+        )
+        catboost_model.fit(X_train, y_train)
+        cat_pred = catboost_model.predict(X_test)
+        
+        print(f"   CatBoost Accuracy: {accuracy_score(y_test, cat_pred)*100:.2f}%")
+
+    # Train ANN (Keras)
+    print("\n[CHART] Training Keras ANN classifier...")
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    num_classes = len(np.unique(y_test))
+    y_train_cat = tf.keras.utils.to_categorical(y_train, num_classes)
+    
+    ann_model = Sequential([
+        Dense(32, activation='relu', input_shape=(X_train_scaled.shape[1],)),
+        Dropout(0.2),
+        Dense(16, activation='relu'),
+        Dense(num_classes, activation='softmax')
+    ])
+    
+    ann_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+    
+    ann_model.fit(X_train_scaled, y_train_cat, epochs=200, validation_split=0.1, callbacks=[early_stop], verbose=0)
+    
+    ann_pred_prob = ann_model.predict(X_test_scaled, verbose=0)
+    ann_pred = np.argmax(ann_pred_prob, axis=1)
+    
+    print(f"   ANN Accuracy: {accuracy_score(y_test, ann_pred)*100:.2f}%")
+    
     # Save models
     xgb_path = os.path.join(MODELS_DIR, 'xgboost_reliability.pkl')
     cart_path = os.path.join(MODELS_DIR, 'cart_reliability.pkl')
+    ann_path = os.path.join(MODELS_DIR, 'keras_reliability.h5')
+    ann_scaler_path = os.path.join(MODELS_DIR, 'ann_reliability_scaler.pkl')
     
     with open(xgb_path, 'wb') as f:
         pickle.dump({'model': xgb_model, 'features': feature_cols}, f)
     with open(cart_path, 'wb') as f:
         pickle.dump({'model': cart_model, 'features': feature_cols}, f)
+        
+    # Save Keras model
+    ann_model.save(ann_path)
+    with open(ann_scaler_path, 'wb') as f:
+        pickle.dump({'scaler': scaler, 'features': feature_cols}, f)
+        
+    if HAS_CATBOOST:
+        cat_path = os.path.join(MODELS_DIR, 'catboost_reliability.pkl')
+        with open(cat_path, 'wb') as f:
+            pickle.dump({'model': catboost_model, 'features': feature_cols}, f)
     
     print(f"\n[OK] Models saved to {MODELS_DIR}")
     
-    return xgb_model, cart_model
+    return xgb_model, cart_model, catboost_model, ann_model
 
 
 def main():

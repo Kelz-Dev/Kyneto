@@ -508,7 +508,18 @@ Need help with IPFS itself? Learn where to get help and support at https://ipfs.
 
 ## Kyneto Incentive Layer
 
-This repository includes the **Kyneto Incentive Layer**, which adds economic incentives and blockchain-based contracts to IPFS storage.
+This repository includes the **Kyneto Incentive Layer**, which adds economic incentives, predictive intelligence, and blockchain-based contracts to IPFS storage.
+
+### Core Stack
+Kyneto extends Kubo with several robust enterprise-ready services:
+- **Smart Contracts (Polygon Amoy)**: Powers decentralized storage deals and Proof-of-Spacetime verification.
+- **REST API + Dashboard**: Web interface and programmatic access for clients and providers.
+- **Erasure Coding Service**: Guarantees 10+5 data availability natively on IPFS.
+- **Blockchain Indexer**: Decentralized, highly resilient event listener bridging Polygon to Postgres.
+- **Machine Learning Sidecar**: API providing failure prediction and reliability scoring, with a continuous data feedback loop.
+- **Observability Stack**: Prometheus metrics collection and Grafana dashboards for full network visibility.
+
+For a deep dive into how these components interact, see the [Kyneto Protocol Architecture](docs/KYNETO_ARCHITECTURE.md).
 
 ### Why Polygon?
 Kyneto is built on the Polygon blockchain to ensure a seamless, cost-effective, and scalable experience.
@@ -518,7 +529,7 @@ Kyneto is built on the Polygon blockchain to ensure a seamless, cost-effective, 
 
 **Note**: While Polygon is secured by 105 validator nodes, the **Kyneto Storage Provider** network is permissionless and designed to scale to thousands of independent nodes globally.
 
-For more details, see the [Incentive Layer Documentation](incentive-layer/README.md).
+For developer usage and setup, see the [Incentive Layer Documentation](incentive-layer/README.md).
 
 ## License
 

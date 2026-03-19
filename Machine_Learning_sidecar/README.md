@@ -50,16 +50,27 @@ docker compose -f docker-compose.prod.yaml up ml-sidecar --build
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check |
+| GET | `/metrics` | Prometheus metrics scrape target |
 | POST | `/predict/failure` | Predict if a provider will fail |
 | POST | `/predict/reliability` | Classify provider reliability tier |
+| POST | `/feedback` | Submit actual outcome for model tracking |
+| GET | `/feedback/stats` | View feedback accuracy statistics |
 
-### Example Request
+### Example Prediction Request
 
 ```bash
 curl -X POST http://localhost:5050/predict/failure \
   -H "Content-Type: application/json" \
-  -d '{"stake": 10000, "capacity_gb": 500, "uptime_pct": 0.95, "post_success_rate": 0.92}'
+  -d '{"stake": 10000, "capacity_gb": 500, "uptime_pct": 0.95, "post_success_rate": 0.92, "proof_misses": 0, "slashing_count": 0}'
 ```
+
+## Continuous Feedback Loop
+
+The ML Sidecar is connected to the core PostgreSQL database via the `DATABASE_URL` environment variable. 
+
+When the Kyneto network observes an actual event (e.g., a provider physically drops offline and is detected by the `HealthMonitor`), it sends a `POST /feedback` request back to the ML sidecar with what *actually* happened. 
+
+This populates the `ml_feedback` table, allowing Data Scientists to pull real-world outcomes versus historical predictions, evaluate accuracy drift over time (`GET /feedback/stats`), and continuously retrain the XGBoost models on actual mainnet data rather than the synthetic simulator.
 
 ## Model Performance
 

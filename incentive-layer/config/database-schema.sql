@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS deals (
   provider_payment NUMERIC NOT NULL,
   protocol_fee NUMERIC NOT NULL,
   status VARCHAR(20) DEFAULT 'active',
+  is_encrypted BOOLEAN DEFAULT true,
+  encrypted_key TEXT,
+  encryption_iv TEXT,
+  encryption_auth_tag TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   completed_at TIMESTAMP,
   block_number INTEGER
@@ -150,3 +154,18 @@ CREATE INDEX idx_provider_deals ON shards(provider_address, deal_id);
 CREATE INDEX idx_repair_created ON repair_queue(created_at);
 CREATE INDEX idx_slashing_provider ON slashing_events(provider_address);
 CREATE INDEX idx_protocol_events_created ON protocol_events(created_at);
+
+-- ML Feedback (for model accuracy tracking)
+CREATE TABLE IF NOT EXISTS ml_feedback (
+  id SERIAL PRIMARY KEY,
+  provider_address VARCHAR(42),
+  prediction_type VARCHAR(30) NOT NULL,
+  predicted_value VARCHAR(50) NOT NULL,
+  actual_value VARCHAR(50) NOT NULL,
+  is_correct BOOLEAN NOT NULL,
+  input_data JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_ml_feedback_type ON ml_feedback(prediction_type);
+

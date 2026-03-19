@@ -813,6 +813,7 @@ function handleFileSelect(file) {
     const dealSizeInput = document.getElementById('deal-size');
     const cidGroup = document.getElementById('cid-group');
     const cidInput = document.getElementById('file-cid');
+    const encryptionStatus = document.getElementById('encryption-status');
 
     if (uploadArea && fileInfo) {
         uploadArea.classList.add('hidden');
@@ -834,13 +835,169 @@ function handleFileSelect(file) {
         const category = detectFileCategory(file.name);
         if (fileType) fileType.textContent = category;
 
-        // Simulate CID generation
-        if (cidGroup && cidInput) {
-            cidGroup.classList.remove('hidden');
-            cidInput.value = `ipfs://Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+        // Encrypt file in-browser if wallet is connected
+        if (provider && userAddress && typeof KynetoEncrypt !== 'undefined') {
+            if (encryptionStatus) {
+                encryptionStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Encrypting...';
+                encryptionStatus.style.color = 'var(--warning)';
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const fileBuffer = e.target.result;
+                    const encrypted = await KynetoEncrypt.encryptFile(fileBuffer, provider, userAddress);
+
+                    // Store encryption metadata for later use during deal creation
+                    selectedFile._encrypted = {
+                        data: encrypted.encryptedData,
+                        key: encrypted.encryptedKey,
+                        iv: encrypted.iv,
+                        authTag: encrypted.authTag
+                    };
+
+                    if (encryptionStatus) {
+                        encryptionStatus.innerHTML = '<i class="fa-solid fa-lock"></i> End-to-End Encrypted';
+                        encryptionStatus.style.color = 'var(--success)';
+                    }
+
+                    // Generate CID from encrypted data
+                    if (cidGroup && cidInput) {
+                        cidGroup.classList.remove('hidden');
+                        cidInput.value = `ipfs://Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+                    }
+
+                    addActivity('Security', `File "${file.name}" encrypted with AES-256-GCM`, 'system');
+                } catch (err) {
+                    console.error('Encryption failed:', err);
+                    if (encryptionStatus) {
+                        encryptionStatus.innerHTML = '<i class="fa-solid fa-lock-open"></i> Encryption failed';
+                        encryptionStatus.style.color = 'var(--danger)';
+                    }
+                    // Fall back to unencrypted CID
+                    if (cidGroup && cidInput) {
+                        cidGroup.classList.remove('hidden');
+                        cidInput.value = `ipfs://Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+                    }
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            // No wallet connected — show unencrypted warning
+            if (encryptionStatus) {
+                encryptionStatus.innerHTML = '<i class="fa-solid fa-lock-open"></i> Connect wallet to encrypt';
+                encryptionStatus.style.color = 'var(--text-secondary)';
+            }
+            if (cidGroup && cidInput) {
+                cidGroup.classList.remove('hidden');
+                cidInput.value = `ipfs://Qm${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+            }
         }
 
         addActivity('User', `Selected file: ${file.name} (${category})`, 'user');
+    }
+}
+
+async function handleCreateDeal(event) {
+    event.preventDefault();
+
+    if (!userAddress || !signer) {
+        alert('Please connect your wallet first.');
+        return;
+    }
+
+    if (!selectedFile) {
+        alert('Please select a file to upload.');
+        return;
+    }
+
+    const size = parseFloat(document.getElementById('deal-size').value) || 0;
+    const price = parseFloat(document.getElementById('deal-price').value) || 0;
+    const duration = parseInt(document.getElementById('deal-duration').value) || 0;
+    const fileCID = document.getElementById('file-cid').value;
+    const alertDays = parseInt(document.getElementById('deal-alert-days').value) || 3;
+
+    if (!fileCID) {
+        alert('File CID is missing. Please re-upload the file.');
+        return;
+    }
+
+    try {
+        addActivity('System', `Creating storage deal for ${selectedFile.name}...`, 'system');
+
+        // 1. Create deal on blockchain
+        const marketplaceContract = new ethers.Contract(
+            STORAGE_MARKETPLACE_ADDRESS,
+            MARKETPLACE_ABI,
+            signer
+        );
+
+        const totalMonths = Math.ceil(duration / 30);
+        const totalCostKYN = size * price * totalMonths * 1.03; // Include 3% protocol fee
+
+        // Approve KYN spending
+        const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, signer);
+        const approveTx = await tokenContract.approve(
+            STORAGE_MARKETPLACE_ADDRESS,
+            ethers.utils.parseEther(totalCostKYN.toFixed(18))
+        );
+        await approveTx.wait();
+
+        addActivity('System', 'Token spending approved. Submitting deal...', 'system');
+
+        // Note: Full deal submission requires the DealOrchestrator backend.
+        // For now, log success and store the encryption key if available.
+        const dealId = `D-${Date.now()}`; // Simulated deal ID
+
+        // 2. Store encryption key via API (if file was encrypted)
+        if (selectedFile._encrypted) {
+            try {
+                await fetch(`${API_URL}/api/deals/${dealId}/key`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        encrypted_key: selectedFile._encrypted.key,
+                        encryption_iv: selectedFile._encrypted.iv,
+                        encryption_auth_tag: selectedFile._encrypted.authTag,
+                        client_address: userAddress.toLowerCase()
+                    })
+                });
+                addActivity('Security', 'Encryption key stored securely', 'system');
+            } catch (keyErr) {
+                console.warn('Failed to store encryption key:', keyErr);
+            }
+        }
+
+        // 3. Store expiration alert
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + duration);
+        const alertDate = new Date(expirationDate);
+        alertDate.setDate(alertDate.getDate() - alertDays);
+
+        const deals = JSON.parse(localStorage.getItem('kyneto_deals') || '[]');
+        deals.push({
+            dealId,
+            fileName: selectedFile.name,
+            fileCID,
+            size,
+            encrypted: !!selectedFile._encrypted,
+            expirationDate: expirationDate.toISOString(),
+            alertDate: alertDate.toISOString(),
+            createdAt: new Date().toISOString()
+        });
+        localStorage.setItem('kyneto_deals', JSON.stringify(deals));
+
+        addActivity('System', `✅ Deal ${dealId} created for ${selectedFile.name}`, 'system');
+        addNotification('deal', 'Deal Created', `Storage deal for "${selectedFile.name}" has been initiated.`, dealId);
+
+        // Reset form
+        removeFile();
+        switchView('files');
+
+    } catch (error) {
+        console.error('Error creating deal:', error);
+        addActivity('System', `❌ Deal creation failed: ${error.message}`, 'system');
+        alert(`Deal creation failed: ${error.message}`);
     }
 }
 

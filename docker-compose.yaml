@@ -87,6 +87,11 @@ services:
       postgres:
         condition: service_healthy
     command: sh -c "[ -d node_modules ] || npm install; npm run dev"
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ===========================================
   # Erasure Coding Service
@@ -133,11 +138,45 @@ services:
     restart: unless-stopped
     ports:
       - "5050:5050"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
     depends_on:
       - api-server
+      - postgres
+
+  # ===========================================
+  # Prometheus (Metrics Collection)
+  # ===========================================
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  # ===========================================
+  # Grafana (Monitoring Dashboard)
+  # ===========================================
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      - GF_SERVER_ROOT_URL=http://localhost:3004/
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3004:3000"
+    depends_on:
+      - prometheus
 
 volumes:
   ipfs_path:
   ipfs_fuse:
   ipns_fuse:
   postgres_data:
+  prometheus_data:
+  grafana_data:

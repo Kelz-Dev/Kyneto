@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import { createServer } from 'http';
 import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
+import client from 'prom-client';
 
 dotenv.config();
 
@@ -26,6 +27,47 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(morgan('combined'));
+
+// Prometheus Metrics
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+const httpRequestDuration = new client.Histogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: [0.01, 0.05, 0.1, 0.5, 1, 5],
+    registers: [register],
+});
+
+const httpRequestsTotal = new client.Counter({
+    name: 'http_requests_total',
+    help: 'Total number of HTTP requests',
+    labelNames: ['method', 'route', 'status_code'],
+    registers: [register],
+});
+
+const dbPoolActive = new client.Gauge({
+    name: 'db_pool_active_connections',
+    help: 'Number of active database pool connections',
+    registers: [register],
+    collect() {
+        this.set(db.totalCount - db.idleCount);
+    },
+});
+
+// Metrics middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path === '/metrics') return next();
+    const end = httpRequestDuration.startTimer();
+    res.on('finish', () => {
+        const route = req.route?.path || req.path;
+        const labels = { method: req.method, route, status_code: String(res.statusCode) };
+        end(labels);
+        httpRequestsTotal.inc(labels);
+    });
+    next();
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -299,10 +341,83 @@ app.post('/api/events', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/deals/:dealId/key - Store encrypted file key
+ * The key is ECIES-wrapped — only the deal creator can decrypt it.
+ */
+app.post('/api/deals/:dealId/key', async (req: Request, res: Response) => {
+    try {
+        const { dealId } = req.params;
+        const { encrypted_key, encryption_iv, encryption_auth_tag, client_address } = req.body;
+
+        if (!encrypted_key || !encryption_iv || !encryption_auth_tag || !client_address) {
+            return res.status(400).json({ error: 'Missing required encryption fields' });
+        }
+
+        await db.query(
+            `UPDATE deals SET
+                is_encrypted = true,
+                encrypted_key = $1,
+                encryption_iv = $2,
+                encryption_auth_tag = $3
+             WHERE deal_id = $4 AND client_address = $5`,
+            [encrypted_key, encryption_iv, encryption_auth_tag, dealId, client_address.toLowerCase()]
+        );
+
+        res.json({ message: 'Encryption key stored', deal_id: dealId });
+    } catch (error) {
+        console.error('Error storing encryption key:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/deals/:dealId/key - Retrieve encrypted file key
+ * Returns the wrapped key — client decrypts locally using their wallet.
+ */
+app.get('/api/deals/:dealId/key', async (req: Request, res: Response) => {
+    try {
+        const { dealId } = req.params;
+        const result = await db.query(
+            `SELECT encrypted_key, encryption_iv, encryption_auth_tag, is_encrypted, client_address
+             FROM deals WHERE deal_id = $1`,
+            [dealId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Deal not found' });
+        }
+
+        const deal = result.rows[0];
+        if (!deal.is_encrypted || !deal.encrypted_key) {
+            return res.json({ is_encrypted: false });
+        }
+
+        res.json({
+            is_encrypted: true,
+            encrypted_key: deal.encrypted_key,
+            encryption_iv: deal.encryption_iv,
+            encryption_auth_tag: deal.encryption_auth_tag,
+            client_address: deal.client_address
+        });
+    } catch (error) {
+        console.error('Error retrieving encryption key:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /health - Health check
  */
 app.get('/health', (req: Request, res: Response) => {
     res.json({ status: 'healthy', timestamp: new Date() });
+});
+
+/**
+ * GET /metrics - Prometheus metrics
+ */
+app.get('/metrics', async (req: Request, res: Response) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
 });
 
 // WebSocket events

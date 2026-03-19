@@ -10,29 +10,31 @@ This project adds economic incentives and blockchain-based contracts to IPFS sto
 ## Architecture
 
 ```
-incentive-layer/
-├── smart-contracts/      # Polygon smart contracts (Solidity)
-├── services/             # Backend services (Node.js/TypeScript)
-│   ├── erasure-coding/   # Reed-Solomon shard management
-│   ├── kubo-adapter/     # IPFS integration (uses Kubo HTTP API)
-│   ├── blockchain-listener/ # Contract event processing
-│   └── ...
-├── api/                  # REST API + WebSocket
-├── cli/                  # Provider & client CLI tools
-├── sdk/                  # JavaScript SDK for developers
-├── config/               # Chain & network configuration
-└── docs/                 # Documentation
-
+kubo-master/
+├── incentive-layer/
+│   ├── smart-contracts/      # Polygon smart contracts (Solidity)
+│   ├── services/             # Backend services (Node.js/TypeScript)
+│   │   ├── erasure-coding/   # Reed-Solomon shard management & auto-repair
+│   ├── indexer/              # Resilient blockchain listener & IPFS mirror
+│   ├── api/rest-api/         # REST API, WebSocket, & Prometheus /metrics
+│   ├── config/               # Chain & PostgreSQL schema configuration
+│   └── dashboard/            # React Web UI
+├── Machine_Learning_sidecar/ # Predictive analytics (Flask/Python)
+└── monitoring/               # Prometheus & Grafana configurations
 ```
+
+> For the comprehensive data flow and inter-service mapping, see the [Full Kyneto Architecture Guide](../docs/KYNETO_ARCHITECTURE.md).
 
 ## Key Features
 
-**50% Parity Erasure Coding**: Files split into 15 shards (10 data + 5 parity), survives 5 provider failures  
-**Storage Pledges**: Providers commit capacity and earn passive rewards  
-**Per GB/Month Pricing**: $0.05/GB for clients, $0.01-0.04/GB earnings for providers  
-**Auto-Replication**: Network automatically repairs lost shards  
-**Filecoin-Style Proofs**: PoRep (initial) + PoSt (continuous 24h verification)  
-**Migration Ready**: Easy migration from Polygon to custom blockchain  
+- **50% Parity Erasure Coding**: Files split into 15 shards (10 data + 5 parity), survives 5 provider failures.
+- **Storage Pledges**: Providers commit capacity and earn passive rewards.
+- **Per GB/Month Pricing**: $0.05/GB for clients, $0.01-0.04/GB earnings for providers.
+- **Auto-Replication & Auto-Repair**: Network automatically detects offline nodes and repairs lost shards.
+- **Filecoin-Style Proofs**: PoRep (initial) + PoSt (continuous 24h verification).
+- **Predictive Intelligence**: Machine Learning sidecar to predict provider failure and classify reliability.
+- **Enterprise Observability**: Prometheus metrics and centralized Grafana tracking.
+- **Highly Resilient Indexer**: Exponential backoff RPC reconnection and graceful shutdowns.
 
 ## Dashboard vs. Daemon: How Pledging Works
 

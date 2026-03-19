@@ -451,7 +451,8 @@
                     <div class="node-list">
                         <div class="section-header">
                             <h3><i class="fa-solid fa-server"></i> Active Nodes</h3>
-                            <button id="btn-upgrade-pledge" class="btn-primary btn-sm hidden" onclick="switchView('upgrade-pledge-view')" style="margin-left: auto;">
+                            <button id="btn-upgrade-pledge" class="btn-primary btn-sm hidden"
+                                onclick="switchView('upgrade-pledge-view')" style="margin-left: auto;">
                                 <i class="fa-solid fa-circle-up"></i> Upgrade Pledge
                             </button>
                         </div>
@@ -816,6 +817,10 @@
                                         <span class="size" id="file-size">0 KB</span>
                                         <span class="divider">•</span>
                                         <span class="type" id="file-type">General Data</span>
+                                        <span class="divider">•</span>
+                                        <span id="encryption-status" style="color: var(--success); font-weight: 500;">
+                                            <i class="fa-solid fa-lock"></i> End-to-End Encrypted
+                                        </span>
                                     </div>
                                 </div>
                                 <button type="button" class="btn-remove" onclick="removeFile()"><i
@@ -1271,6 +1276,7 @@
         </main>
     </div>
 
+    <script src="kyneto-encrypt-browser.js"></script>
     <script src="app.js?v=2"></script>
 </body>
 

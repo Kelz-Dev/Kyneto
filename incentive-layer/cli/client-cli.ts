@@ -30,6 +30,17 @@ program
             console.log(`   File size: ${fileSizeGB} GB`);
             console.log(`   Duration: ${options.duration} days`);
 
+            // Encrypt file before upload
+            console.log('\n🔒 Encrypting file...');
+            const { encryptFile } = await import('../services/encryption/kyneto-encrypt');
+            const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!);
+            const publicKey = wallet.signingKey.publicKey;
+
+            const encrypted = await encryptFile(fileData, publicKey);
+            console.log('   ✅ File encrypted with AES-256-GCM');
+            console.log(`   Encrypted size: ${(encrypted.encryptedData.length / (1024 * 1024)).toFixed(2)} MB`);
+            console.log(`   Key wrapped with wallet public key`);
+
             // Calculate cost
             const months = Math.ceil(options.duration / 30);
             const encodedSize = fileSizeGB * 1.5; // 10+5 erasure coding
@@ -43,10 +54,11 @@ program
             console.log(`   Total cost: ${totalCost.toFixed(4)} STK`);
 
             console.log('\n📤 Next steps:');
-            console.log('1. File will be uploaded to IPFS');
-            console.log('2. Erasure coded into 15 shards');
-            console.log('3. Distributed to 15 providers');
+            console.log('1. Encrypted file will be uploaded to IPFS');
+            console.log('2. Erasure coded into 15 encrypted shards');
+            console.log('3. Distributed to 15 providers (they see only ciphertext)');
             console.log('4. Payment escrowed until deal completion');
+            console.log('5. Encryption key stored — only your wallet can decrypt');
 
             console.log('\n⚠️  Full implementation requires:');
             console.log('   - IPFS node running');
