@@ -2185,3 +2185,26 @@ input:checked+.slider:before {
     border: 1px solid rgba(255, 255, 255, 0.05);
     letter-spacing: 0.5px;
 }
+/* ============================================
+   CUSTOM DANGER BUTTON
+   ============================================ */
+.btn-danger {
+    background: rgba(255, 82, 82, 0.1) !important;
+    border: 1px solid rgba(255, 82, 82, 0.3) !important;
+    color: var(--error) !important;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+    background: rgba(255, 82, 82, 0.2) !important;
+    border-color: rgba(255, 82, 82, 0.5) !important;
+    box-shadow: 0 0 15px rgba(255, 82, 82, 0.2) !important;
+}

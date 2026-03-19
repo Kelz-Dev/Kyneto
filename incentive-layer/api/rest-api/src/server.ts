@@ -184,7 +184,7 @@ app.get('/api/providers/:address', async (req: Request, res: Response) => {
         const address = req.params.address;
 
         const providerResult = await db.query(
-            'SELECT * FROM providers WHERE address = $1',
+            'SELECT * FROM providers WHERE LOWER(address) = LOWER($1)',
             [address]
         );
 
@@ -193,14 +193,14 @@ app.get('/api/providers/:address', async (req: Request, res: Response) => {
         }
 
         const pledgesResult = await db.query(
-            'SELECT * FROM capacity_pledges WHERE provider_address = $1 ORDER BY created_at DESC',
+            'SELECT * FROM capacity_pledges WHERE LOWER(provider_address) = LOWER($1) ORDER BY created_at DESC',
             [address]
         );
 
         const dealsResult = await db.query(
             `SELECT DISTINCT d.* FROM deals d
        JOIN shards s ON d.deal_id = s.deal_id
-       WHERE s.provider_address = $1
+       WHERE LOWER(s.provider_address) = LOWER($1)
        ORDER BY d.created_at DESC LIMIT 20`,
             [address]
         );
@@ -229,7 +229,7 @@ app.post('/api/heartbeat', async (req: Request, res: Response) => {
         }
 
         await db.query(
-            'UPDATE providers SET last_heartbeat = NOW() WHERE address = $1',
+            'UPDATE providers SET last_heartbeat = NOW() WHERE LOWER(address) = LOWER($1)',
             [provider_address]
         );
 
