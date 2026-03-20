@@ -127,6 +127,8 @@ services:
       dockerfile: Dockerfile
     image: kyneto-dashboard:latest
     restart: unless-stopped
+    volumes:
+      - ./incentive-layer/dashboard:/usr/share/nginx/html:ro
     # Remove external port mapping to route via Nginx SSL
     # ports:
     #   - "3003:80"
