@@ -495,6 +495,7 @@ async function checkProviderStatus() {
                 if (apiResponse.ok) {
                     const apiData = await apiResponse.json();
                     if (apiData.provider && apiData.provider.registered_at) {
+                        uptime = "100.0"; // Known registered node, assume 100% until proven offline by missed heartbeats
                         const registeredAt = new Date(apiData.provider.registered_at).getTime();
                         let lastHeartbeat = registeredAt; // Fallback to registration time if never online
                         if (apiData.provider.last_heartbeat) {
