@@ -2171,6 +2171,7 @@ input:checked+.slider:before {
         gap: 2rem;
     }
 }
+
 /* --- Version Label --- */
 .version-label {
     font-size: 0.65rem;
@@ -2185,6 +2186,7 @@ input:checked+.slider:before {
     border: 1px solid rgba(255, 255, 255, 0.05);
     letter-spacing: 0.5px;
 }
+
 /* ============================================
    CUSTOM DANGER BUTTON
    ============================================ */
