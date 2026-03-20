@@ -68,6 +68,7 @@ def load_models():
     global models
 
     model_files = {
+        'failure_catboost': 'catboost_failure.pkl',
         'failure_xgb': 'xgboost_failure.pkl',
         'failure_cart': 'cart_failure.pkl',
         'reliability_xgb': 'xgboost_reliability.pkl',
@@ -157,7 +158,13 @@ def predict_failure():
         "slashing_count": 0
     }
     """
-    if 'failure_xgb' not in models:
+    target_model = None
+    if 'failure_catboost' in models:
+        target_model = 'failure_catboost'
+    elif 'failure_xgb' in models:
+        target_model = 'failure_xgb'
+        
+    if not target_model:
         return jsonify({'error': 'Failure prediction model not loaded'}), 500
 
     try:
@@ -165,7 +172,7 @@ def predict_failure():
         if not data:
             return jsonify({'error': 'No JSON data provided'}), 400
 
-        model_data = models['failure_xgb']
+        model_data = models[target_model]
         model = model_data['model']
         features = model_data['features']
 
