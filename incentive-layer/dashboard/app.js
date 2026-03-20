@@ -487,7 +487,7 @@ async function checkProviderStatus() {
             const dealsFailed = providerData[8].toNumber();
 
             const totalDeals = dealsCompleted + dealsFailed;
-            let uptime = "100.0";
+            let uptime = "0.0";
 
             try {
                 // Fetch dynamic provider data from backend 
@@ -1113,8 +1113,8 @@ async function fetchStats() {
 
             const stats = {
                 active_deals: apiStats.active_deals !== undefined ? apiStats.active_deals : activeDeals.toNumber(),
-                active_providers: apiStats.active_providers !== undefined ? apiStats.active_providers : providerCount.toNumber(),
-                total_capacity_gb: apiStats.total_capacity_gb !== undefined ? apiStats.total_capacity_gb : (totalCapacity.toNumber() || (providerCount.toNumber() * 10)),
+                active_providers: apiStats.active_providers !== undefined ? apiStats.active_providers : 0,
+                total_capacity_gb: apiStats.total_capacity_gb !== undefined ? apiStats.total_capacity_gb : totalCapacity.toNumber(),
                 total_utilization_gb: apiStats.total_utilization_gb || 0,
                 total_protocol_revenue: ethers.utils.formatUnits(feesCollected, 18),
                 total_tokens_burned: ethers.utils.formatUnits(tokensBurned, 18)
