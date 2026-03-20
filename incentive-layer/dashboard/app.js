@@ -495,8 +495,12 @@ async function checkProviderStatus() {
                 if (apiResponse.ok) {
                     const apiData = await apiResponse.json();
                     if (apiData.provider && apiData.provider.registered_at) {
-                        const lastHeartbeat = new Date(apiData.provider.last_heartbeat || Date.now()).getTime();
                         const registeredAt = new Date(apiData.provider.registered_at).getTime();
+                        let lastHeartbeat = registeredAt; // Fallback to registration time if never online
+                        if (apiData.provider.last_heartbeat) {
+                            lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+                        }
+
                         const now = Date.now();
 
                         // If we haven't seen a heartbeat in 5 minutes, deduct uptime
@@ -1108,10 +1112,10 @@ async function fetchStats() {
             ]);
 
             const stats = {
-                active_deals: activeDeals.toNumber(),
-                active_providers: providerCount.toNumber(),
-                total_capacity_gb: totalCapacity.toNumber() || (providerCount.toNumber() * 10),
-                total_utilization_gb: apiStats.total_utilization_gb || 0, // Keep API utilization for now
+                active_deals: apiStats.active_deals !== undefined ? apiStats.active_deals : activeDeals.toNumber(),
+                active_providers: apiStats.active_providers !== undefined ? apiStats.active_providers : providerCount.toNumber(),
+                total_capacity_gb: apiStats.total_capacity_gb !== undefined ? apiStats.total_capacity_gb : (totalCapacity.toNumber() || (providerCount.toNumber() * 10)),
+                total_utilization_gb: apiStats.total_utilization_gb || 0,
                 total_protocol_revenue: ethers.utils.formatUnits(feesCollected, 18),
                 total_tokens_burned: ethers.utils.formatUnits(tokensBurned, 18)
             };
