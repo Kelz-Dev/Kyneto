@@ -7,9 +7,10 @@ numpy>=1.21.0
 scikit-learn>=1.0.0
 flask>=2.0.0
 
-# TensorFlow/XGBoost/CatBoost are optional and removed from build 
-# to prevent OOM on small EC2 instances. Fallbacks are used.
-
+# Optional: XGBoost and CatBoost for better model performance
+# If not installed, the code falls back to RandomForest and ANN
+xgboost>=1.7.0
+catboost>=1.2.0
 
 # Monitoring
 prometheus-flask-instrumentator>=6.1.0
