@@ -18,7 +18,7 @@ ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
 # Production stage
-FROM nginx:stable-alpine AS production-stage
+FROM nginx:1.24-alpine AS production-stage
 
 # Copy built files from build-stage
 COPY --from=build-stage /app/build /usr/share/nginx/html
