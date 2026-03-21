@@ -24,7 +24,7 @@ services:
   # ===========================================
   landing-page:
     build:
-      context: ./Landing Page
+      context: ./landing-page
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
