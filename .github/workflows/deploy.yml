@@ -80,7 +80,10 @@ jobs:
             echo "Removing old 'Landing Page' directory..."
             rm -rf "Landing Page"
           fi
-          # Use docker-compose (v1) with hyphen since the server doesn't have the compose plugin
-          sudo docker-compose -f docker-compose.prod.yaml up -d --build
+          # Decouple deployment: bring up the critical frontend and API layers INSTANTLY first
+          sudo docker-compose -f docker-compose.prod.yaml up -d --build landing-page
+          sudo docker-compose -f docker-compose.prod.yaml up -d --build api-server incentive-dashboard indexer erasure-coding grafana
+          # Then securely build ml-sidecar in the background which takes ~20 minutes to compile ML models
+          sudo docker-compose -f docker-compose.prod.yaml up -d --build ml-sidecar
           sudo docker system prune -f
           echo "Deployment complete!"
