@@ -13,7 +13,7 @@ xgboost>=1.7.0
 catboost>=1.2.0
 
 # Monitoring
-prometheus-flask-instrumentator>=6.1.0
+prometheus-flask-instrumentator>=3.0.0
 
 # Database (for feedback loop)
 psycopg2-binary>=2.9.0
