@@ -75,8 +75,12 @@ jobs:
           fi
 
           cd kyneto
+          # Remove old 'Landing Page' directory if it still exists on the server
+          if [ -d "Landing Page" ]; then
+            echo "Removing old 'Landing Page' directory..."
+            rm -rf "Landing Page"
+          fi
           # Use docker-compose (v1) with hyphen since the server doesn't have the compose plugin
           sudo docker-compose -f docker-compose.prod.yaml up -d --build
-          sudo docker-compose -f docker-compose.prod.yaml restart landing-page # Ensure Nginx picks up SSL
           sudo docker system prune -f
           echo "Deployment complete!"
