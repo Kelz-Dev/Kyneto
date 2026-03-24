@@ -2470,6 +2470,30 @@ async function handleUpgradePledge(event) {
 }
 
 async function handleExitPledge(pledgeId) {
+    if (!signer || !userAddress) {
+        const recovered = await recoverSigner();
+        if (!recovered) {
+            showNotification('error', 'Wallet Not Connected', 'Please connect your wallet first.');
+            return;
+        }
+    }
+
+    // Pre-check: is this pledge already inactive?
+    try {
+        const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, provider);
+        const pledge = await pledgeContract.getPledge(userAddress, pledgeId);
+        const isActive = pledge[6];
+
+        if (!isActive) {
+            showNotification('info', 'Already Inactive', `Pledge #${pledgeId} is already inactive. No on-chain action needed.`);
+            addActivity('System', `Pledge #${pledgeId} is already inactive — refreshing view.`, 'system');
+            await checkProviderStatus();
+            return;
+        }
+    } catch (checkErr) {
+        console.warn('Could not pre-check pledge status, proceeding anyway:', checkErr);
+    }
+
     showConfirmModal(
         'Exit Network?',
         'WARNING: Exiting your pledge early will result in a 20% collateral penalty. Are you sure you want to leave the network?',
@@ -2481,11 +2505,13 @@ async function handleExitPledge(pledgeId) {
                 showNotification('info', 'Confirm Transaction', 'Please confirm the early exit in your wallet.');
 
                 const gasFees = await getGasFees();
-                const gasEstimate = await pledgeContract.estimateGas.exitPledgeEarly(pledgeId);
 
+                // Send with a manual gas limit so the wallet popup always appears.
+                // estimateGas is intentionally skipped because it simulates the
+                // transaction and throws before MetaMask can prompt for a signature.
                 const tx = await pledgeContract.exitPledgeEarly(pledgeId, {
                     ...gasFees,
-                    gasLimit: getGasLimitWithBuffer(gasEstimate)
+                    gasLimit: 300000
                 });
 
                 showNotification('info', 'Transaction Pending', 'Exit transaction submitted. Waiting for confirmation...');
@@ -2499,7 +2525,18 @@ async function handleExitPledge(pledgeId) {
 
             } catch (error) {
                 console.error('Exit pledge failed:', error);
-                showNotification('error', 'Exit Failed', error.message || 'Failed to exit pledge.');
+
+                // Parse user-friendly message from the revert reason
+                let msg = error.message || 'Failed to exit pledge.';
+                if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+                    msg = 'Transaction was rejected in your wallet.';
+                } else if (msg.includes('Pledge not active')) {
+                    msg = 'This pledge is already inactive on-chain.';
+                } else if (msg.includes('insufficient funds')) {
+                    msg = 'Insufficient POL for gas fees. Please add POL to your wallet.';
+                }
+
+                showNotification('error', 'Exit Failed', msg);
             }
         }
     );
