@@ -14,10 +14,9 @@ services:
     environment:
       - IPFS_PATH=/data/ipfs
     ports:
-      - "4001:4001/tcp"
-      - "4001:4001/udp"
-      - "127.0.0.1:5001:5001"
-      - "127.0.0.1:8080:8080"
+      - "4002:4001" # P2P Swarm
+      - "5002:5001" # API
+      - "8081:8080" # Gateway
 
   # ===========================================
   # Kyneto Landing Page (Port 3001)
@@ -71,10 +70,8 @@ services:
       postgres:
         condition: service_healthy
     command: sh -c "npm install && npm run build && npm start"
-    # Routed via Nginx /api/ on port 443
-    # ports:
-    #   - "3002:3000"
-
+    ports:
+      - "3002:3000"
     # ===========================================
     # Blockchain Indexer Service
     # ===========================================
@@ -97,6 +94,29 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # ===========================================
+  # Blockchain Event Listener (Sync to DB)
+  # ===========================================
+  blockchain-listener:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/services/blockchain-listener:/app
+    environment:
+      - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - REGISTRY_ADDRESS=${REGISTRY_CONTRACT}
+      - PLEDGES_ADDRESS=${PLEDGES_CONTRACT}
+      - MARKETPLACE_ADDRESS=${MARKETPLACE_CONTRACT}
+      - PROVER_ADDRESS=${PROOF_VERIFIER_CONTRACT}
+      - SLASHING_ADDRESS=${SLASHING_MANAGER_CONTRACT}
+      - PAYMENTS_ADDRESS=${PAYMENTS_CONTRACT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm install && npm run dev"
 
   # ===========================================
   # Erasure Coding Service

@@ -5,16 +5,10 @@
 pandas>=1.5.0
 numpy>=1.21.0
 scikit-learn>=1.0.0
-flask>=2.0.0
-
-# Optional: XGBoost and CatBoost for better model performance
-# If not installed, the code falls back to RandomForest and ANN
+flask
+prometheus-flask-instrumentator
 xgboost>=1.7.0
 catboost>=1.2.0
 
-# Monitoring
-prometheus-flask-instrumentator>=3.0.0
-
 # Database (for feedback loop)
 psycopg2-binary>=2.9.0
-

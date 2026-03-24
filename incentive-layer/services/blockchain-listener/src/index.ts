@@ -303,3 +303,48 @@ const slashingABI = [
 const paymentsABI = [
     'event RewardsWithdrawn(address indexed provider, uint256 amount)'
 ];
+
+// Start the listener
+import * as winston from 'winston';
+import * as dotenv from 'dotenv';
+
+console.log('DEBUG: Blockchain Listener script starting...');
+
+dotenv.config();
+
+const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json()
+    ),
+    transports: [
+        new winston.transports.Console()
+    ]
+});
+
+const db = new Pool({
+    connectionString: process.env.DATABASE_URL
+});
+
+async function main() {
+    const rpcUrl = process.env.RPC_URL || 'https://rpc-amoy.polygon.technology';
+    const listener = new BlockchainListener(rpcUrl, db, logger);
+
+    const addresses: ContractAddresses = {
+        marketplace: process.env.MARKETPLACE_ADDRESS || '',
+        registry: process.env.REGISTRY_ADDRESS || '',
+        pledges: process.env.PLEDGES_ADDRESS || '',
+        prover: process.env.PROVER_ADDRESS || '',
+        slashing: process.env.SLASHING_ADDRESS || '',
+        payments: process.env.PAYMENTS_ADDRESS || ''
+    };
+
+    await listener.initialize(addresses);
+    await listener.start();
+}
+
+main().catch(err => {
+    logger.error('Fatal error in blockchain listener:', err);
+    process.exit(1);
+});
