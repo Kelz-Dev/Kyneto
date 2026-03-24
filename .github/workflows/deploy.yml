@@ -24,6 +24,12 @@ jobs:
         echo "MARKETPLACE_ADDRESS=${{ secrets.MARKETPLACE_ADDRESS }}" >> .env
         echo "PRIVATE_KEY=${{ secrets.PRIVATE_KEY }}" >> .env
         echo "RPC_URL=https://rpc-amoy.polygon.technology" >> .env
+        echo "REGISTRY_CONTRACT=${{ secrets.REGISTRY_CONTRACT || '0x2Cc10CdCbF9D2b7b6b8AcE8b607d8652772075Dd' }}" >> .env
+        echo "PLEDGES_CONTRACT=${{ secrets.PLEDGES_CONTRACT || '0x2E158F19704B8A1C0D00CE562c2E3ee923e235E5' }}" >> .env
+        echo "MARKETPLACE_CONTRACT=${{ secrets.MARKETPLACE_CONTRACT || '0x242545610D645Ac3526c7c9b3866Ccc66e333322' }}" >> .env
+        echo "PROOF_VERIFIER_CONTRACT=${{ secrets.PROOF_VERIFIER_CONTRACT || '0xfac091c63921709A7F5375aA465Bba42E5755695' }}" >> .env
+        echo "SLASHING_MANAGER_CONTRACT=${{ secrets.SLASHING_MANAGER_CONTRACT || '0x0f4927b287b441af412019636887847A8639D17C' }}" >> .env
+        echo "PAYMENTS_CONTRACT=${{ secrets.PAYMENTS_CONTRACT || '0x78F97B5E5f270d2c83d2e0bbb98ac00784E53a1F' }}" >> .env
 
     - name: Copy files to server
       uses: appleboy/scp-action@master
@@ -41,6 +47,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
+        command_timeout: 30m
         script: |
           # Setup/Resize swap space (4GB)
           if [ ! -f /swapfile ] || [ $(stat -c%s /swapfile) -lt 4000000000 ]; then
