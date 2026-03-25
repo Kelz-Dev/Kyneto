@@ -559,6 +559,9 @@ async function checkProviderStatus() {
                         const collateral = pledge[2];
                         const isActive = pledge[6];
 
+                        // Only show and count active pledges
+                        if (!isActive) continue;
+
                         totalCapacity += capacity;
                         totalCollateral = totalCollateral.add(collateral);
 
@@ -569,7 +572,7 @@ async function checkProviderStatus() {
                                 <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
                                 <div class="stat-info">
                                     <span class="label">${label} (ID: ${i})</span>
-                                    <span class="value">${formatStorage(capacity)} Pledged (${isActive ? 'Active' : 'Inactive'})</span>
+                                    <span class="value">${formatStorage(capacity)} Pledged (Active)</span>
                                 </div>
                                 <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
                                     <button class="btn-secondary btn-sm" onclick="submitProof(${i})">
@@ -599,19 +602,27 @@ async function checkProviderStatus() {
                         switchView('provider');
                     }
 
-                    // Show management sections
+                    // Show management sections only if there are active pledges
                     const noNodesState = document.getElementById('no-nodes-state');
                     const activeNodesList = document.getElementById('active-nodes-list');
                     const storageManagement = document.getElementById('storage-management');
                     const upgradeBtn = document.getElementById('btn-upgrade-pledge');
 
-                    if (noNodesState) noNodesState.classList.add('hidden');
-                    if (activeNodesList) {
-                        activeNodesList.classList.remove('hidden');
-                        activeNodesList.innerHTML = pledgesHtml;
+                    if (pledgesHtml) {
+                        if (noNodesState) noNodesState.classList.add('hidden');
+                        if (activeNodesList) {
+                            activeNodesList.classList.remove('hidden');
+                            activeNodesList.innerHTML = pledgesHtml;
+                        }
+                        if (storageManagement) storageManagement.classList.remove('hidden');
+                        if (upgradeBtn) upgradeBtn.classList.remove('hidden');
+                    } else {
+                        // All pledges are inactive
+                        if (noNodesState) noNodesState.classList.remove('hidden');
+                        if (activeNodesList) activeNodesList.classList.add('hidden');
+                        if (storageManagement) storageManagement.classList.add('hidden');
+                        if (upgradeBtn) upgradeBtn.classList.add('hidden');
                     }
-                    if (storageManagement) storageManagement.classList.remove('hidden');
-                    if (upgradeBtn) upgradeBtn.classList.remove('hidden');
 
                 } else {
                     console.log('Provider registered but has no pledges yet.');
