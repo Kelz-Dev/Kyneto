@@ -2496,8 +2496,23 @@ async function handleExitPledge(pledgeId) {
         const isActive = pledge[6];
 
         if (!isActive) {
-            showNotification('info', 'Already Inactive', `Pledge #${pledgeId} is already inactive. No on-chain action needed.`);
-            addActivity('System', `Pledge #${pledgeId} is already inactive — refreshing view.`, 'system');
+            showNotification('success', 'Node Removed', `Pledge #${pledgeId} was already exited on-chain. Removing from dashboard.`);
+            addActivity('System', `Pledge #${pledgeId} is already inactive — removing from view.`, 'system');
+
+            // Forcefully remove the node from the DOM immediately
+            const activeNodesList = document.getElementById('active-nodes-list');
+            if (activeNodesList) {
+                activeNodesList.innerHTML = '';
+                activeNodesList.classList.add('hidden');
+            }
+            const noNodesState = document.getElementById('no-nodes-state');
+            if (noNodesState) noNodesState.classList.remove('hidden');
+            const storageManagement = document.getElementById('storage-management');
+            if (storageManagement) storageManagement.classList.add('hidden');
+            const upgradeBtn = document.getElementById('btn-upgrade-pledge');
+            if (upgradeBtn) upgradeBtn.classList.add('hidden');
+
+            // Also refresh from on-chain to sync everything
             await checkProviderStatus();
             return;
         }
@@ -2745,11 +2760,12 @@ async function submitProof(dealId) {
         const challengeId = 0; // Simulated
 
         const gasFees = await getGasFees();
-        const gasEstimate = await verifier.estimateGas.submitPoSt(challengeId, sectorProofs);
 
+        // Skip estimateGas — it simulates the tx and throws before
+        // MetaMask can prompt. Use a manual gas limit instead.
         const tx = await verifier.submitPoSt(challengeId, sectorProofs, {
             ...gasFees,
-            gasLimit: getGasLimitWithBuffer(gasEstimate)
+            gasLimit: 500000
         });
         showNotification('info', 'Proof Pending', 'PoSt submission transaction submitted.');
         await tx.wait();
