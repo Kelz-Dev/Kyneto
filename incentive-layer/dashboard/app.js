@@ -1124,9 +1124,9 @@ async function fetchStats() {
             ]);
 
             const stats = {
-                active_deals: apiStats.active_deals !== undefined ? apiStats.active_deals : activeDeals.toNumber(),
-                active_providers: apiStats.active_providers !== undefined ? apiStats.active_providers : 0,
-                total_capacity_gb: apiStats.total_capacity_gb !== undefined ? apiStats.total_capacity_gb : totalCapacity.toNumber(),
+                active_deals: Math.max(apiStats.active_deals || 0, activeDeals.toNumber()),
+                active_providers: Math.max(apiStats.active_providers || 0, providerCount.toNumber()),
+                total_capacity_gb: Math.max(apiStats.total_capacity_gb || 0, totalCapacity.toNumber()),
                 total_utilization_gb: apiStats.total_utilization_gb || 0,
                 total_protocol_revenue: ethers.utils.formatUnits(feesCollected, 18),
                 total_tokens_burned: ethers.utils.formatUnits(tokensBurned, 18)
