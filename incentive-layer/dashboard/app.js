@@ -2296,6 +2296,28 @@ async function handleRegisterNode(event) {
             const duration = 30 * 24 * 60 * 60; // 30 days
             const collateral = ethers.utils.parseUnits("1000", 18);
 
+            // 2a. Check existing allowance and approve if needed
+            const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, signer);
+            const allowance = await tokenContract.allowance(userAddress, CAPACITY_PLEDGE_ADDRESS);
+
+            if (allowance.lt(collateral)) {
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Approving KYN...';
+                addActivity('System', 'Re-approving KYN for capacity pledge...', 'system');
+                showNotification('info', 'Approve KYN', 'Please confirm the KYN approval in your wallet.');
+
+                const approveGasFees = await getGasFees();
+                const approveGasEstimate = await tokenContract.estimateGas.approve(CAPACITY_PLEDGE_ADDRESS, collateral);
+                const approveTx = await tokenContract.approve(CAPACITY_PLEDGE_ADDRESS, collateral, {
+                    ...approveGasFees,
+                    gasLimit: getGasLimitWithBuffer(approveGasEstimate)
+                });
+
+                showNotification('info', 'Approval Pending', 'Waiting for KYN approval confirmation...');
+                await approveTx.wait();
+                showNotification('success', 'Approval Confirmed', 'KYN approved. Now creating capacity pledge...');
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Pledging...';
+            }
+
             addActivity('System', 'Creating capacity pledge...', 'system');
 
             const pledgeGasFees = await getGasFees();
