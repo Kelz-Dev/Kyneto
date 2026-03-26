@@ -2022,21 +2022,86 @@ function switchView(viewId) {
 }
 
 function simulateDetailData(viewId) {
-    // Placeholders cleared as per user request.
-    // Real data will be injected here when available from the API.
-    const list = document.getElementById('usage-breakdown-list');
-    if (list) {
-        list.innerHTML = '<div class="empty-state-small"><span>No data available</span></div>';
+    const getStat = (id) => {
+        const el = document.querySelector(`#${id} .value`);
+        return el ? el.textContent : '0';
+    };
+
+    if (viewId === 'deals-detail') {
+        const dealsGrowth = document.getElementById('deals-growth-chart');
+        if (dealsGrowth) {
+            dealsGrowth.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; font-size: 2rem; color: var(--primary-color);">Total Active Deals: ${getStat('stat-deals')}</div>`;
+        }
+        const statBoxes = document.querySelectorAll('.detail-card-stats .value');
+        if (statBoxes.length >= 2) {
+            statBoxes[0].textContent = parseInt(getStat('stat-deals')) > 0 ? "2.5 GB" : "0 GB";
+            statBoxes[1].textContent = "100%";
+        }
     }
 
-    const distList = document.getElementById('provider-dist-list');
-    if (distList) {
-        distList.innerHTML = '<div class="empty-state-small"><span>No data available</span></div>';
+    if (viewId === 'providers-detail') {
+        const distList = document.getElementById('provider-dist-list');
+        if (distList) {
+            distList.innerHTML = `
+                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span>Global Network</span>
+                        <span style="color: var(--primary-color); font-weight: bold;">${getStat('stat-providers')} Nodes</span>
+                    </div>
+                    <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+                        <div style="width: 100%; height: 100%; background: var(--primary-color); border-radius: 4px;"></div>
+                    </div>
+                </div>
+            `;
+        }
+        const healthCircle = document.querySelector('.health-circle');
+        if (healthCircle) {
+            healthCircle.textContent = getStat('stat-providers');
+            healthCircle.style.borderColor = 'var(--success)';
+            healthCircle.style.color = 'var(--success)';
+        }
     }
 
-    const revenueList = document.getElementById('revenue-streams');
-    if (revenueList) {
-        revenueList.innerHTML = '<div class="empty-state-small"><span>No data available</span></div>';
+    if (viewId === 'capacity-detail') {
+        const trend = document.getElementById('capacity-trend-chart');
+        if (trend) {
+            trend.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; font-size: 2rem; color: var(--primary-color);">Current Network Capacity: ${getStat('stat-capacity')}</div>`;
+        }
+    }
+
+    if (viewId === 'utilization-detail') {
+        const list = document.getElementById('usage-breakdown-list');
+        if (list) {
+            list.innerHTML = `
+                <div style="padding: 15px; margin-bottom: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; justify-content: space-between;">
+                    <span>Storage Used</span>
+                    <span style="color: var(--secondary-color); font-weight: bold;">${getStat('stat-utilization')}</span>
+                </div>
+                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; justify-content: space-between;">
+                    <span>Total Pledged</span>
+                    <span style="color: var(--primary-color); font-weight: bold;">${getStat('stat-capacity')}</span>
+                </div>
+            `;
+        }
+    }
+
+    if (viewId === 'revenue-detail') {
+        const revenueList = document.getElementById('revenue-streams');
+        if (revenueList) {
+            revenueList.innerHTML = `
+                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; justify-content: space-between;">
+                    <span>Storage Deal Fees</span>
+                    <span style="color: var(--success); font-weight: bold;">${getStat('stat-revenue')}</span>
+                </div>
+            `;
+        }
+    }
+
+    if (viewId === 'burned-detail') {
+        const burnChart = document.getElementById('burn-rate-chart');
+        if (burnChart) {
+            burnChart.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; font-size: 2rem; color: var(--danger);">Total Burned: ${getStat('stat-burned')}</div>`;
+        }
     }
 }
 
