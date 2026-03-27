@@ -9,6 +9,7 @@ flask
 prometheus-flask-instrumentator
 xgboost>=1.7.0
 catboost>=1.2.0
+tensorflow-cpu>=2.13.0
 
 # Database (for feedback loop)
 psycopg2-binary>=2.9.0
