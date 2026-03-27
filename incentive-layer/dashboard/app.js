@@ -500,58 +500,33 @@ async function checkProviderStatus() {
             let isNodeOnline = false;
 
             try {
-                // 1. Direct Decentralized Check: Ping the node's endpoint directly
-                // Priority: Settings-configured endpoint > On-chain registered endpoint
-                let endpoint = '';
-
-                // Check if user set a custom endpoint in Settings
-                if (settings.node.endpoint && settings.node.endpoint.startsWith('http')) {
-                    endpoint = settings.node.endpoint;
-                    console.log('📡 Using Settings-configured endpoint:', endpoint);
-                } else {
-                    // Fallback to on-chain registered endpoint
-                    try {
-                        const fullProvider = await registryContract.getProvider(userAddress);
-                        endpoint = fullProvider.endpoint || '';
-                        console.log('📡 On-chain registered endpoint:', endpoint);
-                    } catch (gpErr) {
-                        endpoint = providerData[5] || '';
-                        console.log('📡 Fallback endpoint from providers():', endpoint);
-                    }
-                }
-
-                if (endpoint && endpoint.startsWith('http')) {
-                    // Normalize: strip trailing slashes
-                    endpoint = endpoint.replace(/\/+$/, '');
-                    console.log(`🔍 Attempting direct ping to: ${endpoint}`);
-                    
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000);
-                    
-                    const pingRes = await fetch(endpoint, {
-                        method: 'GET',
-                        signal: controller.signal,
-                        mode: 'cors'
-                    });
-                    clearTimeout(timeoutId);
-                    
-                    console.log('📡 Ping response status:', pingRes.status);
-                    
-                    if (pingRes.ok) {
-                        const directData = await pingRes.json();
-                        console.log('📡 Ping response data:', directData);
-                        if (directData && directData.status === 'online') {
-                            uptime = "100.0";
-                            directPingSuccess = true;
-                            isNodeOnline = true;
-                            console.log('✅ Direct node ping successful! Node is ONLINE.');
-                        }
+                // Primary Check: Use the WebSocket Relay RPC to check if the provider is connected
+                // The API server will relay the request to the provider via WebSocket and return the result.
+                console.log(`🔍 Checking node liveness via Relay RPC for ${userAddress}...`);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                
+                const rpcRes = await fetch(`${API_URL}/api/providers/${userAddress}/rpc/peer-id`, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (rpcRes.ok) {
+                    const rpcData = await rpcRes.json();
+                    console.log('📡 Relay RPC response:', rpcData);
+                    if (rpcData && rpcData.peerId) {
+                        uptime = "100.0";
+                        directPingSuccess = true;
+                        isNodeOnline = true;
+                        console.log(`✅ Node is ONLINE via Relay! Peer ID: ${rpcData.peerId}`);
                     }
                 } else {
-                    console.warn('⚠️ No valid HTTP endpoint found. Set one in Settings > Node Configuration > Node API Endpoint.');
+                    console.warn(`⚠️ Relay RPC returned ${rpcRes.status}. Provider may be offline.`);
                 }
             } catch (pingErr) {
-                console.warn(`❌ Direct node ping failed: ${pingErr.message}. Falling back to backend indexer.`);
+                console.warn(`❌ Relay RPC check failed: ${pingErr.message}. Falling back to heartbeat check.`);
             }
 
             if (!directPingSuccess) {
