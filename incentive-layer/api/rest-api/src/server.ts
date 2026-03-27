@@ -420,9 +420,21 @@ app.get('/metrics', async (req: Request, res: Response) => {
     res.end(await register.metrics());
 });
 
+// Keep track of active provider sockets
+const providerSockets = new Map<string, string>();
+
 // WebSocket events
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
+
+    socket.on('register:provider', (data) => {
+        if (data && data.address) {
+            const providerAddress = data.address.toLowerCase();
+            providerSockets.set(providerAddress, socket.id);
+            socket.join(`provider-rpc:${providerAddress}`);
+            console.log(`🛡️ Provider registered for RPC: ${providerAddress} on socket ${socket.id}`);
+        }
+    });
 
     socket.on('subscribe:deal', (dealId) => {
         socket.join(`deal:${dealId}`);
@@ -436,7 +448,45 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
+        // Remove from providerSockets map if it was a provider
+        for (const [address, id] of providerSockets.entries()) {
+            if (id === socket.id) {
+                providerSockets.delete(address);
+                console.log(`Provider disconnected: ${address}`);
+                break;
+            }
+        }
     });
+});
+
+/**
+ * GET /api/providers/:address/rpc/peer-id - Request Peer ID directly from provider via WebSocket
+ */
+app.get('/api/providers/:address/rpc/peer-id', async (req: Request, res: Response) => {
+    try {
+        const address = req.params.address.toLowerCase();
+        
+        // Find if provider is connected
+        const sockets = await io.in(`provider-rpc:${address}`).fetchSockets();
+        
+        if (sockets.length === 0) {
+            return res.status(404).json({ error: 'Provider is not currently connected to the relay' });
+        }
+
+        // Request peer-id via socket with a 5 second timeout
+        const clientSocket = sockets[0]; // Take the first connected instance
+        
+        try {
+            const response = await clientSocket.timeout(5000).emitWithAck('rpc:get-peer-id');
+            res.json(response);
+        } catch (timeoutErr) {
+            res.status(504).json({ error: 'Provider connected but failed to respond in time' });
+        }
+
+    } catch (error) {
+        console.error('Error fetching peer-id via RPC:', error);
+        res.status(500).json({ error: 'Internal server error while routing RPC' });
+    }
 });
 
 // Export io for use in other modules
