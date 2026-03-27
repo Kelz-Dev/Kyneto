@@ -199,6 +199,9 @@ async function checkExpirations() {
 // Run check every 5 minutes
 setInterval(checkExpirations, 5 * 60 * 1000);
 
+// Auto-refresh provider status every 15 seconds for dynamic node online/offline display
+setInterval(checkProviderStatus, 15 * 1000);
+
 const DISTRIBUTOR_ABI = [
     "function withdrawEarnings() external",
     "function getAvailableEarnings(address provider) external view returns (uint256)",
