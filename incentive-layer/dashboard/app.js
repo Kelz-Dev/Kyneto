@@ -487,34 +487,62 @@ async function checkProviderStatus() {
             const dealsFailed = providerData[8].toNumber();
 
             const totalDeals = dealsCompleted + dealsFailed;
-            let uptime = "0.0";
+            let uptime = "0.0"; 
+            let directPingSuccess = false;
 
             try {
-                // Fetch dynamic provider data from backend 
-                const apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
-                if (apiResponse.ok) {
-                    const apiData = await apiResponse.json();
-                    if (apiData.provider && apiData.provider.registered_at) {
-                        uptime = "100.0"; // Known registered node, assume 100% until proven offline by missed heartbeats
-                        const registeredAt = new Date(apiData.provider.registered_at).getTime();
-                        let lastHeartbeat = registeredAt; // Fallback to registration time if never online
-                        if (apiData.provider.last_heartbeat) {
-                            lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
-                        }
-
-                        const now = Date.now();
-
-                        // If we haven't seen a heartbeat in 5 minutes, deduct uptime
-                        if (now - lastHeartbeat > 5 * 60 * 1000) {
-                            const offlineTime = now - lastHeartbeat;
-                            const totalTime = Math.max(now - registeredAt, 1);
-                            const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
-                            uptime = (onlineRatio * 100).toFixed(1);
+                // 1. Direct Decentralized Check: Ping the node's endpoint directly (e.g. Cloudflare tunnel)
+                const endpoint = providerData[5];
+                if (endpoint && endpoint.startsWith('http')) {
+                    const baseUrl = new URL(endpoint).origin;
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    
+                    const pingRes = await fetch(baseUrl, { method: 'GET', signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (pingRes.ok) {
+                        const directData = await pingRes.json();
+                        if (directData && directData.status === 'online') {
+                            uptime = "100.0";
+                            directPingSuccess = true;
+                            console.log('✅ Direct node ping successful via registered endpoint!');
                         }
                     }
                 }
-            } catch (e) {
-                console.warn('Could not fetch dynamic uptime from API. Defaulting to 0.0% (Offline).');
+            } catch (pingErr) {
+                console.warn(`Direct node ping failed: ${pingErr.message}. Falling back to backend indexer.`);
+            }
+
+            if (!directPingSuccess) {
+                try {
+                    // 2. Centralized Fallback: Fetch from backend (for historically offline tracking)
+                    const apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                    if (apiResponse.ok) {
+                        const apiData = await apiResponse.json();
+                        if (apiData.provider && apiData.provider.registered_at) {
+                            uptime = "100.0"; // Known registered node, assume 100% until proven offline by missed heartbeats
+                            const registeredAt = new Date(apiData.provider.registered_at).getTime();
+                            let lastHeartbeat = registeredAt; // Fallback to registration time if never online
+                            if (apiData.provider.last_heartbeat) {
+                                lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+                            }
+
+                            const now = Date.now();
+
+                            // If we haven't seen a heartbeat in 5 minutes, deduct uptime
+                            if (now - lastHeartbeat > 5 * 60 * 1000) {
+                                const offlineTime = now - lastHeartbeat;
+                                const totalTime = Math.max(now - registeredAt, 1);
+                                const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
+                                uptime = (onlineRatio * 100).toFixed(1);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not fetch dynamic uptime from API. Defaulting to 0.0% (Offline).');
+                }
             }
 
             // Update Stats UI
@@ -525,7 +553,7 @@ async function checkProviderStatus() {
             if (dealsStat) dealsStat.textContent = dealsCompleted;
 
             // Make Reputation Dynamic
-            let dynamicReputation = 50; // base score
+            let dynamicReputation = reputation; // Base contract score
             const uptimeParsed = parseFloat(uptime);
 
             // Uptime contribution (up to +25 points)
