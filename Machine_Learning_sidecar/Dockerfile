@@ -6,20 +6,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY simulator.py prepare_data.py train_models.py api.py ./
+# Copy application code (no simulator needed at build time)
+COPY train_models.py prepare_data.py api.py ./
 
 # Create data and models directories
 RUN mkdir -p data models
 
-# Generate data and train models at build time
-# This ensures the container starts with pre-trained models
-RUN python simulator.py \
-    && python prepare_data.py \
-    && python train_models.py
-
 # Expose the API port
 EXPOSE 5050
 
-# Run the API server
+# Run the API server (trains models from live DB at startup)
 CMD ["python", "api.py"]

@@ -2,7 +2,8 @@
 Kyneto Sidecar API
 ==================
 Flask-based API exposing prediction endpoints for provider reliability
-and failure prediction. Runs independently from the core Kyneto build.
+and failure prediction. Automatically retrains models from live database
+data every 6 hours.
 """
 
 from flask import Flask, request, jsonify
@@ -10,8 +11,11 @@ from prometheus_flask_instrumentator import FlaskInstrumentator
 import pickle
 import os
 import json
+import threading
+import time
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -23,6 +27,10 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')
 
 # Load models on startup
 models = {}
+
+# Retraining config
+RETRAIN_INTERVAL_HOURS = 6
+_last_trained_at = None
 
 # Database connection (lazy-initialized)
 _db_conn = None
@@ -85,6 +93,35 @@ def load_models():
             print(f"[WARN] Model not found: {filename}")
 
 
+def run_training():
+    """Execute the training pipeline and reload models."""
+    global _last_trained_at
+    try:
+        from train_models import train_all
+        print(f"\n[RETRAIN] Starting automatic retraining at {datetime.now().isoformat()}")
+        train_all()
+        load_models()
+        _last_trained_at = datetime.now().isoformat()
+        print(f"[RETRAIN] Retraining complete. Models reloaded. Next retrain in {RETRAIN_INTERVAL_HOURS}h.")
+    except Exception as e:
+        print(f"[RETRAIN ERROR] Training failed: {e}")
+        # Models from previous run are still loaded, so the API keeps working
+
+
+def retrain_scheduler():
+    """Background thread that retrains models every RETRAIN_INTERVAL_HOURS hours."""
+    while True:
+        time.sleep(RETRAIN_INTERVAL_HOURS * 3600)
+        run_training()
+
+
+def start_background_scheduler():
+    """Start the auto-retrain background thread."""
+    thread = threading.Thread(target=retrain_scheduler, daemon=True)
+    thread.start()
+    print(f"[SCHEDULER] Auto-retrain enabled: every {RETRAIN_INTERVAL_HOURS} hours")
+
+
 def prepare_input(data: dict, feature_list: list) -> pd.DataFrame:
     """Prepare input data for prediction."""
     df = pd.DataFrame([data])
@@ -98,10 +135,7 @@ def prepare_input(data: dict, feature_list: list) -> pd.DataFrame:
 
 
 def compute_derived_features(data: dict) -> dict:
-    """
-    Compute all derived features from raw provider data.
-    Shared by both predict_failure and predict_reliability to avoid duplication.
-    """
+    """Compute all derived features from raw provider data."""
     data['utilization_ratio'] = data.get('utilization_gb', 0) / max(data.get('capacity_gb', 1), 1)
     data['stake_per_gb'] = data.get('stake', 0) / max(data.get('capacity_gb', 1), 1)
     data['risk_score'] = (
@@ -120,8 +154,10 @@ def index():
     """API health check and documentation."""
     return jsonify({
         'service': 'Kyneto Sidecar - Predictive Analytics API',
-        'version': '1.0.0',
+        'version': '2.0.0',
         'status': 'running',
+        'last_trained_at': _last_trained_at,
+        'retrain_interval_hours': RETRAIN_INTERVAL_HOURS,
         'endpoints': {
             '/predict/failure': 'POST - Predict if a provider will fail',
             '/predict/reliability': 'POST - Classify provider reliability tier',
@@ -137,33 +173,22 @@ def index():
 @app.route('/health')
 def health():
     """Health check endpoint."""
-    return jsonify({'status': 'healthy', 'models': len(models)})
+    return jsonify({
+        'status': 'healthy',
+        'models': len(models),
+        'last_trained_at': _last_trained_at
+    })
 
 
 @app.route('/predict/failure', methods=['POST'])
 def predict_failure():
-    """
-    Predict if a provider is likely to fail.
-
-    Expected JSON input:
-    {
-        "stake": 10000,
-        "capacity_gb": 500,
-        "utilization_gb": 250,
-        "node_age_days": 30,
-        "uptime_pct": 0.95,
-        "avg_latency": 150,
-        "post_success_rate": 0.92,
-        "proof_misses": 2,
-        "slashing_count": 0
-    }
-    """
+    """Predict if a provider is likely to fail."""
     target_model = None
     if 'failure_catboost' in models:
         target_model = 'failure_catboost'
     elif 'failure_xgb' in models:
         target_model = 'failure_xgb'
-        
+
     if not target_model:
         return jsonify({'error': 'Failure prediction model not loaded'}), 500
 
@@ -196,13 +221,7 @@ def predict_failure():
 
 @app.route('/predict/reliability', methods=['POST'])
 def predict_reliability():
-    """
-    Classify a provider into reliability tiers.
-
-    Expected JSON input: Same as /predict/failure
-
-    Returns: platinum, gold, silver, or bronze tier
-    """
+    """Classify a provider into reliability tiers."""
     if 'reliability_xgb' not in models:
         return jsonify({'error': 'Reliability model not loaded'}), 500
 
@@ -236,18 +255,7 @@ def predict_reliability():
 
 @app.route('/feedback', methods=['POST'])
 def submit_feedback():
-    """
-    Submit actual outcome to track model accuracy.
-
-    Expected JSON input:
-    {
-        "provider_address": "0x...",
-        "prediction_type": "failure" | "reliability",
-        "predicted_value": "WILL_FAIL" | "platinum",
-        "actual_value": "HEALTHY" | "gold",
-        "input_data": { ... original input ... }
-    }
-    """
+    """Submit actual outcome to track model accuracy."""
     conn = get_db()
     if not conn:
         return jsonify({'error': 'Feedback storage not configured (DATABASE_URL missing)'}), 503
@@ -293,9 +301,7 @@ def submit_feedback():
 
 @app.route('/feedback/stats')
 def feedback_stats():
-    """
-    Get model accuracy statistics from stored feedback.
-    """
+    """Get model accuracy statistics from stored feedback."""
     conn = get_db()
     if not conn:
         return jsonify({'error': 'Feedback storage not configured (DATABASE_URL missing)'}), 503
@@ -334,12 +340,18 @@ def feedback_stats():
 
 
 def main():
-    print("[>] Kyneto Sidecar API")
+    global _last_trained_at
+
+    print("[>] Kyneto Sidecar API v2.0.0")
     print("=" * 50)
 
-    load_models()
+    # Train models from live data at startup
+    run_training()
 
-    print("\n[NET] Starting server on http://localhost:5050")
+    # Start background auto-retrain scheduler
+    start_background_scheduler()
+
+    print(f"\n[NET] Starting server on http://localhost:5050")
     app.run(host='0.0.0.0', port=5050, debug=False)
 
 
