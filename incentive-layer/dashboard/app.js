@@ -494,6 +494,7 @@ async function checkProviderStatus() {
             const totalDeals = dealsCompleted + dealsFailed;
             let uptime = "0.0"; 
             let directPingSuccess = false;
+            let isNodeOnline = false;
 
             try {
                 // 1. Direct Decentralized Check: Ping the node's endpoint directly
@@ -539,6 +540,7 @@ async function checkProviderStatus() {
                         if (directData && directData.status === 'online') {
                             uptime = "100.0";
                             directPingSuccess = true;
+                            isNodeOnline = true;
                             console.log('✅ Direct node ping successful! Node is ONLINE.');
                         }
                     }
@@ -570,6 +572,9 @@ async function checkProviderStatus() {
                                 const totalTime = Math.max(now - registeredAt, 1);
                                 const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
                                 uptime = (onlineRatio * 100).toFixed(1);
+                                isNodeOnline = false;
+                            } else {
+                                isNodeOnline = true;
                             }
                         }
                     }
@@ -627,13 +632,16 @@ async function checkProviderStatus() {
                         totalCollateral = totalCollateral.add(collateral);
 
                         const label = i === 0 ? "Initial Pledge" : `Upgrade #${i}`;
+                        const statusLabel = isNodeOnline ? 
+                            '<span style="color: #4CAF50; font-weight: bold;">(Node Online)</span>' : 
+                            '<span style="color: #ff5252; font-weight: bold;">(Node Offline)</span>';
 
                         pledgesHtml += `
                             <div class="stat-card">
                                 <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
                                 <div class="stat-info">
                                     <span class="label">${label} (ID: ${i})</span>
-                                    <span class="value">${formatStorage(capacity)} Pledged (Active)</span>
+                                    <span class="value">${formatStorage(capacity)} Pledged ${statusLabel}</span>
                                 </div>
                                 <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
                                     <button class="btn-secondary btn-sm" onclick="submitProof(${i})">
