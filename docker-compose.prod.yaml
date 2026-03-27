@@ -22,9 +22,7 @@ services:
   # Kyneto Landing Page (Port 3001)
   # ===========================================
   landing-page:
-    build:
-      context: ./landing-page
-      dockerfile: Dockerfile
+    image: ghcr.io/kelz-dev/kubo-master/landing-page:latest
     restart: unless-stopped
     ports:
       - "80:80"
@@ -142,10 +140,7 @@ services:
   # Incentive Layer Dashboard (Port 3003)
   # ===========================================
   incentive-dashboard:
-    build:
-      context: ./incentive-layer/dashboard
-      dockerfile: Dockerfile
-    image: kyneto-dashboard:latest
+    image: ghcr.io/kelz-dev/kubo-master/incentive-dashboard:latest
     restart: unless-stopped
     volumes:
       - ./incentive-layer/dashboard:/usr/share/nginx/html:ro
@@ -159,9 +154,7 @@ services:
   # ML Sidecar (Predictive Analytics API)
   # ===========================================
   ml-sidecar:
-    build:
-      context: ./Machine_Learning_sidecar
-      dockerfile: Dockerfile
+    image: ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest
     restart: unless-stopped
     # Routed via Nginx /ml/ on port 443
     # ports:
