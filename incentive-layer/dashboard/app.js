@@ -86,6 +86,7 @@ const REGISTRY_ABI = [
     "function registerProvider(string peerId, string endpoint, string region, uint256 minPriceUSD) external",
     "function updateProvider(string endpoint, string region, uint256 minPriceUSD) external",
     "function providers(address) public view returns (bool, uint256, uint256, uint256, string, string, string, uint256, uint256, uint256, bool, uint256, uint256)",
+    "function getProvider(address provider) external view returns (tuple(bool registered, uint256 registrationTime, uint256 totalCapacityGB, uint256 reputationScore, string peerId, string endpoint, string region, uint256 totalDealsCompleted, uint256 totalDealsFailed, uint256 totalSlashingEvents, bool active, uint256 deactivatedUntil, uint256 minPriceUSD))",
     "function isProviderActive(address provider) public view returns (bool)",
     "function getEligibleProviders(uint256 maxPriceUSD, uint256 minReputation) external view returns (address[])",
     "function getProviderCount() public view returns (uint256)"
@@ -253,7 +254,8 @@ let settings = {
     },
     node: {
         autoRenew: false,
-        region: 'na'
+        region: 'na',
+        nodeEndpoint: ''
     }
 };
 
@@ -492,27 +494,53 @@ async function checkProviderStatus() {
 
             try {
                 // 1. Direct Decentralized Check: Ping the node's endpoint directly (e.g. Cloudflare tunnel)
-                const endpoint = providerData[5];
+                // Priority 1: User-configured endpoint from settings
+                // Priority 2: On-chain registered endpoint
+                let endpoint = settings.node.nodeEndpoint || '';
+                
+                if (!endpoint) {
+                    try {
+                        const fullProvider = await registryContract.getProvider(userAddress);
+                        endpoint = fullProvider.endpoint || '';
+                        console.log('📡 On-chain registered endpoint:', endpoint);
+                    } catch (gpErr) {
+                        // Fallback to providers() tuple access
+                        endpoint = providerData[5] || '';
+                        console.log('📡 Fallback endpoint from providers():', endpoint);
+                    }
+                } else {
+                    console.log('📡 Using manually configured node endpoint:', endpoint);
+                }
+
                 if (endpoint && endpoint.startsWith('http')) {
-                    const baseUrl = new URL(endpoint).origin;
+                    console.log(`🔍 Attempting direct ping to: ${endpoint}`);
                     
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
                     
-                    const pingRes = await fetch(baseUrl, { method: 'GET', signal: controller.signal });
+                    const pingRes = await fetch(endpoint, {
+                        method: 'GET',
+                        signal: controller.signal,
+                        mode: 'cors'
+                    });
                     clearTimeout(timeoutId);
+                    
+                    console.log('📡 Ping response status:', pingRes.status);
                     
                     if (pingRes.ok) {
                         const directData = await pingRes.json();
+                        console.log('📡 Ping response data:', directData);
                         if (directData && directData.status === 'online') {
                             uptime = "100.0";
                             directPingSuccess = true;
-                            console.log('✅ Direct node ping successful via registered endpoint!');
+                            console.log('✅ Direct node ping successful! Node is ONLINE.');
                         }
                     }
+                } else {
+                    console.warn('⚠️ No valid HTTP endpoint configured or registered. Endpoint value:', endpoint);
                 }
             } catch (pingErr) {
-                console.warn(`Direct node ping failed: ${pingErr.message}. Falling back to backend indexer.`);
+                console.warn(`❌ Direct node ping failed: ${pingErr.message}. Falling back to backend indexer.`);
             }
 
             if (!directPingSuccess) {
@@ -522,16 +550,15 @@ async function checkProviderStatus() {
                     if (apiResponse.ok) {
                         const apiData = await apiResponse.json();
                         if (apiData.provider && apiData.provider.registered_at) {
-                            uptime = "100.0"; // Known registered node, assume 100% until proven offline by missed heartbeats
+                            uptime = "100.0";
                             const registeredAt = new Date(apiData.provider.registered_at).getTime();
-                            let lastHeartbeat = registeredAt; // Fallback to registration time if never online
+                            let lastHeartbeat = registeredAt;
                             if (apiData.provider.last_heartbeat) {
                                 lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
                             }
 
                             const now = Date.now();
 
-                            // If we haven't seen a heartbeat in 5 minutes, deduct uptime
                             if (now - lastHeartbeat > 5 * 60 * 1000) {
                                 const offlineTime = now - lastHeartbeat;
                                 const totalTime = Math.max(now - registeredAt, 1);
@@ -2014,6 +2041,9 @@ function switchView(viewId) {
             document.getElementById('setting-unit').value = settings.display.unit;
             document.getElementById('setting-auto-renew').checked = settings.node.autoRenew;
             document.getElementById('setting-pref-region').value = settings.node.region;
+            if (document.getElementById('setting-node-endpoint')) {
+                document.getElementById('setting-node-endpoint').value = settings.node.nodeEndpoint || '';
+            }
         }
 
         // Load earnings data if entering earnings view
@@ -2287,6 +2317,9 @@ function saveSettings() {
     settings.display.unit = document.getElementById('setting-unit').value;
     settings.node.autoRenew = document.getElementById('setting-auto-renew').checked;
     settings.node.region = document.getElementById('setting-pref-region').value;
+    if (document.getElementById('setting-node-endpoint')) {
+        settings.node.nodeEndpoint = document.getElementById('setting-node-endpoint').value;
+    }
 
     localStorage.setItem('kyneto_settings', JSON.stringify(settings));
 
