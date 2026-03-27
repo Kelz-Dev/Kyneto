@@ -255,7 +255,7 @@ let settings = {
     node: {
         autoRenew: false,
         region: 'na',
-        nodeEndpoint: ''
+        endpoint: ''
     }
 };
 
@@ -421,6 +421,9 @@ function applySettingsToUI() {
         if (autoRenew) autoRenew.checked = settings.node?.autoRenew ?? false;
         if (prefRegion) prefRegion.value = settings.node?.region ?? 'na';
 
+        const endpointInput = document.getElementById('setting-node-endpoint');
+        if (endpointInput) endpointInput.value = settings.node?.endpoint ?? '';
+
         console.log('Applied settings to UI');
     } catch (e) {
         console.log('Failed to apply settings to UI:', e);
@@ -493,26 +496,29 @@ async function checkProviderStatus() {
             let directPingSuccess = false;
 
             try {
-                // 1. Direct Decentralized Check: Ping the node's endpoint directly (e.g. Cloudflare tunnel)
-                // Priority 1: User-configured endpoint from settings
-                // Priority 2: On-chain registered endpoint
-                let endpoint = settings.node.nodeEndpoint || '';
-                
-                if (!endpoint) {
+                // 1. Direct Decentralized Check: Ping the node's endpoint directly
+                // Priority: Settings-configured endpoint > On-chain registered endpoint
+                let endpoint = '';
+
+                // Check if user set a custom endpoint in Settings
+                if (settings.node.endpoint && settings.node.endpoint.startsWith('http')) {
+                    endpoint = settings.node.endpoint;
+                    console.log('📡 Using Settings-configured endpoint:', endpoint);
+                } else {
+                    // Fallback to on-chain registered endpoint
                     try {
                         const fullProvider = await registryContract.getProvider(userAddress);
                         endpoint = fullProvider.endpoint || '';
                         console.log('📡 On-chain registered endpoint:', endpoint);
                     } catch (gpErr) {
-                        // Fallback to providers() tuple access
                         endpoint = providerData[5] || '';
                         console.log('📡 Fallback endpoint from providers():', endpoint);
                     }
-                } else {
-                    console.log('📡 Using manually configured node endpoint:', endpoint);
                 }
 
                 if (endpoint && endpoint.startsWith('http')) {
+                    // Normalize: strip trailing slashes
+                    endpoint = endpoint.replace(/\/+$/, '');
                     console.log(`🔍 Attempting direct ping to: ${endpoint}`);
                     
                     const controller = new AbortController();
@@ -537,7 +543,7 @@ async function checkProviderStatus() {
                         }
                     }
                 } else {
-                    console.warn('⚠️ No valid HTTP endpoint configured or registered. Endpoint value:', endpoint);
+                    console.warn('⚠️ No valid HTTP endpoint found. Set one in Settings > Node Configuration > Node API Endpoint.');
                 }
             } catch (pingErr) {
                 console.warn(`❌ Direct node ping failed: ${pingErr.message}. Falling back to backend indexer.`);
@@ -2041,9 +2047,9 @@ function switchView(viewId) {
             document.getElementById('setting-unit').value = settings.display.unit;
             document.getElementById('setting-auto-renew').checked = settings.node.autoRenew;
             document.getElementById('setting-pref-region').value = settings.node.region;
-            if (document.getElementById('setting-node-endpoint')) {
-                document.getElementById('setting-node-endpoint').value = settings.node.nodeEndpoint || '';
-            }
+
+            const endpointInput = document.getElementById('setting-node-endpoint');
+            if (endpointInput) endpointInput.value = settings.node.endpoint || '';
         }
 
         // Load earnings data if entering earnings view
@@ -2317,8 +2323,10 @@ function saveSettings() {
     settings.display.unit = document.getElementById('setting-unit').value;
     settings.node.autoRenew = document.getElementById('setting-auto-renew').checked;
     settings.node.region = document.getElementById('setting-pref-region').value;
-    if (document.getElementById('setting-node-endpoint')) {
-        settings.node.nodeEndpoint = document.getElementById('setting-node-endpoint').value;
+
+    const endpointInput = document.getElementById('setting-node-endpoint');
+    if (endpointInput) {
+        settings.node.endpoint = endpointInput.value.trim();
     }
 
     localStorage.setItem('kyneto_settings', JSON.stringify(settings));
