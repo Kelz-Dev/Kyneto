@@ -374,6 +374,19 @@ async function initializeWallet(address, rawProvider, source = 'Unknown') {
         const tempProvider = new ethers.providers.Web3Provider(rawProvider);
         const tempSigner = tempProvider.getSigner();
 
+        // Prompt the user to digitally sign to authenticate
+        try {
+            await tempSigner.signMessage("Welcome to Kyneto!\n\nPlease sign this message to authenticate securely into the dashboard.");
+        } catch (signErr) {
+            console.warn("User rejected signature or failed to sign:", signErr);
+            addActivity('System', 'Wallet connection aborted (signature required)', 'system');
+            userAddress = null;
+            provider = null;
+            signer = null;
+            updateWalletUI(false);
+            return;
+        }
+
         // Only update global state if everything succeeded
         userAddress = address;
         provider = tempProvider;
@@ -577,10 +590,13 @@ async function checkProviderStatus() {
                         const apiData = await apiResponse.json();
                         if (apiData.provider && apiData.provider.registered_at) {
                             uptime = "100.0";
-                            const registeredAt = new Date(apiData.provider.registered_at).getTime();
+                            const regStr = apiData.provider.registered_at;
+                            const registeredAt = new Date(regStr.endsWith('Z') ? regStr : regStr + 'Z').getTime();
+                            
                             let lastHeartbeat = registeredAt;
                             if (apiData.provider.last_heartbeat) {
-                                lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+                                const hbStr = apiData.provider.last_heartbeat;
+                                lastHeartbeat = new Date(hbStr.endsWith('Z') ? hbStr : hbStr + 'Z').getTime();
                             }
 
                             const now = Date.now();
@@ -1212,7 +1228,7 @@ async function fetchStats() {
 
             const stats = {
                 active_deals: Math.max(apiStats.active_deals || 0, activeDeals.toNumber()),
-                active_providers: Math.max(apiStats.active_providers || 0, providerCount.toNumber()),
+                active_providers: apiStats.active_providers !== undefined ? apiStats.active_providers : 0,
                 total_capacity_gb: Math.max(apiStats.total_capacity_gb || 0, totalCapacity.toNumber()),
                 total_utilization_gb: apiStats.total_utilization_gb || 0,
                 total_protocol_revenue: ethers.utils.formatUnits(feesCollected, 18),
