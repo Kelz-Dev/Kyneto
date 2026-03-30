@@ -170,7 +170,7 @@ export class BlockchainListener {
         try {
             await this.db.query(
                 `INSERT INTO providers (address, peer_id, region, reputation_score, active, registered_at)
-         VALUES ($1, $2, $3, 50, true, NOW())
+         VALUES (LOWER($1), $2, $3, 50, true, NOW())
          ON CONFLICT (address) DO NOTHING`,
                 [provider, peerId, region]
             );

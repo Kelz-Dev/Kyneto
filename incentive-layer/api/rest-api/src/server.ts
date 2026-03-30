@@ -187,7 +187,7 @@ app.get('/api/providers/:address', async (req: Request, res: Response) => {
         const address = req.params.address;
 
         const providerResult = await db.query(
-            'SELECT * FROM providers WHERE LOWER(address) = LOWER($1)',
+            'SELECT * FROM providers WHERE LOWER(address) = LOWER($1) ORDER BY last_heartbeat DESC NULLS LAST LIMIT 1',
             [address]
         );
 
