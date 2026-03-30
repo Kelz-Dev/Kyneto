@@ -202,6 +202,44 @@ setInterval(checkExpirations, 5 * 60 * 1000);
 // Auto-refresh provider status every 15 seconds for dynamic node online/offline display
 setInterval(checkProviderStatus, 15 * 1000);
 
+// Real-time Socket.IO connection for instant provider status updates
+let dashboardSocket = null;
+try {
+    dashboardSocket = io(API_URL, {
+        reconnection: true,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
+        reconnectionAttempts: Infinity,
+        transports: ['websocket', 'polling']
+    });
+
+    dashboardSocket.on('connect', () => {
+        console.log('📡 Dashboard connected to real-time feed (Socket ID:', dashboardSocket.id, ')');
+    });
+
+    dashboardSocket.on('disconnect', () => {
+        console.warn('⚠️ Dashboard lost real-time connection. Reconnecting...');
+    });
+
+    // Listen for real-time provider online/offline status changes
+    dashboardSocket.on('provider:status', (data) => {
+        console.log('🔔 Real-time provider status update:', data);
+        if (userAddress && data.address && data.address.toLowerCase() === userAddress.toLowerCase()) {
+            console.log(`📡 Your node is now ${data.online ? 'ONLINE ✅' : 'OFFLINE ❌'}. Refreshing UI...`);
+            checkProviderStatus();
+        }
+    });
+
+    // Listen for heartbeat events too
+    dashboardSocket.on('heartbeat', (data) => {
+        if (userAddress && data.provider && data.provider.toLowerCase() === userAddress.toLowerCase()) {
+            console.log('💓 Received heartbeat confirmation from server');
+        }
+    });
+} catch (e) {
+    console.warn('Could not establish real-time Socket.IO connection:', e.message);
+}
+
 const DISTRIBUTOR_ABI = [
     "function withdrawEarnings() external",
     "function getAvailableEarnings(address provider) external view returns (uint256)",
@@ -505,11 +543,13 @@ async function checkProviderStatus() {
                 console.log(`🔍 Checking node liveness via Relay RPC for ${userAddress}...`);
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
                 
                 const rpcRes = await fetch(`${API_URL}/api/providers/${userAddress}/rpc/peer-id`, {
                     method: 'GET',
-                    signal: controller.signal
+                    signal: controller.signal,
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
                 });
                 clearTimeout(timeoutId);
                 

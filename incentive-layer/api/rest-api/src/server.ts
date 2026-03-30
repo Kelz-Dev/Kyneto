@@ -225,16 +225,35 @@ app.get('/api/providers/:address', async (req: Request, res: Response) => {
  */
 app.post('/api/heartbeat', async (req: Request, res: Response) => {
     try {
-        const { provider_address } = req.body;
+        const { provider_address, storage } = req.body;
 
         if (!provider_address) {
             return res.status(400).json({ error: 'provider_address required' });
         }
 
+        // UPSERT: create provider row if it doesn't exist, always update heartbeat
         await db.query(
-            'UPDATE providers SET last_heartbeat = NOW() WHERE LOWER(address) = LOWER($1)',
+            `INSERT INTO providers (address, peer_id, last_heartbeat, active, reputation_score, registered_at)
+             VALUES (LOWER($1), 'pending', NOW(), true, 50, NOW())
+             ON CONFLICT (address) DO UPDATE SET last_heartbeat = NOW(), active = true`,
             [provider_address]
         );
+
+        // Persist storage metrics if provided (defensive — columns may not exist yet)
+        if (storage && storage.pledged_capacity_gb !== undefined) {
+            try {
+                await db.query(
+                    `UPDATE providers SET
+                        pledged_capacity_gb = $1,
+                        used_gb = $2
+                     WHERE LOWER(address) = LOWER($3)`,
+                    [storage.pledged_capacity_gb, storage.used_gb || 0, provider_address]
+                );
+            } catch (storageErr) {
+                // Columns may not exist yet — silently ignore
+                console.warn('Storage columns not available in DB, skipping storage update');
+            }
+        }
 
         // Emit event via WebSocket
         io.emit('heartbeat', { provider: provider_address, timestamp: new Date() });
@@ -436,6 +455,8 @@ io.on('connection', (socket) => {
             providerSockets.set(providerAddress, socket.id);
             socket.join(`provider-rpc:${providerAddress}`);
             console.log(`🛡️ Provider registered for RPC: ${providerAddress} on socket ${socket.id}`);
+            // Broadcast real-time online status to all dashboard clients
+            io.emit('provider:status', { address: providerAddress, online: true });
         }
     });
 
@@ -456,6 +477,8 @@ io.on('connection', (socket) => {
             if (id === socket.id) {
                 providerSockets.delete(address);
                 console.log(`Provider disconnected: ${address}`);
+                // Broadcast real-time offline status to all dashboard clients
+                io.emit('provider:status', { address, online: false });
                 break;
             }
         }
