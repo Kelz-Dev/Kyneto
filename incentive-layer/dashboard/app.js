@@ -590,25 +590,24 @@ async function checkProviderStatus() {
                         const apiData = await apiResponse.json();
                         if (apiData.provider && apiData.provider.registered_at) {
                             uptime = "100.0";
-                            const regStr = apiData.provider.registered_at;
-                            const registeredAt = new Date(regStr.endsWith('Z') ? regStr : regStr + 'Z').getTime();
+                            const registeredAt = new Date(apiData.provider.registered_at).getTime();
                             
                             let lastHeartbeat = registeredAt;
                             if (apiData.provider.last_heartbeat) {
-                                const hbStr = apiData.provider.last_heartbeat;
-                                lastHeartbeat = new Date(hbStr.endsWith('Z') ? hbStr : hbStr + 'Z').getTime();
+                                lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
                             }
 
                             const now = Date.now();
 
                             if (now - lastHeartbeat > 5 * 60 * 1000) {
-                                const offlineTime = now - lastHeartbeat;
+                                const offlineTime = Math.max(0, now - lastHeartbeat);
                                 const totalTime = Math.max(now - registeredAt, 1);
                                 const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
                                 uptime = (onlineRatio * 100).toFixed(1);
                                 isNodeOnline = false;
                             } else {
                                 isNodeOnline = true;
+                                uptime = "100.0";
                             }
                         }
                     }
