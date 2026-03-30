@@ -75,7 +75,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 300 // limit each IP to 300 requests per windowMs
+    max: 5000 // Increased from 300 to prevent provider daemon heartbeat 429 errors
 });
 app.use('/api/', limiter);
 
