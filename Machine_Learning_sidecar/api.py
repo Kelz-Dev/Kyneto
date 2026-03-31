@@ -342,13 +342,21 @@ def feedback_stats():
 def main():
     global _last_trained_at
 
-    print("[>] Kyneto Sidecar API v2.0.0")
+    print("[>] Kyneto Sidecar API v2.1.0 (pre-trained mode)")
     print("=" * 50)
 
-    # Train models from live data at startup
-    run_training()
+    # Try to load pre-trained models first (instant startup)
+    load_models()
 
-    # Start background auto-retrain scheduler
+    if len(models) > 0:
+        print(f"[OK] Loaded {len(models)} pre-trained model(s). Skipping startup training.")
+        _last_trained_at = "pre-trained (baked into image)"
+    else:
+        # No pre-trained models found — train from live DB as fallback
+        print("[WARN] No pre-trained models found. Training from live data...")
+        run_training()
+
+    # Start background auto-retrain scheduler (live data ingestion)
     start_background_scheduler()
 
     print(f"\n[NET] Starting server on http://localhost:5050")
