@@ -628,7 +628,8 @@ async function checkProviderStatus() {
 
                         const now = Date.now();
 
-                        if (now - lastHeartbeat > 5 * 60 * 1000) {
+                        // Consider offline if no heartbeat in the last 45 seconds
+                        if (now - lastHeartbeat > 45 * 1000) {
                             const offlineTime = Math.max(0, now - lastHeartbeat);
                             const totalTime = Math.max(now - registeredAt, 1);
                             const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
@@ -694,8 +695,8 @@ async function checkProviderStatus() {
 
                         const label = i === 0 ? "Initial Pledge" : `Upgrade #${i}`;
                         const statusLabel = isNodeOnline ? 
-                            '<span style="color: #4CAF50; font-weight: bold;">(Node Online)</span>' : 
-                            '<span style="color: #ff5252; font-weight: bold;">(Node Offline)</span>';
+                            '<button class="btn-sm" style="background-color: #4CAF50; color: white; border: none; padding: 4px 12px; border-radius: 6px; font-weight: bold; margin-left: 8px; cursor: default; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Online</button>' : 
+                            '<button class="btn-sm" style="background-color: #ff5252; color: white; border: none; padding: 4px 12px; border-radius: 6px; font-weight: bold; margin-left: 8px; cursor: default; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Offline</button>';
 
                         pledgesHtml += `
                             <div class="stat-card">
