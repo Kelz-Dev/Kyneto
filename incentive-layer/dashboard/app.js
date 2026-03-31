@@ -590,11 +590,11 @@ async function checkProviderStatus() {
                         const apiData = await apiResponse.json();
                         if (apiData.provider && apiData.provider.registered_at) {
                             uptime = "100.0";
-                            const registeredAt = new Date(apiData.provider.registered_at).getTime();
+                            const registeredAt = new Date(apiData.provider.registered_at.endsWith('Z') ? apiData.provider.registered_at : apiData.provider.registered_at + 'Z').getTime();
                             
                             let lastHeartbeat = registeredAt;
                             if (apiData.provider.last_heartbeat) {
-                                lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+                                lastHeartbeat = new Date(apiData.provider.last_heartbeat.endsWith('Z') ? apiData.provider.last_heartbeat : apiData.provider.last_heartbeat + 'Z').getTime();
                             }
 
                             const now = Date.now();
