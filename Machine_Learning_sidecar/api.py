@@ -7,7 +7,7 @@ data every 6 hours.
 """
 
 from flask import Flask, request, jsonify
-from prometheus_flask_instrumentator import FlaskInstrumentator
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import pickle
 import os
 import json
@@ -18,9 +18,6 @@ import numpy as np
 from datetime import datetime
 
 app = Flask(__name__)
-
-# Prometheus metrics (auto-instruments all routes)
-FlaskInstrumentator().instrument(app)
 
 # Paths
 MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')

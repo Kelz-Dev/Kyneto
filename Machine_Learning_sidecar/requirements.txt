@@ -4,8 +4,8 @@
 pandas>=1.5.0,<3.1
 numpy>=1.21.0,<2.5
 scikit-learn>=1.0.0,<1.9
-flask>=2.0,<4.0
-prometheus-flask-instrumentator
+flask
+prometheus_client
 xgboost==2.0.3
 
 # Database (for live data ingestion + feedback loop)
