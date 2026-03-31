@@ -70,13 +70,11 @@ services:
     command: sh -c "npm install && npm run build && npm start"
     ports:
       - "3002:3000"
-    # ===========================================
-    # Blockchain Indexer Service
-    # ===========================================
   indexer:
-    image: node:20-alpine
+    image: "node:20-alpine"
+    container_name: kyneto-indexer-1
     working_dir: /app
-    restart: unless-stopped
+    restart: always
     volumes:
       - ./incentive-layer/indexer:/app
     environment:
@@ -150,15 +148,10 @@ services:
     depends_on:
       - api-server
 
-  # ===========================================
-  # ML Sidecar (Predictive Analytics API)
-  # ===========================================
   ml-sidecar:
-    image: ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest
-    restart: unless-stopped
-    # Routed via Nginx /ml/ on port 443
-    # ports:
-    #   - "5050:5050"
+    image: "ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest"
+    container_name: kyneto-ml-sidecar-1
+    restart: always
     environment:
       - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
     depends_on:
