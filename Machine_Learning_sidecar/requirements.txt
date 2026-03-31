@@ -1,14 +1,12 @@
-# Kyneto Sidecar - Python Dependencies
-# =====================================
-# Install with: pip install -r requirements.txt
+# Kyneto Sidecar - Python Dependencies (CPU-only, lightweight)
+# =============================================================
 
-pandas>=1.5.0
-numpy>=1.21.0
-scikit-learn>=1.0.0
-flask
+pandas>=1.5.0,<3.1
+numpy>=1.21.0,<2.5
+scikit-learn>=1.0.0,<1.9
+flask>=2.0,<4.0
 prometheus-flask-instrumentator
-xgboost>=1.7.0
-catboost>=1.2.0
+xgboost==2.0.3
 
 # Database (for live data ingestion + feedback loop)
 psycopg2-binary>=2.9.0
