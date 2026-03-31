@@ -695,8 +695,8 @@ async function checkProviderStatus() {
 
                         const label = i === 0 ? "Initial Pledge" : `Upgrade #${i}`;
                         const statusLabel = isNodeOnline ? 
-                            '<button class="btn-sm" style="background-color: #4CAF50; color: white; border: none; padding: 4px 12px; border-radius: 6px; font-weight: bold; margin-left: 8px; cursor: default; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Online</button>' : 
-                            '<button class="btn-sm" style="background-color: #ff5252; color: white; border: none; padding: 4px 12px; border-radius: 6px; font-weight: bold; margin-left: 8px; cursor: default; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Offline</button>';
+                            '<span class="status-badge online" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot"></span><span class="text">Online</span></span>' : 
+                            '<span class="status-badge" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></span><span class="text">Offline</span></span>';
 
                         pledgesHtml += `
                             <div class="stat-card">
