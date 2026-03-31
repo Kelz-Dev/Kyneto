@@ -22,9 +22,7 @@ services:
   # Kyneto Landing Page (Port 3001)
   # ===========================================
   landing-page:
-    build:
-      context: ./landing-page
-      dockerfile: Dockerfile
+    image: ghcr.io/kelz-dev/kubo-master/landing-page:latest
     restart: unless-stopped
     ports:
       - "80:80"
@@ -158,9 +156,7 @@ services:
   # ML Sidecar (Predictive Analytics API)
   # ===========================================
   ml-sidecar:
-    build:
-      context: ./Machine_Learning_sidecar
-      dockerfile: Dockerfile
+    image: ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest
     container_name: kyneto-ml-sidecar-1
     restart: always
     environment:
