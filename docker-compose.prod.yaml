@@ -22,7 +22,9 @@ services:
   # Kyneto Landing Page (Port 3001)
   # ===========================================
   landing-page:
-    image: ghcr.io/kelz-dev/kubo-master/landing-page:latest
+    build:
+      context: ./landing-page
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "80:80"
@@ -142,7 +144,7 @@ services:
   # Incentive Layer Dashboard (Port 3003)
   # ===========================================
   incentive-dashboard:
-    image: ghcr.io/kelz-dev/kubo-master/incentive-dashboard:latest
+    image: nginx:1.24-alpine
     restart: unless-stopped
     volumes:
       - ./incentive-layer/dashboard:/usr/share/nginx/html:ro
