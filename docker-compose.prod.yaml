@@ -76,7 +76,7 @@ services:
   # ===========================================
   blockchain-indexer:
     image: "node:20-alpine"
-    container_name: kyneto-indexer-1
+    container_name: kyneto-blockchain-indexer-1
     working_dir: /app
     restart: always
     volumes:
@@ -157,7 +157,7 @@ services:
   # ===========================================
   sidecar-ml:
     image: ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest
-    container_name: kyneto-ml-sidecar-1
+    container_name: kyneto-sidecar-ml-1
     restart: always
     environment:
       - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
