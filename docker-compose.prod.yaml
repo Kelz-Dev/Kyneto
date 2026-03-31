@@ -74,7 +74,7 @@ services:
   # ===========================================
   # Blockchain Indexer Service
   # ===========================================
-  indexer:
+  blockchain-indexer:
     image: "node:20-alpine"
     container_name: kyneto-indexer-1
     working_dir: /app
@@ -155,7 +155,7 @@ services:
   # ===========================================
   # ML Sidecar (Predictive Analytics API)
   # ===========================================
-  ml-sidecar:
+  sidecar-ml:
     image: ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest
     container_name: kyneto-ml-sidecar-1
     restart: always
