@@ -70,6 +70,10 @@ services:
     command: sh -c "npm install && npm run build && npm start"
     ports:
       - "3002:3000"
+
+  # ===========================================
+  # Blockchain Indexer Service
+  # ===========================================
   indexer:
     image: "node:20-alpine"
     container_name: kyneto-indexer-1
@@ -148,8 +152,13 @@ services:
     depends_on:
       - api-server
 
+  # ===========================================
+  # ML Sidecar (Predictive Analytics API)
+  # ===========================================
   ml-sidecar:
-    image: "ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest"
+    build:
+      context: ./Machine_Learning_sidecar
+      dockerfile: Dockerfile
     container_name: kyneto-ml-sidecar-1
     restart: always
     environment:

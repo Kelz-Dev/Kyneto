@@ -585,30 +585,58 @@ async function checkProviderStatus() {
             if (!directPingSuccess) {
                 try {
                     // 2. Centralized Fallback: Fetch from backend (for historically offline tracking)
-                    const apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                    let apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                    let apiData = null;
+
                     if (apiResponse.ok) {
-                        const apiData = await apiResponse.json();
-                        if (apiData.provider && apiData.provider.registered_at) {
+                        apiData = await apiResponse.json();
+                    }
+
+                    // If the dashboard wallet has no provider row, the daemon may be registered
+                    // under a different address (derived from its own private key).
+                    // Fall back to checking all active providers for a recent heartbeat.
+                    if (!apiData || !apiData.provider || !apiData.provider.registered_at) {
+                        console.warn('⚠️ No provider row found for dashboard wallet. Checking all active providers...');
+                        try {
+                            const allRes = await fetch(`${API_URL}/api/providers?active=true`);
+                            if (allRes.ok) {
+                                const allData = await allRes.json();
+                                if (allData.providers && allData.providers.length > 0) {
+                                    // Find the provider with the most recent heartbeat
+                                    const sorted = allData.providers
+                                        .filter(p => p.last_heartbeat)
+                                        .sort((a, b) => new Date(b.last_heartbeat).getTime() - new Date(a.last_heartbeat).getTime());
+                                    if (sorted.length > 0) {
+                                        apiData = { provider: sorted[0] };
+                                        console.log('✅ Found active daemon provider:', sorted[0].address);
+                                    }
+                                }
+                            }
+                        } catch (fallbackErr) {
+                            console.warn('Could not fetch active providers list:', fallbackErr.message);
+                        }
+                    }
+
+                    if (apiData && apiData.provider && apiData.provider.registered_at) {
+                        uptime = "100.0";
+                        const registeredAt = new Date(apiData.provider.registered_at).getTime();
+                        
+                        let lastHeartbeat = registeredAt;
+                        if (apiData.provider.last_heartbeat) {
+                            lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+                        }
+
+                        const now = Date.now();
+
+                        if (now - lastHeartbeat > 5 * 60 * 1000) {
+                            const offlineTime = Math.max(0, now - lastHeartbeat);
+                            const totalTime = Math.max(now - registeredAt, 1);
+                            const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
+                            uptime = (onlineRatio * 100).toFixed(1);
+                            isNodeOnline = false;
+                        } else {
+                            isNodeOnline = true;
                             uptime = "100.0";
-                            const registeredAt = new Date(apiData.provider.registered_at).getTime();
-                            
-                            let lastHeartbeat = registeredAt;
-                            if (apiData.provider.last_heartbeat) {
-                                lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
-                            }
-
-                            const now = Date.now();
-
-                            if (now - lastHeartbeat > 5 * 60 * 1000) {
-                                const offlineTime = Math.max(0, now - lastHeartbeat);
-                                const totalTime = Math.max(now - registeredAt, 1);
-                                const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
-                                uptime = (onlineRatio * 100).toFixed(1);
-                                isNodeOnline = false;
-                            } else {
-                                isNodeOnline = true;
-                                uptime = "100.0";
-                            }
                         }
                     }
                 } catch (e) {
