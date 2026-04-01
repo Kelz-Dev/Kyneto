@@ -274,9 +274,10 @@ app.get('/api/stats', async (req: Request, res: Response) => {
         const stats = await db.query(`
       SELECT
         (SELECT COUNT(*) FROM deals WHERE status = 'active') as active_deals,
-        (SELECT COUNT(*) FROM providers WHERE active = true AND last_heartbeat > NOW() - INTERVAL '5 minutes') as active_providers,
+        (SELECT COUNT(*) FROM providers WHERE active = true AND last_heartbeat > NOW() - INTERVAL '45 seconds') as active_providers,
+        (SELECT COUNT(*) FROM providers WHERE active = true) as total_providers,
         (SELECT COUNT(*) FROM shards WHERE active = true) as active_shards,
-        (SELECT COALESCE(SUM(capacity_gb), 0) FROM capacity_pledges WHERE active = true AND provider_address IN (SELECT address FROM providers WHERE last_heartbeat > NOW() - INTERVAL '5 minutes')) as total_capacity_gb,
+        (SELECT COALESCE(SUM(capacity_gb), 0) FROM capacity_pledges WHERE active = true AND provider_address IN (SELECT address FROM providers WHERE last_heartbeat > NOW() - INTERVAL '45 seconds')) as total_capacity_gb,
         (SELECT COALESCE(SUM(utilization_gb), 0) FROM capacity_pledges WHERE active = true) as total_utilization_gb,
         (SELECT AVG(reputation_score) FROM providers WHERE active = true) as avg_reputation,
         (SELECT COALESCE(SUM(protocol_fee), 0) FROM deals) as total_protocol_revenue,

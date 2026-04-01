@@ -1307,7 +1307,7 @@ function updateStatsUI(stats) {
     const utilizationElem = document.querySelector('#stat-utilization .value');
 
     if (deals) deals.textContent = stats.active_deals || 0;
-    if (providers) providers.textContent = stats.active_providers || 0;
+    if (providers) providers.innerHTML = `<span style="color:var(--success);">${stats.active_providers || 0} Active</span> <span style="color:var(--text-secondary);font-size:0.8em;opacity:0.8;">| ${stats.total_providers || 0} Total</span>`;
     if (capacity) capacity.textContent = `${stats.total_capacity_gb || 0} GB`;
 
     // Format KYN values to 2 decimal places if they are strings/numbers
