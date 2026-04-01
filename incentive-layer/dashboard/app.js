@@ -630,26 +630,29 @@ async function checkProviderStatus() {
 
                         // Consider offline if no heartbeat in the last 45 seconds
                         if (now - lastHeartbeat > 45 * 1000) {
-                            const offlineTime = Math.max(0, now - lastHeartbeat);
-                            // Pad totalTime so uptime doesn't abruptly drop to 0% for new nodes
-                            // Assume at least 7 days (604800000 ms) baseline for uptime calculation
-                            const totalTime = Math.max(now - registeredAt, 7 * 24 * 60 * 60 * 1000);
-                            const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
-                            uptime = (onlineRatio * 100).toFixed(1);
                             isNodeOnline = false;
+                            uptime = 'Offline';
                         } else {
                             isNodeOnline = true;
                             uptime = "100.0";
                         }
                     }
                 } catch (e) {
-                    console.warn('Could not fetch dynamic uptime from API. Defaulting to 0.0% (Offline).');
+                    console.warn('Could not fetch dynamic uptime from API. Defaulting to Offline.');
                 }
             }
 
             // Update Stats UI
             const uptimeStat = document.querySelector('#provider-stat-uptime .value');
-            if (uptimeStat) uptimeStat.textContent = `${uptime}%`;
+            if (uptimeStat) {
+                if (isNodeOnline) {
+                    uptimeStat.textContent = `${uptime}%`;
+                    uptimeStat.style.color = '';
+                } else {
+                    uptimeStat.textContent = 'Offline';
+                    uptimeStat.style.color = 'var(--error)';
+                }
+            }
 
             const dealsStat = document.querySelector('#provider-stat-deals .value');
             if (dealsStat) dealsStat.textContent = dealsCompleted;
@@ -1298,7 +1301,12 @@ async function fetchStats() {
     }
 }
 
+// Global cache for network stats so detail views can access real numbers
+let _cachedNetworkStats = {};
+
 function updateStatsUI(stats) {
+    _cachedNetworkStats = stats; // Cache for detail views
+
     const deals = document.querySelector('#stat-deals .value');
     const providers = document.querySelector('#stat-providers .value');
     const capacity = document.querySelector('#stat-capacity .value');
@@ -2182,25 +2190,65 @@ function simulateDetailData(viewId) {
     }
 
     if (viewId === 'providers-detail') {
-        const distList = document.getElementById('provider-dist-list');
-        if (distList) {
-            distList.innerHTML = `
-                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                        <span>Global Network</span>
-                        <span style="color: var(--primary-color); font-weight: bold;">${getStat('stat-providers')} Nodes</span>
+        const s = _cachedNetworkStats;
+        const activeCount = parseInt(s.active_providers) || 0;
+        const totalCount = parseInt(s.total_providers) || 0;
+        const offlineCount = Math.max(0, totalCount - activeCount);
+        const activePercent = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
+        const capacityGB = parseFloat(s.total_capacity_gb) || 0;
+        const avgRep = parseFloat(s.avg_reputation) || 0;
+
+        const container = document.getElementById('providers-detail-content');
+        if (container) {
+            container.innerHTML = `
+                <!-- Summary Cards Row -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.2); border-radius: 16px; padding: 20px; text-align: center;">
+                        <div style="font-size: 2.2rem; font-weight: 800; color: var(--success); font-family: 'Outfit', sans-serif;">${activeCount}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Active Nodes</div>
+                        <div style="margin-top: 8px;"><span class="status-badge online" style="display: inline-flex; padding: 3px 8px; font-size: 0.75rem;"><span class="dot"></span><span class="text">Online</span></span></div>
                     </div>
-                    <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px;">
-                        <div style="width: 100%; height: 100%; background: var(--primary-color); border-radius: 4px;"></div>
+                    <div style="background: rgba(124,77,255,0.08); border: 1px solid rgba(124,77,255,0.2); border-radius: 16px; padding: 20px; text-align: center;">
+                        <div style="font-size: 2.2rem; font-weight: 800; color: var(--primary-color); font-family: 'Outfit', sans-serif;">${totalCount}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Total Registered</div>
+                        <div style="margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary);"><i class="fa-solid fa-users"></i> All Providers</div>
+                    </div>
+                    <div style="background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.2); border-radius: 16px; padding: 20px; text-align: center;">
+                        <div style="font-size: 2.2rem; font-weight: 800; color: var(--error); font-family: 'Outfit', sans-serif;">${offlineCount}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Offline Nodes</div>
+                        <div style="margin-top: 8px;"><span class="status-badge" style="display: inline-flex; padding: 3px 8px; font-size: 0.75rem;"><span class="dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></span><span class="text">Offline</span></span></div>
+                    </div>
+                </div>
+
+                <!-- Network Health Bar -->
+                <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Network Availability</h4>
+                        <span style="font-size: 1.2rem; font-weight: 800; color: ${activePercent >= 75 ? 'var(--success)' : activePercent >= 50 ? 'var(--warning)' : 'var(--error)'}; font-family: 'Outfit', sans-serif;">${activePercent}%</span>
+                    </div>
+                    <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.06); border-radius: 6px; overflow: hidden;">
+                        <div style="width: ${activePercent}%; height: 100%; background: linear-gradient(90deg, var(--primary-color), var(--success)); border-radius: 6px; transition: width 0.6s ease;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary);">
+                        <span>${activeCount} of ${totalCount} nodes are active</span>
+                        <span>${offlineCount} currently offline</span>
+                    </div>
+                </div>
+
+                <!-- Bottom Stats Row -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Total Network Capacity</div>
+                        <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); font-family: 'Outfit', sans-serif;">${capacityGB >= 1000 ? (capacityGB / 1000).toFixed(1) + ' TB' : capacityGB + ' GB'}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;"><i class="fa-solid fa-database" style="margin-right: 4px;"></i>From active pledges</div>
+                    </div>
+                    <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Avg. Provider Reputation</div>
+                        <div style="font-size: 1.8rem; font-weight: 800; color: ${avgRep >= 80 ? 'var(--success)' : avgRep >= 50 ? 'var(--warning)' : 'var(--error)'}; font-family: 'Outfit', sans-serif;">${avgRep.toFixed(0)}<span style="font-size: 0.9rem; opacity: 0.7;">/100</span></div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;"><i class="fa-solid fa-star" style="margin-right: 4px;"></i>Network average</div>
                     </div>
                 </div>
             `;
-        }
-        const healthCircle = document.querySelector('.health-circle');
-        if (healthCircle) {
-            healthCircle.textContent = getStat('stat-providers');
-            healthCircle.style.borderColor = 'var(--success)';
-            healthCircle.style.color = 'var(--success)';
         }
     }
 

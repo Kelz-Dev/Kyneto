@@ -305,20 +305,8 @@
                             <i class="fa-solid fa-arrow-left"></i> Back
                         </button>
                     </div>
-                    <div class="detail-grid-premium">
-                        <div class="detail-card">
-                            <h4>Provider Distribution</h4>
-                            <div class="distribution-list" id="provider-dist-list">
-                                <!-- Simulated distribution -->
-                            </div>
-                        </div>
-                        <div class="detail-card">
-                            <h4>Network Health</h4>
-                            <div class="health-indicator">
-                                <div class="health-circle">--</div>
-                                <span>Nodes Online</span>
-                            </div>
-                        </div>
+                    <div id="providers-detail-content">
+                        <!-- Dynamically populated by simulateDetailData() -->
                     </div>
                 </section>
             </div>
@@ -1303,7 +1291,7 @@
     </div>
 
     <script src="kyneto-encrypt-browser.js?v=2"></script>
-    <script src="app.js?v=9"></script>
+    <script src="app.js?v=10"></script>
 </body>
 
 </html>
