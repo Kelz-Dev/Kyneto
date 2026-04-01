@@ -275,23 +275,8 @@
                             <i class="fa-solid fa-arrow-left"></i> Back
                         </button>
                     </div>
-                    <div class="detail-grid-premium">
-                        <div class="detail-card main-chart">
-                            <h4>Deal Growth (Last 30 Days)</h4>
-                            <div class="chart-placeholder-large" id="deals-growth-chart">
-                                <!-- Chart will be simulated here -->
-                            </div>
-                        </div>
-                        <div class="detail-card-stats">
-                            <div class="mini-stat-box">
-                                <span class="label">Avg. Deal Size</span>
-                                <span class="value">--</span>
-                            </div>
-                            <div class="mini-stat-box">
-                                <span class="label">Success Rate</span>
-                                <span class="value">--</span>
-                            </div>
-                        </div>
+                    <div id="deals-detail-content">
+                        <!-- Dynamically populated -->
                     </div>
                 </section>
             </div>
@@ -306,7 +291,7 @@
                         </button>
                     </div>
                     <div id="providers-detail-content">
-                        <!-- Dynamically populated by simulateDetailData() -->
+                        <!-- Dynamically populated -->
                     </div>
                 </section>
             </div>
@@ -320,11 +305,8 @@
                             <i class="fa-solid fa-arrow-left"></i> Back
                         </button>
                     </div>
-                    <div class="detail-grid-premium">
-                        <div class="detail-card full-width">
-                            <h4>Capacity Expansion Trend</h4>
-                            <div class="chart-placeholder-large" id="capacity-trend-chart"></div>
-                        </div>
+                    <div id="capacity-detail-content">
+                        <!-- Dynamically populated -->
                     </div>
                 </section>
             </div>
@@ -338,11 +320,8 @@
                             <i class="fa-solid fa-arrow-left"></i> Back
                         </button>
                     </div>
-                    <div class="detail-grid-premium">
-                        <div class="detail-card">
-                            <h4>Current Usage Breakdown</h4>
-                            <div class="usage-breakdown" id="usage-breakdown-list"></div>
-                        </div>
+                    <div id="utilization-detail-content">
+                        <!-- Dynamically populated -->
                     </div>
                 </section>
             </div>
@@ -356,11 +335,8 @@
                             <i class="fa-solid fa-arrow-left"></i> Back
                         </button>
                     </div>
-                    <div class="detail-grid-premium">
-                        <div class="detail-card">
-                            <h4>Revenue Streams</h4>
-                            <div class="revenue-list" id="revenue-streams"></div>
-                        </div>
+                    <div id="revenue-detail-content">
+                        <!-- Dynamically populated -->
                     </div>
                 </section>
             </div>
@@ -374,11 +350,8 @@
                             <i class="fa-solid fa-arrow-left"></i> Back
                         </button>
                     </div>
-                    <div class="detail-grid-premium">
-                        <div class="detail-card">
-                            <h4>Burn Rate (Monthly)</h4>
-                            <div class="chart-placeholder-large" id="burn-rate-chart"></div>
-                        </div>
+                    <div id="burned-detail-content">
+                        <!-- Dynamically populated -->
                     </div>
                 </section>
             </div>
@@ -1291,7 +1264,7 @@
     </div>
 
     <script src="kyneto-encrypt-browser.js?v=2"></script>
-    <script src="app.js?v=10"></script>
+    <script src="app.js?v=11"></script>
 </body>
 
 </html>

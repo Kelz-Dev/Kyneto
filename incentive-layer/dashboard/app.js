@@ -1,4 +1,4 @@
-const getApiUrl = () => {
+﻿const getApiUrl = () => {
     // Production: Use the same origin (https://kyneto.app)
     if (window.location.hostname === 'kyneto.app' || window.location.hostname === 'www.kyneto.app') {
         return window.location.origin;
@@ -214,18 +214,18 @@ try {
     });
 
     dashboardSocket.on('connect', () => {
-        console.log('📡 Dashboard connected to real-time feed (Socket ID:', dashboardSocket.id, ')');
+        console.log('ðŸ“¡ Dashboard connected to real-time feed (Socket ID:', dashboardSocket.id, ')');
     });
 
     dashboardSocket.on('disconnect', () => {
-        console.warn('⚠️ Dashboard lost real-time connection. Reconnecting...');
+        console.warn('âš ï¸ Dashboard lost real-time connection. Reconnecting...');
     });
 
     // Listen for real-time provider online/offline status changes
     dashboardSocket.on('provider:status', (data) => {
-        console.log('🔔 Real-time provider status update:', data);
+        console.log('ðŸ”” Real-time provider status update:', data);
         if (userAddress && data.address && data.address.toLowerCase() === userAddress.toLowerCase()) {
-            console.log(`📡 Your node is now ${data.online ? 'ONLINE ✅' : 'OFFLINE ❌'}. Refreshing UI...`);
+            console.log(`ðŸ“¡ Your node is now ${data.online ? 'ONLINE âœ…' : 'OFFLINE âŒ'}. Refreshing UI...`);
             checkProviderStatus();
         }
     });
@@ -233,7 +233,7 @@ try {
     // Listen for heartbeat events too
     dashboardSocket.on('heartbeat', (data) => {
         if (userAddress && data.provider && data.provider.toLowerCase() === userAddress.toLowerCase()) {
-            console.log('💓 Received heartbeat confirmation from server');
+            console.log('ðŸ’“ Received heartbeat confirmation from server');
         }
     });
 } catch (e) {
@@ -553,7 +553,7 @@ async function checkProviderStatus() {
             try {
                 // Primary Check: Use the WebSocket Relay RPC to check if the provider is connected
                 // The API server will relay the request to the provider via WebSocket and return the result.
-                console.log(`🔍 Checking node liveness via Relay RPC for ${userAddress}...`);
+                console.log(`ðŸ” Checking node liveness via Relay RPC for ${userAddress}...`);
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -568,18 +568,18 @@ async function checkProviderStatus() {
                 
                 if (rpcRes.ok) {
                     const rpcData = await rpcRes.json();
-                    console.log('📡 Relay RPC response:', rpcData);
+                    console.log('ðŸ“¡ Relay RPC response:', rpcData);
                     if (rpcData && rpcData.peerId) {
                         uptime = "100.0";
                         directPingSuccess = true;
                         isNodeOnline = true;
-                        console.log(`✅ Node is ONLINE via Relay! Peer ID: ${rpcData.peerId}`);
+                        console.log(`âœ… Node is ONLINE via Relay! Peer ID: ${rpcData.peerId}`);
                     }
                 } else {
-                    console.warn(`⚠️ Relay RPC returned ${rpcRes.status}. Provider may be offline.`);
+                    console.warn(`âš ï¸ Relay RPC returned ${rpcRes.status}. Provider may be offline.`);
                 }
             } catch (pingErr) {
-                console.warn(`❌ Relay RPC check failed: ${pingErr.message}. Falling back to heartbeat check.`);
+                console.warn(`âŒ Relay RPC check failed: ${pingErr.message}. Falling back to heartbeat check.`);
             }
 
             if (!directPingSuccess) {
@@ -596,7 +596,7 @@ async function checkProviderStatus() {
                     // under a different address (derived from its own private key).
                     // Fall back to checking all active providers for a recent heartbeat.
                     if (!apiData || !apiData.provider || !apiData.provider.registered_at) {
-                        console.warn('⚠️ No provider row found for dashboard wallet. Checking all active providers...');
+                        console.warn('âš ï¸ No provider row found for dashboard wallet. Checking all active providers...');
                         try {
                             const allRes = await fetch(`${API_URL}/api/providers?active=true`);
                             if (allRes.ok) {
@@ -608,7 +608,7 @@ async function checkProviderStatus() {
                                         .sort((a, b) => new Date(b.last_heartbeat).getTime() - new Date(a.last_heartbeat).getTime());
                                     if (sorted.length > 0) {
                                         apiData = { provider: sorted[0] };
-                                        console.log('✅ Found active daemon provider:', sorted[0].address);
+                                        console.log('âœ… Found active daemon provider:', sorted[0].address);
                                     }
                                 }
                             }
@@ -1079,7 +1079,7 @@ function handleFileSelect(file) {
             };
             reader.readAsArrayBuffer(file);
         } else {
-            // No wallet connected — show unencrypted warning
+            // No wallet connected â€” show unencrypted warning
             if (encryptionStatus) {
                 encryptionStatus.innerHTML = '<i class="fa-solid fa-lock-open"></i> Connect wallet to encrypt';
                 encryptionStatus.style.color = 'var(--text-secondary)';
@@ -1183,7 +1183,7 @@ async function handleCreateDeal(event) {
         });
         localStorage.setItem('kyneto_deals', JSON.stringify(deals));
 
-        addActivity('System', `✅ Deal ${dealId} created for ${selectedFile.name}`, 'system');
+        addActivity('System', `âœ… Deal ${dealId} created for ${selectedFile.name}`, 'system');
         addNotification('deal', 'Deal Created', `Storage deal for "${selectedFile.name}" has been initiated.`, dealId);
 
         // Reset form
@@ -1192,7 +1192,7 @@ async function handleCreateDeal(event) {
 
     } catch (error) {
         console.error('Error creating deal:', error);
-        addActivity('System', `❌ Deal creation failed: ${error.message}`, 'system');
+        addActivity('System', `âŒ Deal creation failed: ${error.message}`, 'system');
         alert(`Deal creation failed: ${error.message}`);
     }
 }
@@ -2085,7 +2085,7 @@ function switchView(viewId) {
             // If already a provider, customize the view for "Upgrade Pledge"
             if (isProvider) {
                 const stakeBtn = document.getElementById('stake-btn');
-                if (stakeBtn) stakeBtn.textContent = 'Approved ✓';
+                if (stakeBtn) stakeBtn.textContent = 'Approved âœ“';
 
                 const stepRegister = document.getElementById('step-register');
                 if (stepRegister) stepRegister.classList.remove('disabled');
@@ -2172,128 +2172,158 @@ function switchView(viewId) {
 }
 
 function simulateDetailData(viewId) {
-    const getStat = (id) => {
-        const el = document.querySelector(`#${id} .value`);
-        return el ? el.textContent : '0';
-    };
+    const s = _cachedNetworkStats;
+    const fmtKYN = (v) => { const n = parseFloat(v); return isNaN(n) ? '0.00' : n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    const fmtGB = (v) => { const n = parseFloat(v); return n >= 1000 ? (n/1000).toFixed(1)+' TB' : n+' GB'; };
+    const cardStyle = (r,g,b) => `background: rgba(${r},${g},${b},0.08); border: 1px solid rgba(${r},${g},${b},0.2); border-radius: 16px; padding: 20px; text-align: center;`;
+    const glassStyle = `background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px;`;
+    const bigNum = (color) => `font-size: 2.2rem; font-weight: 800; color: var(--${color}); font-family: 'Outfit', sans-serif;`;
+    const subText = `font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;`;
+    const labelStyle = `font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;`;
 
     if (viewId === 'deals-detail') {
-        const dealsGrowth = document.getElementById('deals-growth-chart');
-        if (dealsGrowth) {
-            dealsGrowth.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; font-size: 2rem; color: var(--primary-color);">Total Active Deals: ${getStat('stat-deals')}</div>`;
-        }
-        const statBoxes = document.querySelectorAll('.detail-card-stats .value');
-        if (statBoxes.length >= 2) {
-            statBoxes[0].textContent = parseInt(getStat('stat-deals')) > 0 ? "2.5 GB" : "0 GB";
-            statBoxes[1].textContent = "100%";
-        }
+        const c = document.getElementById('deals-detail-content'); if (!c) return;
+        const active = parseInt(s.active_deals)||0, total = parseInt(s.total_deals)||0;
+        const completed = parseInt(s.deals_completed)||0, failed = parseInt(s.deals_failed)||0;
+        const rate = total > 0 ? Math.round((completed/total)*100) : 0;
+        c.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+                <div style="${cardStyle(124,77,255)}"><div style="${bigNum('primary-color')}">${active}</div><div style="${subText}">Active Deals</div><div style="margin-top:8px;"><span class="status-badge online" style="display:inline-flex;padding:3px 8px;font-size:0.75rem;"><span class="dot"></span><span class="text">Live</span></span></div></div>
+                <div style="${cardStyle(0,230,118)}"><div style="${bigNum('success')}">${completed}</div><div style="${subText}">Completed</div><div style="margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><i class="fa-solid fa-check-circle"></i> Fulfilled</div></div>
+                <div style="${cardStyle(255,82,82)}"><div style="${bigNum('error')}">${failed}</div><div style="${subText}">Failed</div><div style="margin-top:8px;"><span class="status-badge" style="display:inline-flex;padding:3px 8px;font-size:0.75rem;"><span class="dot" style="background:var(--error);box-shadow:0 0 10px var(--error);"></span><span class="text">Slashed</span></span></div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="${glassStyle}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <span style="${labelStyle}margin-bottom:0;">Success Rate</span>
+                        <span style="font-size:1.2rem;font-weight:800;color:${rate>=80?'var(--success)':rate>=50?'var(--warning)':'var(--error)'};font-family:'Outfit',sans-serif;">${rate}%</span>
+                    </div>
+                    <div style="width:100%;height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;">
+                        <div style="width:${rate}%;height:100%;background:linear-gradient(90deg,var(--primary-color),var(--success));border-radius:6px;transition:width 0.6s ease;"></div>
+                    </div>
+                </div>
+                <div style="${glassStyle}">
+                    <div style="${labelStyle}">Total Deals (All Time)</div>
+                    <div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);font-family:'Outfit',sans-serif;">${total}</div>
+                    <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;"><i class="fa-solid fa-handshake" style="margin-right:4px;"></i>Across all providers</div>
+                </div>
+            </div>`;
     }
 
     if (viewId === 'providers-detail') {
-        const s = _cachedNetworkStats;
-        const activeCount = parseInt(s.active_providers) || 0;
-        const totalCount = parseInt(s.total_providers) || 0;
-        const offlineCount = Math.max(0, totalCount - activeCount);
-        const activePercent = totalCount > 0 ? Math.round((activeCount / totalCount) * 100) : 0;
-        const capacityGB = parseFloat(s.total_capacity_gb) || 0;
-        const avgRep = parseFloat(s.avg_reputation) || 0;
-
-        const container = document.getElementById('providers-detail-content');
-        if (container) {
-            container.innerHTML = `
-                <!-- Summary Cards Row -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-                    <div style="background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.2); border-radius: 16px; padding: 20px; text-align: center;">
-                        <div style="font-size: 2.2rem; font-weight: 800; color: var(--success); font-family: 'Outfit', sans-serif;">${activeCount}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Active Nodes</div>
-                        <div style="margin-top: 8px;"><span class="status-badge online" style="display: inline-flex; padding: 3px 8px; font-size: 0.75rem;"><span class="dot"></span><span class="text">Online</span></span></div>
-                    </div>
-                    <div style="background: rgba(124,77,255,0.08); border: 1px solid rgba(124,77,255,0.2); border-radius: 16px; padding: 20px; text-align: center;">
-                        <div style="font-size: 2.2rem; font-weight: 800; color: var(--primary-color); font-family: 'Outfit', sans-serif;">${totalCount}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Total Registered</div>
-                        <div style="margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary);"><i class="fa-solid fa-users"></i> All Providers</div>
-                    </div>
-                    <div style="background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.2); border-radius: 16px; padding: 20px; text-align: center;">
-                        <div style="font-size: 2.2rem; font-weight: 800; color: var(--error); font-family: 'Outfit', sans-serif;">${offlineCount}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Offline Nodes</div>
-                        <div style="margin-top: 8px;"><span class="status-badge" style="display: inline-flex; padding: 3px 8px; font-size: 0.75rem;"><span class="dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></span><span class="text">Offline</span></span></div>
-                    </div>
+        const c = document.getElementById('providers-detail-content'); if (!c) return;
+        const active = parseInt(s.active_providers)||0, total = parseInt(s.total_providers)||0;
+        const offline = Math.max(0,total-active), pct = total>0?Math.round((active/total)*100):0;
+        const capGB = parseFloat(s.total_capacity_all_gb)||0, avgRep = parseFloat(s.avg_reputation)||0;
+        c.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+                <div style="${cardStyle(0,230,118)}"><div style="${bigNum('success')}">${active}</div><div style="${subText}">Active Nodes</div><div style="margin-top:8px;"><span class="status-badge online" style="display:inline-flex;padding:3px 8px;font-size:0.75rem;"><span class="dot"></span><span class="text">Online</span></span></div></div>
+                <div style="${cardStyle(124,77,255)}"><div style="${bigNum('primary-color')}">${total}</div><div style="${subText}">Total Registered</div><div style="margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><i class="fa-solid fa-users"></i> Pledged Storage</div></div>
+                <div style="${cardStyle(255,82,82)}"><div style="${bigNum('error')}">${offline}</div><div style="${subText}">Offline Nodes</div><div style="margin-top:8px;"><span class="status-badge" style="display:inline-flex;padding:3px 8px;font-size:0.75rem;"><span class="dot" style="background:var(--error);box-shadow:0 0 10px var(--error);"></span><span class="text">Offline</span></span></div></div>
+            </div>
+            <div style="${glassStyle}margin-bottom:24px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h4 style="margin:0;font-size:0.9rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;">Network Availability</h4>
+                    <span style="font-size:1.2rem;font-weight:800;color:${pct>=75?'var(--success)':pct>=50?'var(--warning)':'var(--error)'};font-family:'Outfit',sans-serif;">${pct}%</span>
                 </div>
-
-                <!-- Network Health Bar -->
-                <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; margin-bottom: 24px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Network Availability</h4>
-                        <span style="font-size: 1.2rem; font-weight: 800; color: ${activePercent >= 75 ? 'var(--success)' : activePercent >= 50 ? 'var(--warning)' : 'var(--error)'}; font-family: 'Outfit', sans-serif;">${activePercent}%</span>
-                    </div>
-                    <div style="width: 100%; height: 12px; background: rgba(255,255,255,0.06); border-radius: 6px; overflow: hidden;">
-                        <div style="width: ${activePercent}%; height: 100%; background: linear-gradient(90deg, var(--primary-color), var(--success)); border-radius: 6px; transition: width 0.6s ease;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary);">
-                        <span>${activeCount} of ${totalCount} nodes are active</span>
-                        <span>${offlineCount} currently offline</span>
-                    </div>
+                <div style="width:100%;height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--primary-color),var(--success));border-radius:6px;transition:width 0.6s ease;"></div>
                 </div>
-
-                <!-- Bottom Stats Row -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px;">
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Total Network Capacity</div>
-                        <div style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); font-family: 'Outfit', sans-serif;">${capacityGB >= 1000 ? (capacityGB / 1000).toFixed(1) + ' TB' : capacityGB + ' GB'}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;"><i class="fa-solid fa-database" style="margin-right: 4px;"></i>From active pledges</div>
-                    </div>
-                    <div style="background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px;">
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Avg. Provider Reputation</div>
-                        <div style="font-size: 1.8rem; font-weight: 800; color: ${avgRep >= 80 ? 'var(--success)' : avgRep >= 50 ? 'var(--warning)' : 'var(--error)'}; font-family: 'Outfit', sans-serif;">${avgRep.toFixed(0)}<span style="font-size: 0.9rem; opacity: 0.7;">/100</span></div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;"><i class="fa-solid fa-star" style="margin-right: 4px;"></i>Network average</div>
-                    </div>
+                <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.75rem;color:var(--text-secondary);">
+                    <span>${active} of ${total} nodes are active</span><span>${offline} currently offline</span>
                 </div>
-            `;
-        }
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="${glassStyle}"><div style="${labelStyle}">Total Network Capacity</div><div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);font-family:'Outfit',sans-serif;">${fmtGB(capGB)}</div><div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;"><i class="fa-solid fa-database" style="margin-right:4px;"></i>From all pledges</div></div>
+                <div style="${glassStyle}"><div style="${labelStyle}">Avg. Provider Reputation</div><div style="font-size:1.8rem;font-weight:800;color:${avgRep>=80?'var(--success)':avgRep>=50?'var(--warning)':'var(--error)'};font-family:'Outfit',sans-serif;">${avgRep.toFixed(0)}<span style="font-size:0.9rem;opacity:0.7;">/100</span></div><div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;"><i class="fa-solid fa-star" style="margin-right:4px;"></i>Network average</div></div>
+            </div>`;
     }
 
     if (viewId === 'capacity-detail') {
-        const trend = document.getElementById('capacity-trend-chart');
-        if (trend) {
-            trend.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; font-size: 2rem; color: var(--primary-color);">Current Network Capacity: ${getStat('stat-capacity')}</div>`;
-        }
+        const c = document.getElementById('capacity-detail-content'); if (!c) return;
+        const activeCap = parseFloat(s.total_capacity_gb)||0, totalCap = parseFloat(s.total_capacity_all_gb)||0;
+        const used = parseFloat(s.total_utilization_gb)||0, free = Math.max(0,totalCap-used);
+        const pct = totalCap>0?Math.round((used/totalCap)*100):0;
+        c.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+                <div style="${cardStyle(124,77,255)}"><div style="${bigNum('primary-color')}">${fmtGB(totalCap)}</div><div style="${subText}">Total Pledged</div><div style="margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><i class="fa-solid fa-hard-drive"></i> All Pledges</div></div>
+                <div style="${cardStyle(0,230,118)}"><div style="${bigNum('success')}">${fmtGB(activeCap)}</div><div style="${subText}">Active Capacity</div><div style="margin-top:8px;"><span class="status-badge online" style="display:inline-flex;padding:3px 8px;font-size:0.75rem;"><span class="dot"></span><span class="text">Online</span></span></div></div>
+                <div style="${cardStyle(255,171,64)}"><div style="${bigNum('warning')}">${fmtGB(free)}</div><div style="${subText}">Available</div><div style="margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><i class="fa-solid fa-box-open"></i> Free Space</div></div>
+            </div>
+            <div style="${glassStyle}">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="${labelStyle}margin-bottom:0;">Storage Utilization</span>
+                    <span style="font-size:1.2rem;font-weight:800;color:${pct>=80?'var(--error)':pct>=50?'var(--warning)':'var(--success)'};font-family:'Outfit',sans-serif;">${pct}%</span>
+                </div>
+                <div style="width:100%;height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--primary-color),var(--success));border-radius:6px;transition:width 0.6s ease;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><span>${fmtGB(used)} used of ${fmtGB(totalCap)}</span><span>${fmtGB(free)} remaining</span></div>
+            </div>`;
     }
 
     if (viewId === 'utilization-detail') {
-        const list = document.getElementById('usage-breakdown-list');
-        if (list) {
-            list.innerHTML = `
-                <div style="padding: 15px; margin-bottom: 10px; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; justify-content: space-between;">
-                    <span>Storage Used</span>
-                    <span style="color: var(--secondary-color); font-weight: bold;">${getStat('stat-utilization')}</span>
+        const c = document.getElementById('utilization-detail-content'); if (!c) return;
+        const totalCap = parseFloat(s.total_capacity_all_gb)||0, used = parseFloat(s.total_utilization_gb)||0;
+        const free = Math.max(0,totalCap-used), pct = totalCap>0?Math.round((used/totalCap)*100):0;
+        const activeProv = parseInt(s.active_providers)||0;
+        c.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                <div style="${cardStyle(124,77,255)}"><div style="${bigNum('primary-color')}">${fmtGB(used)}</div><div style="${subText}">Storage Used</div></div>
+                <div style="${cardStyle(0,230,118)}"><div style="${bigNum('success')}">${fmtGB(free)}</div><div style="${subText}">Available Space</div></div>
+            </div>
+            <div style="${glassStyle}margin-bottom:24px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="${labelStyle}margin-bottom:0;">Network Utilization</span>
+                    <span style="font-size:1.2rem;font-weight:800;color:${pct>=80?'var(--error)':pct>=50?'var(--warning)':'var(--success)'};font-family:'Outfit',sans-serif;">${pct}%</span>
                 </div>
-                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; justify-content: space-between;">
-                    <span>Total Pledged</span>
-                    <span style="color: var(--primary-color); font-weight: bold;">${getStat('stat-capacity')}</span>
+                <div style="width:100%;height:12px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--primary-color),var(--success));border-radius:6px;"></div>
                 </div>
-            `;
-        }
+                <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><span>${fmtGB(used)} utilized</span><span>${fmtGB(totalCap)} total</span></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="${glassStyle}"><div style="${labelStyle}">Active Providers</div><div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);font-family:'Outfit',sans-serif;">${activeProv}</div><div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;"><i class="fa-solid fa-server" style="margin-right:4px;"></i>Contributing storage</div></div>
+                <div style="${glassStyle}"><div style="${labelStyle}">Total Network Pledged</div><div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);font-family:'Outfit',sans-serif;">${fmtGB(totalCap)}</div><div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;"><i class="fa-solid fa-database" style="margin-right:4px;"></i>All pledges combined</div></div>
+            </div>`;
     }
 
     if (viewId === 'revenue-detail') {
-        const revenueList = document.getElementById('revenue-streams');
-        if (revenueList) {
-            revenueList.innerHTML = `
-                <div style="padding: 15px; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; justify-content: space-between;">
-                    <span>Storage Deal Fees</span>
-                    <span style="color: var(--success); font-weight: bold;">${getStat('stat-revenue')}</span>
+        const c = document.getElementById('revenue-detail-content'); if (!c) return;
+        const rev = parseFloat(s.total_protocol_revenue)||0, burned = parseFloat(s.total_tokens_burned)||0;
+        const net = Math.max(0,rev-burned);
+        c.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+                <div style="${cardStyle(0,230,118)}"><div style="${bigNum('success')}">${fmtKYN(rev)}</div><div style="${subText}">Total Revenue</div><div style="margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><i class="fa-solid fa-coins"></i> KYN Earned</div></div>
+                <div style="${cardStyle(255,82,82)}"><div style="${bigNum('error')}">${fmtKYN(burned)}</div><div style="${subText}">Tokens Burned</div><div style="margin-top:8px;"><span class="status-badge" style="display:inline-flex;padding:3px 8px;font-size:0.75rem;"><span class="dot" style="background:var(--error);box-shadow:0 0 10px var(--error);"></span><span class="text">Deflationary</span></span></div></div>
+                <div style="${cardStyle(124,77,255)}"><div style="${bigNum('primary-color')}">${fmtKYN(net)}</div><div style="${subText}">Net Revenue</div><div style="margin-top:8px;font-size:0.75rem;color:var(--text-secondary);"><i class="fa-solid fa-chart-line"></i> After Burns</div></div>
+            </div>
+            <div style="${glassStyle}">
+                <div style="${labelStyle}margin-bottom:12px;">Revenue Source</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(255,255,255,0.02);border-radius:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-file-contract" style="color:var(--primary-color);"></i><span>Storage Deal Fees</span></div>
+                    <span style="font-weight:700;color:var(--success);">${fmtKYN(rev)} KYN</span>
                 </div>
-            `;
-        }
+            </div>`;
     }
 
     if (viewId === 'burned-detail') {
-        const burnChart = document.getElementById('burn-rate-chart');
-        if (burnChart) {
-            burnChart.innerHTML = `<div style="display: flex; height: 100%; align-items: center; justify-content: center; font-size: 2rem; color: var(--danger);">Total Burned: ${getStat('stat-burned')}</div>`;
-        }
+        const c = document.getElementById('burned-detail-content'); if (!c) return;
+        const burned = parseFloat(s.total_tokens_burned)||0, rev = parseFloat(s.total_protocol_revenue)||0;
+        const ratio = rev>0?Math.round((burned/rev)*100):0, shards = parseInt(s.active_shards)||0;
+        c.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                <div style="${cardStyle(255,82,82)}"><div style="font-size:2.5rem;font-weight:800;color:var(--error);font-family:'Outfit',sans-serif;">${fmtKYN(burned)}</div><div style="font-size:0.9rem;color:var(--text-secondary);margin-top:4px;">Total KYN Burned</div><div style="margin-top:10px;"><span class="status-badge" style="display:inline-flex;padding:3px 8px;font-size:0.75rem;"><span class="dot" style="background:var(--error);box-shadow:0 0 10px var(--error);"></span><span class="text">Permanently Removed</span></span></div></div>
+                <div style="${cardStyle(255,171,64)}"><div style="font-size:2.5rem;font-weight:800;color:var(--warning);font-family:'Outfit',sans-serif;">${ratio}%</div><div style="font-size:0.9rem;color:var(--text-secondary);margin-top:4px;">Burn Ratio</div><div style="margin-top:10px;font-size:0.75rem;color:var(--text-secondary);"><i class="fa-solid fa-fire"></i> Of total protocol revenue</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="${glassStyle}"><div style="${labelStyle}">Burn Source</div><div style="font-size:1.4rem;font-weight:700;color:var(--text-primary);">Slashing Events</div><div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;"><i class="fa-solid fa-gavel" style="margin-right:4px;"></i>Provider penalties</div></div>
+                <div style="${glassStyle}"><div style="${labelStyle}">Active Shards</div><div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);font-family:'Outfit',sans-serif;">${shards}</div><div style="font-size:0.75rem;color:var(--text-secondary);margin-top:4px;"><i class="fa-solid fa-cubes" style="margin-right:4px;"></i>Data segments stored</div></div>
+            </div>`;
     }
 }
+
+
 
 // Provider Portal Logic
 function formatStorage(gb) {
@@ -2345,7 +2375,7 @@ async function handleStake() {
         if (allowance.gte(amount)) {
             showNotification('success', 'Already Approved', 'You have already approved KYN tokens. Proceeding to registration...');
             document.getElementById('step-register').classList.remove('disabled');
-            stakeBtn.textContent = 'Approved ✓';
+            stakeBtn.textContent = 'Approved âœ“';
 
             // Auto-fill Peer ID if possible
             const peerIdInput = document.getElementById('reg-peer-id');
@@ -2387,7 +2417,7 @@ async function handleStake() {
         showNotification('success', 'Approval Successful', 'KYN tokens approved. You can now register your node.');
         addActivity('User', 'Approved 1,000 KYN for staking', 'user');
 
-        stakeBtn.textContent = 'Approved ✓';
+        stakeBtn.textContent = 'Approved âœ“';
         document.getElementById('step-register').classList.remove('disabled');
 
         // Auto-fill Peer ID if possible (simulated for now)
@@ -2779,7 +2809,7 @@ async function handleExitPledge(pledgeId) {
 
         if (!isActive) {
             showNotification('success', 'Node Removed', `Pledge #${pledgeId} was already exited on-chain. Removing from dashboard.`);
-            addActivity('System', `Pledge #${pledgeId} is already inactive — removing from view.`, 'system');
+            addActivity('System', `Pledge #${pledgeId} is already inactive â€” removing from view.`, 'system');
 
             // Forcefully remove the node from the DOM immediately
             const activeNodesList = document.getElementById('active-nodes-list');
