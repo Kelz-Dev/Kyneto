@@ -631,7 +631,9 @@ async function checkProviderStatus() {
                         // Consider offline if no heartbeat in the last 45 seconds
                         if (now - lastHeartbeat > 45 * 1000) {
                             const offlineTime = Math.max(0, now - lastHeartbeat);
-                            const totalTime = Math.max(now - registeredAt, 1);
+                            // Pad totalTime so uptime doesn't abruptly drop to 0% for new nodes
+                            // Assume at least 7 days (604800000 ms) baseline for uptime calculation
+                            const totalTime = Math.max(now - registeredAt, 7 * 24 * 60 * 60 * 1000);
                             const onlineRatio = Math.max(0, 1 - (offlineTime / totalTime));
                             uptime = (onlineRatio * 100).toFixed(1);
                             isNodeOnline = false;
@@ -653,18 +655,24 @@ async function checkProviderStatus() {
             if (dealsStat) dealsStat.textContent = dealsCompleted;
 
             // Make Reputation Dynamic
-            let dynamicReputation = reputation; // Base contract score
-            const uptimeParsed = parseFloat(uptime);
+            // Instead of starting at 50 and adding up, start at 100 and deduct for offline time/failures
+            let dynamicReputation = 100;
+            
+            // 1. Penalize for failed offline time: -1 per 30 minutes offline
+            let offlinePenalty = 0;
+            if (!isNodeOnline && apiData && apiData.provider && apiData.provider.last_heartbeat) {
+                const lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+                const offlineMs = Date.now() - lastHeartbeat;
+                // deduct 1 point per 30 mins (30 * 60 * 1000 ms)
+                offlinePenalty = Math.floor(offlineMs / (30 * 60 * 1000));
+            }
+            dynamicReputation -= offlinePenalty;
 
-            // Uptime contribution (up to +25 points)
-            if (uptimeParsed >= 99.0) dynamicReputation += 25;
-            else if (uptimeParsed >= 90.0) dynamicReputation += 15;
-            else if (uptimeParsed < 50.0) dynamicReputation -= 25;
-
-            // Deals contribution (up to +25 points)
+            // 2. Penalize for failed deals
             if (totalDeals > 0) {
-                const successRatio = dealsCompleted / totalDeals;
-                dynamicReputation += Math.round((successRatio * 25) - ((1 - successRatio) * 25));
+                const failRatio = dealsFailed / totalDeals;
+                // if 100% of deals failed, drop reputation by 50 points
+                dynamicReputation -= Math.round(failRatio * 50);
             }
 
             dynamicReputation = Math.max(0, Math.min(100, dynamicReputation));
