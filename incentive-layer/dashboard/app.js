@@ -1,4 +1,4 @@
-﻿const getApiUrl = () => {
+const getApiUrl = () => {
     // Production: Use the same origin (https://kyneto.app)
     if (window.location.hostname === 'kyneto.app' || window.location.hostname === 'www.kyneto.app') {
         return window.location.origin;
@@ -1316,7 +1316,7 @@ function updateStatsUI(stats) {
 
     if (deals) deals.textContent = stats.active_deals || 0;
     if (providers) providers.innerHTML = `<span style="color:var(--success);">${stats.active_providers || 0} Active</span> <span style="color:var(--text-secondary);font-size:0.8em;opacity:0.8;">| ${stats.total_providers || 0} Total</span>`;
-    if (capacity) capacity.textContent = `${stats.total_capacity_gb || 0} GB`;
+    if (capacity) capacity.textContent = `${stats.total_capacity_all_gb || stats.total_capacity_gb || 0} GB`;
 
     // Format KYN values to 2 decimal places if they are strings/numbers
     const formatKYN = (val) => {
@@ -1327,8 +1327,9 @@ function updateStatsUI(stats) {
     if (revenue) revenue.textContent = `${formatKYN(stats.total_protocol_revenue)} KYN`;
     if (burned) burned.textContent = `${formatKYN(stats.total_tokens_burned)} KYN`;
 
-    const utilization = stats.total_capacity_gb > 0
-        ? Math.round((stats.total_utilization_gb / stats.total_capacity_gb) * 100)
+    const totalCap = parseFloat(stats.total_capacity_all_gb || stats.total_capacity_gb) || 0;
+    const utilization = totalCap > 0
+        ? Math.round((stats.total_utilization_gb / totalCap) * 100)
         : 0;
     if (utilizationElem) utilizationElem.textContent = `${utilization}%`;
 }
