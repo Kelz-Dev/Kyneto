@@ -162,5 +162,9 @@ jobs:
           echo "Starting all services..."
           sudo docker-compose -f docker-compose.prod.yaml up -d
 
+          # Force restart api-server so it recompiles TypeScript from updated source files
+          echo "Restarting api-server to pick up code changes..."
+          sudo docker-compose -f docker-compose.prod.yaml restart api-server
+
           sudo docker system prune -f
           echo "Deployment complete!"
