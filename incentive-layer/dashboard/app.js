@@ -2244,7 +2244,10 @@ function simulateDetailData(viewId) {
 
     if (viewId === 'capacity-detail') {
         const c = document.getElementById('capacity-detail-content'); if (!c) return;
-        const activeCap = parseFloat(s.total_capacity_gb)||0, totalCap = parseFloat(s.total_capacity_all_gb)||0;
+        let activeCap = parseFloat(s.total_capacity_gb)||0;
+        const totalCap = parseFloat(s.total_capacity_all_gb)||0;
+        const activeProv = parseInt(s.active_providers)||0;
+        if (activeCap === 0 && activeProv > 0) activeCap = totalCap;
         const used = parseFloat(s.total_utilization_gb)||0, free = Math.max(0,totalCap-used);
         const pct = totalCap>0?Math.round((used/totalCap)*100):0;
         c.innerHTML = `
