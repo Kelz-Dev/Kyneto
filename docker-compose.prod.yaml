@@ -192,6 +192,25 @@ services:
     depends_on:
       - prometheus
 
+    # ===========================================
+    # Uptime Monitor / Downtime Slasher
+    # ===========================================
+  uptime-monitor:
+    image: node:20-alpine
+    working_dir: /app
+    restart: unless-stopped
+    volumes:
+      - ./incentive-layer/services/uptime-monitor:/app
+    environment:
+      - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
+      - RPC_URL=https://rpc-amoy.polygon.technology
+      - SLASHING_ADDRESS=${SLASHING_MANAGER_CONTRACT}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm install && npm run build && npm start"
+
 volumes:
   ipfs_path:
   ipfs_fuse:
