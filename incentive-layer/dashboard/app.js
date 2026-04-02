@@ -738,11 +738,11 @@ async function checkProviderStatus() {
                     const remainingValue = document.getElementById('remaining-value');
                     if (remainingValue) remainingValue.textContent = formatStorage(totalCapacity);
 
-                    // If registered, switch to provider view if they are on "become-provider"
-                    const currentView = document.querySelector('.view.active');
-                    if (currentView && currentView.id === 'become-provider-view') {
-                        switchView('provider');
-                    }
+                    const currentCapDisplay = document.getElementById('current-capacity-display');
+                    if (currentCapDisplay) currentCapDisplay.textContent = formatStorage(totalCapacity);
+                    
+                    const currentStakeDisplay = document.getElementById('current-stake-display');
+                    if (currentStakeDisplay) currentStakeDisplay.textContent = `${parseFloat(ethers.utils.formatUnits(totalCollateral, 18)).toFixed(2)} KYN`;
 
                     // Show management sections only if there are active pledges
                     const noNodesState = document.getElementById('no-nodes-state');
