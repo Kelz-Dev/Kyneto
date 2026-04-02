@@ -288,6 +288,9 @@ app.get('/api/stats', async (req: Request, res: Response) => {
         (SELECT COALESCE(SUM(amount), 0) FROM slashing_events) as total_tokens_burned
     `);
 
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
         res.json(stats.rows[0]);
 
     } catch (error) {

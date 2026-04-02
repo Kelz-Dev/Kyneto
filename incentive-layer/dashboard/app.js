@@ -1268,7 +1268,9 @@ async function fetchStats() {
             const stats = {
                 active_deals: Math.max(apiStats.active_deals || 0, activeDeals.toNumber()),
                 active_providers: apiStats.active_providers !== undefined ? apiStats.active_providers : 0,
-                total_capacity_gb: Math.max(apiStats.total_capacity_gb || 0, totalCapacity.toNumber()),
+                total_providers: apiStats.total_providers !== undefined ? apiStats.total_providers : providerCount.toNumber(),
+                total_capacity_all_gb: Math.max(apiStats.total_capacity_all_gb || 0, totalCapacity.toNumber()),
+                total_capacity_gb: apiStats.total_capacity_gb || 0,
                 total_utilization_gb: apiStats.total_utilization_gb || 0,
                 total_protocol_revenue: ethers.utils.formatUnits(feesCollected, 18),
                 total_tokens_burned: ethers.utils.formatUnits(tokensBurned, 18)
