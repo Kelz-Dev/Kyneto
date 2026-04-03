@@ -743,11 +743,34 @@ async function checkProviderStatus() {
                     const currentStakeDisplay = document.getElementById('current-stake-display');
                     if (currentStakeDisplay) currentStakeDisplay.textContent = `${parseFloat(ethers.utils.formatUnits(totalCollateral, 18)).toFixed(2)} KYN`;
 
-                    // Show management sections only if there are active pledges
-                    const noNodesState = document.getElementById('no-nodes-state');
-                    const activeNodesList = document.getElementById('active-nodes-list');
-                    const storageManagement = document.getElementById('storage-management');
-                    const upgradeBtn = document.getElementById('btn-upgrade-pledge');
+                if (numPledges === 0 && isProvider) {
+                    console.log('Provider registered but has no pledges yet, using backend fallback...');
+                    const fallbackCapacity = apiData && apiData.provider && apiData.provider.total_capacity_gb ? apiData.provider.total_capacity_gb : 10;
+                    const statusLabel = isNodeOnline ? 
+                        '<span class="status-badge online" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot"></span><span class="text">Online</span></span>' : 
+                        '<span class="status-badge" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></span><span class="text">Offline</span></span>';
+                        
+                    pledgesHtml += `
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
+                            <div class="stat-info">
+                                <span class="label">Legacy Pledge (Recovered)</span>
+                                <span class="value">${formatStorage(fallbackCapacity)} Pledged ${statusLabel}</span>
+                            </div>
+                            <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
+                                <button class="btn-danger btn-sm" onclick="alert('Please create a new pledge. Previous contract data cleared.')">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Action Required
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Show management sections only if there are active pledges or legacy pledges
+                const noNodesState = document.getElementById('no-nodes-state');
+                const activeNodesList = document.getElementById('active-nodes-list');
+                const storageManagement = document.getElementById('storage-management');
+                const upgradeBtn = document.getElementById('btn-upgrade-pledge');
 
                     if (pledgesHtml) {
                         if (noNodesState) noNodesState.classList.add('hidden');
