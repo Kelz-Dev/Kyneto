@@ -773,7 +773,11 @@ async function checkProviderStatus() {
                     const storageManagement = document.getElementById('storage-management');
                     const upgradeBtn = document.getElementById('btn-upgrade-pledge');
 
-                    if (noNodesState) noNodesState.classList.remove('hidden');
+                    if (noNodesState) {
+                        noNodesState.classList.remove('hidden');
+                        const p = noNodesState.querySelector('p');
+                        if (p) p.innerHTML = "You are not currently contributing storage to the network.<br/><br/><strong style='color:var(--error);'>System Alert: Your previous pledges are not displaying because the smart contracts were recently upgraded, clearing the ledger. Please submit a new storage pledge.</strong>";
+                    }
                     if (activeNodesList) activeNodesList.classList.add('hidden');
                     if (storageManagement) storageManagement.classList.add('hidden');
                     if (upgradeBtn) upgradeBtn.classList.add('hidden');
