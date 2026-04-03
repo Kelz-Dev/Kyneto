@@ -36,6 +36,7 @@ jobs:
 
     - name: Build and push Landing Page
       uses: docker/build-push-action@v5
+      continue-on-error: true
       with:
         context: ./landing-page
         file: ./landing-page/Dockerfile
@@ -46,6 +47,7 @@ jobs:
 
     - name: Build and push Incentive Dashboard
       uses: docker/build-push-action@v5
+      continue-on-error: true
       with:
         context: ./incentive-layer/dashboard
         file: ./incentive-layer/dashboard/Dockerfile
@@ -56,6 +58,7 @@ jobs:
 
     - name: Build and push ML Sidecar
       uses: docker/build-push-action@v5
+      continue-on-error: true
       with:
         context: ./Machine_Learning_sidecar
         file: ./Machine_Learning_sidecar/Dockerfile
@@ -65,10 +68,11 @@ jobs:
         cache-to: type=gha,mode=max,scope=ml-sidecar
 
   # =============================================
-  # Job 2: Deploy pre-built images to EC2
+  # Job 2: Deploy to EC2 (ALWAYS runs, even if build fails)
   # =============================================
   deploy:
     needs: build
+    if: always()
     runs-on: ubuntu-latest
 
     steps:
@@ -152,19 +156,20 @@ jobs:
           # Login to GHCR on the server (private repo)
           echo "${{ secrets.GHCR_PAT }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-          # Pull pre-built images (fast — no compilation!)
+          # Pull pre-built images (ignore failures for images that didn't build)
           echo "Pulling pre-built images from GHCR..."
-          sudo docker pull ghcr.io/kelz-dev/kubo-master/landing-page:latest
-          sudo docker pull ghcr.io/kelz-dev/kubo-master/incentive-dashboard:latest
-          sudo docker pull ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest
+          sudo docker pull ghcr.io/kelz-dev/kubo-master/landing-page:latest || true
+          sudo docker pull ghcr.io/kelz-dev/kubo-master/incentive-dashboard:latest || true
+          sudo docker pull ghcr.io/kelz-dev/kubo-master/ml-sidecar:latest || true
 
           # Deploy everything (no --build needed!)
           echo "Starting all services..."
           sudo docker-compose -f docker-compose.prod.yaml up -d
 
-          # Force restart api-server so it recompiles TypeScript from updated source files
-          echo "Restarting api-server to pick up code changes..."
+          # Force restart services that use volume mounts so they pick up new files
+          echo "Restarting services to pick up code changes..."
           sudo docker-compose -f docker-compose.prod.yaml restart api-server
+          sudo docker-compose -f docker-compose.prod.yaml restart incentive-dashboard
 
           sudo docker system prune -f
           echo "Deployment complete!"

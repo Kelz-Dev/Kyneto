@@ -695,7 +695,7 @@ async function checkProviderStatus() {
                     for (let i = 0; i < numPledges; i++) {
                         const pledge = await pledgeContract.getPledge(userAddress, i);
                         const capacity = pledge[0].toNumber();
-                        const collateral = pledge[1]; // Fix collateral index
+                        const collateral = pledge[1];
                         const isActive = pledge[6];
 
                         totalCapacity += capacity;
@@ -742,65 +742,68 @@ async function checkProviderStatus() {
                     
                     const currentStakeDisplay = document.getElementById('current-stake-display');
                     if (currentStakeDisplay) currentStakeDisplay.textContent = `${parseFloat(ethers.utils.formatUnits(totalCollateral, 18)).toFixed(2)} KYN`;
+                }
 
+                // ====================================================
+                // FALLBACK: Provider is registered but contract has 0 pledges
+                // This happens when contracts are upgraded/redeployed.
+                // Read capacity from the backend DB instead.
+                // ====================================================
                 if (numPledges === 0 && isProvider) {
-                    console.log('Provider registered but has no pledges yet, using backend fallback...');
-                    const fallbackCapacity = apiData && apiData.provider && apiData.provider.total_capacity_gb ? apiData.provider.total_capacity_gb : 10;
+                    console.log('Provider registered but contract has 0 pledges. Using DB fallback...');
+                    
+                    let fallbackCapacity = 10; // Default
+                    try {
+                        const dbRes = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                        if (dbRes.ok) {
+                            const dbData = await dbRes.json();
+                            if (dbData && dbData.provider && dbData.provider.total_capacity_gb) {
+                                fallbackCapacity = dbData.provider.total_capacity_gb;
+                            }
+                        }
+                    } catch (dbErr) {
+                        console.warn('DB fallback fetch failed:', dbErr.message);
+                    }
+
                     const statusLabel = isNodeOnline ? 
                         '<span class="status-badge online" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot"></span><span class="text">Online</span></span>' : 
                         '<span class="status-badge" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></span><span class="text">Offline</span></span>';
-                        
+
                     pledgesHtml += `
                         <div class="stat-card">
                             <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
                             <div class="stat-info">
-                                <span class="label">Legacy Pledge (Recovered)</span>
+                                <span class="label">Storage Pledge</span>
                                 <span class="value">${formatStorage(fallbackCapacity)} Pledged ${statusLabel}</span>
                             </div>
                             <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
-                                <button class="btn-danger btn-sm" onclick="alert('Please create a new pledge. Previous contract data cleared.')">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Action Required
+                                <button class="btn-primary btn-sm" onclick="switchView('upgrade-pledge')">
+                                    <i class="fa-solid fa-circle-up"></i> Upgrade Pledge
                                 </button>
                             </div>
                         </div>
                     `;
                 }
 
-                // Show management sections only if there are active pledges or legacy pledges
+                // ====================================================
+                // RENDER: Show pledge cards or empty state
+                // ====================================================
                 const noNodesState = document.getElementById('no-nodes-state');
                 const activeNodesList = document.getElementById('active-nodes-list');
                 const storageManagement = document.getElementById('storage-management');
                 const upgradeBtn = document.getElementById('btn-upgrade-pledge');
 
-                    if (pledgesHtml) {
-                        if (noNodesState) noNodesState.classList.add('hidden');
-                        if (activeNodesList) {
-                            activeNodesList.classList.remove('hidden');
-                            activeNodesList.innerHTML = pledgesHtml;
-                        }
-                        if (storageManagement) storageManagement.classList.remove('hidden');
-                        if (upgradeBtn) upgradeBtn.classList.remove('hidden');
-                    } else {
-                        // All pledges are inactive
-                        if (noNodesState) noNodesState.classList.remove('hidden');
-                        if (activeNodesList) activeNodesList.classList.add('hidden');
-                        if (storageManagement) storageManagement.classList.add('hidden');
-                        if (upgradeBtn) upgradeBtn.classList.add('hidden');
+                if (pledgesHtml) {
+                    if (noNodesState) noNodesState.classList.add('hidden');
+                    if (activeNodesList) {
+                        activeNodesList.classList.remove('hidden');
+                        activeNodesList.innerHTML = pledgesHtml;
                     }
-
+                    if (storageManagement) storageManagement.classList.remove('hidden');
+                    if (upgradeBtn) upgradeBtn.classList.remove('hidden');
                 } else {
-                    console.log('Provider registered but has no pledges yet.');
-                    // Reset UI to "Become a Provider" state
-                    const noNodesState = document.getElementById('no-nodes-state');
-                    const activeNodesList = document.getElementById('active-nodes-list');
-                    const storageManagement = document.getElementById('storage-management');
-                    const upgradeBtn = document.getElementById('btn-upgrade-pledge');
-
-                    if (noNodesState) {
-                        noNodesState.classList.remove('hidden');
-                        const p = noNodesState.querySelector('p');
-                        if (p) p.innerHTML = "You are not currently contributing storage to the network.<br/><br/><strong style='color:var(--error);'>System Alert: Your previous pledges are not displaying because the smart contracts were recently upgraded, clearing the ledger. Please submit a new storage pledge.</strong>";
-                    }
+                    // Truly new provider, no pledges at all
+                    if (noNodesState) noNodesState.classList.remove('hidden');
                     if (activeNodesList) activeNodesList.classList.add('hidden');
                     if (storageManagement) storageManagement.classList.add('hidden');
                     if (upgradeBtn) upgradeBtn.classList.add('hidden');
