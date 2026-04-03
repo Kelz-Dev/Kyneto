@@ -785,6 +785,12 @@ async function checkProviderStatus() {
 
             } catch (pledgeErr) {
                 console.warn('Error fetching pledges:', pledgeErr);
+                const noNodesState = document.getElementById('no-nodes-state');
+                if (noNodesState) {
+                    noNodesState.classList.remove('hidden');
+                    const p = noNodesState.querySelector('p');
+                    if (p) p.innerHTML = "<strong style='color:var(--error);'>Fatal UI Rendering Error:</strong> " + pledgeErr.message + "<br/><br/><small>" + pledgeErr.stack + "</small>";
+                }
             }
         } else {
             // Not a provider, ensure UI is in "Become a Provider" state
