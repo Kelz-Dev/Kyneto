@@ -61,6 +61,10 @@ export class BlockchainListener {
             await this.handleDealCompleted(dealId, event);
         });
 
+        marketplace.on('DealCancelled', async (dealId, client, event) => {
+            await this.handleDealCancelled(dealId, client, event);
+        });
+
         marketplace.on('ShardLost', async (dealId, provider, shardIndex, event) => {
             await this.handleShardLost(dealId, provider, shardIndex, event);
         });
@@ -146,8 +150,45 @@ export class BlockchainListener {
                 'UPDATE deals SET status = $1, completed_at = NOW() WHERE deal_id = $2',
                 ['completed', dealId.toString()]
             );
+
+            // Mark all shards as inactive so providers clean up
+            await this.db.query(
+                'UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true',
+                [dealId.toString()]
+            );
+
+            // Log protocol event
+            await this.db.query(
+                `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
+                ['DEAL_COMPLETED', `Deal #${dealId} completed — shards marked for cleanup`, JSON.stringify({ dealId: dealId.toString() })]
+            );
         } catch (error) {
             this.logger.error('Error handling DealCompleted:', error);
+        }
+    }
+
+    private async handleDealCancelled(dealId: bigint, client: string, event: any) {
+        this.logger.info(`Deal cancelled: #${dealId} by ${client}`);
+
+        try {
+            await this.db.query(
+                'UPDATE deals SET status = $1, cancelled_at = NOW() WHERE deal_id = $2',
+                ['cancelled', dealId.toString()]
+            );
+
+            // Mark all shards as inactive so providers clean up
+            await this.db.query(
+                'UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true',
+                [dealId.toString()]
+            );
+
+            // Log protocol event
+            await this.db.query(
+                `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
+                ['DEAL_CANCELLED', `Deal #${dealId} cancelled by client ${client.substring(0, 10)}...`, JSON.stringify({ dealId: dealId.toString(), client })]
+            );
+        } catch (error) {
+            this.logger.error('Error handling DealCancelled:', error);
         }
     }
 
@@ -279,6 +320,7 @@ const marketplaceABI = [
     'event DealCreated(uint256 indexed dealId, address indexed client, uint256 fileSizeGB, uint256 totalCost)',
     'event ShardAssigned(uint256 indexed dealId, address indexed provider, uint256 shardIndex, string shardCID)',
     'event DealCompleted(uint256 indexed dealId)',
+    'event DealCancelled(uint256 indexed dealId, address indexed client)',
     'event ShardLost(uint256 indexed dealId, address indexed provider, uint256 shardIndex)'
 ];
 

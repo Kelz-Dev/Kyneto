@@ -436,6 +436,101 @@ app.get('/api/deals/:dealId/key', async (req: Request, res: Response) => {
 });
 
 /**
+ * DELETE /api/deals/:id - Cancel a deal and trigger provider cleanup
+ */
+app.delete('/api/deals/:id', async (req: Request, res: Response) => {
+    try {
+        const dealId = req.params.id;
+
+        // Verify deal exists and is active
+        const dealResult = await db.query(
+            'SELECT * FROM deals WHERE deal_id = $1',
+            [dealId]
+        );
+
+        if (dealResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Deal not found' });
+        }
+
+        const deal = dealResult.rows[0];
+        if (deal.status !== 'active' && deal.status !== 'in_grace_period') {
+            return res.status(400).json({ error: `Deal is already ${deal.status}` });
+        }
+
+        // Mark deal as cancelled
+        await db.query(
+            'UPDATE deals SET status = $1, cancelled_at = NOW() WHERE deal_id = $2',
+            ['cancelled', dealId]
+        );
+
+        // Fetch shard CIDs before deactivating (for WebSocket broadcast)
+        const shardsResult = await db.query(
+            'SELECT shard_cid, provider_address FROM shards WHERE deal_id = $1 AND active = true',
+            [dealId]
+        );
+        const shardCIDs = shardsResult.rows.map((s: any) => s.shard_cid);
+        const providerAddresses = [...new Set(shardsResult.rows.map((s: any) => s.provider_address))];
+
+        // Deactivate all shards
+        await db.query(
+            'UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true',
+            [dealId]
+        );
+
+        // Log protocol event
+        await db.query(
+            'INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)',
+            ['DEAL_CANCELLED', `Deal #${dealId} cancelled — ${shardCIDs.length} shards marked for cleanup`,
+             JSON.stringify({ dealId, shardCIDs, providerAddresses })]
+        );
+
+        // Broadcast to all connected providers via WebSocket
+        io.emit('deal:cancelled', { dealId, shardCIDs, providerAddresses });
+
+        res.json({
+            success: true,
+            message: `Deal #${dealId} cancelled. ${shardCIDs.length} shards queued for provider cleanup.`,
+            shards_deactivated: shardCIDs.length
+        });
+
+    } catch (error) {
+        console.error('Error cancelling deal:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /api/providers/:address/cleanup - Get shard CIDs that should be unpinned
+ * Returns inactive shards from cancelled/completed/failed deals for this provider
+ */
+app.get('/api/providers/:address/cleanup', async (req: Request, res: Response) => {
+    try {
+        const address = req.params.address;
+
+        const result = await db.query(
+            `SELECT s.shard_cid, s.deal_id, d.status as deal_status, s.deleted_at
+             FROM shards s
+             JOIN deals d ON s.deal_id = d.deal_id
+             WHERE LOWER(s.provider_address) = LOWER($1)
+               AND s.active = false
+               AND d.status IN ('cancelled', 'completed', 'failed')
+             ORDER BY s.deleted_at DESC`,
+            [address]
+        );
+
+        res.json({
+            provider: address,
+            cleanup_count: result.rows.length,
+            shards: result.rows
+        });
+
+    } catch (error) {
+        console.error('Error fetching cleanup list:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
  * GET /health - Health check
  */
 app.get('/health', (req: Request, res: Response) => {

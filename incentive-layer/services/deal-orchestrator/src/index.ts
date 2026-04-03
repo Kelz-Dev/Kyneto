@@ -33,7 +33,9 @@ export class DealOrchestrator {
         const marketplaceABI = [
             'function createDeal(string fileCID, uint256 fileSizeGB, uint256 durationDays, uint256 pricePerGBMonth, address[] selectedProviders, string[] shardCIDs, uint256[] shardSizes) returns (uint256)',
             'function repairShard(uint256 dealId, address oldProvider, address newProvider, string newShardCID)',
-            'function getShardAllocation(uint256 dealId, address provider) view returns (uint256 shardIndex, string shardCID, uint256 sizeGB, bool active)'
+            'function cancelDeal(uint256 dealId)',
+            'function getShardAllocation(uint256 dealId, address provider) view returns (uint256 shardIndex, string shardCID, uint256 sizeGB, bool active)',
+            'event DealCancelled(uint256 indexed dealId, address indexed client)'
         ];
         this.marketplaceContract = new ethers.Contract(marketplaceAddress, marketplaceABI, this.provider);
     }
@@ -96,6 +98,51 @@ export class DealOrchestrator {
 
         } catch (error) {
             this.logger.error('Error creating deal:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Terminate a deal — calls cancelDeal on the smart contract,
+     * updates the database, and marks all shards for provider cleanup
+     */
+    async terminateDeal(dealId: string, clientSigner: ethers.Signer): Promise<void> {
+        this.logger.info(`Terminating deal #${dealId}...`);
+
+        try {
+            // Step 1: Call cancelDeal on the smart contract
+            this.logger.info('Step 1: Cancelling deal on blockchain...');
+            const marketplace = this.marketplaceContract.connect(clientSigner);
+            const tx = await (marketplace as any).cancelDeal(dealId);
+
+            this.logger.info(`Transaction sent: ${tx.hash}`);
+            await tx.wait();
+            this.logger.info(`✅ Deal #${dealId} cancelled on-chain`);
+
+            // Step 2: Update database (blockchain listener will also do this,
+            // but we do it here for immediate consistency)
+            this.logger.info('Step 2: Updating database...');
+            await this.db.query(
+                'UPDATE deals SET status = $1, cancelled_at = NOW() WHERE deal_id = $2',
+                ['cancelled', dealId]
+            );
+
+            // Step 3: Mark all shards as inactive
+            await this.db.query(
+                'UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true',
+                [dealId]
+            );
+
+            // Step 4: Log protocol event
+            await this.db.query(
+                `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
+                ['DEAL_TERMINATED', `Deal #${dealId} terminated via orchestrator`, JSON.stringify({ dealId })]
+            );
+
+            this.logger.info(`✅ Deal #${dealId} fully terminated — providers will clean up on next cycle`);
+
+        } catch (error) {
+            this.logger.error(`Error terminating deal #${dealId}:`, error);
             throw error;
         }
     }

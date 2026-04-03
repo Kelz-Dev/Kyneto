@@ -7,6 +7,7 @@ import { MerkleTree } from 'merkletreejs';
 import keccak256 from 'keccak256';
 import * as fs from 'fs';
 import * as path from 'path';
+import { io as ioClient, Socket } from 'socket.io-client';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ class ProviderDaemon {
     private eventInterval: NodeJS.Timeout | null = null;
     private merkleTrees: Map<string, MerkleTree> = new Map();
     private shardData: Map<string, Buffer[]> = new Map();
+    private relaySocket: Socket | null = null;
 
     private readonly API_URL = process.env.API_URL || 'http://localhost:3000';
     private readonly HEARTBEAT_MS = 30000; // 30 seconds
@@ -79,6 +81,9 @@ class ProviderDaemon {
             logger.warn('⚠️  PROOF_VERIFIER_CONTRACT not set. PoSt challenges will not be handled.');
         }
 
+        // Connect to relay WebSocket for real-time deal cancellation events
+        this.connectRelaySocket();
+
         // Start heartbeat
         this.heartbeatInterval = setInterval(() => this.sendHeartbeat(), this.HEARTBEAT_MS);
         this.sendHeartbeat();
@@ -88,6 +93,52 @@ class ProviderDaemon {
         this.checkAssignments();
 
         logger.info('✅ Provider Daemon is active and monitoring.');
+    }
+
+    /**
+     * Connect to the API relay WebSocket for real-time deal cancellation events
+     */
+    private connectRelaySocket() {
+        try {
+            this.relaySocket = ioClient(this.API_URL);
+
+            this.relaySocket.on('connect', () => {
+                logger.info('🔌 Connected to API relay WebSocket');
+                // Register this provider for RPC
+                this.relaySocket!.emit('register:provider', { address: this.wallet.address });
+            });
+
+            // Listen for deal cancellation events — triggers immediate cleanup
+            this.relaySocket.on('deal:cancelled', async (data: { dealId: string, shardCIDs: string[], providerAddresses: string[] }) => {
+                const myAddress = this.wallet.address.toLowerCase();
+                const isAffected = data.providerAddresses.some(
+                    (addr: string) => addr.toLowerCase() === myAddress
+                );
+
+                if (isAffected) {
+                    logger.info(`🗑️  Deal #${data.dealId} cancelled — cleaning up ${data.shardCIDs.length} shards immediately`);
+                    for (const cid of data.shardCIDs) {
+                        await this.unpinAndCleanup(cid);
+                    }
+                }
+            });
+
+            // Respond to RPC peer-id requests from the dashboard
+            this.relaySocket.on('rpc:get-peer-id', async (callback: Function) => {
+                try {
+                    const id = await this.ipfs.id();
+                    callback({ peerId: id.id });
+                } catch (e) {
+                    callback({ error: 'Failed to get peer ID' });
+                }
+            });
+
+            this.relaySocket.on('disconnect', () => {
+                logger.warn('🔌 Disconnected from API relay WebSocket');
+            });
+        } catch (err: any) {
+            logger.warn(`⚠️ Failed to connect relay WebSocket: ${err.message}`);
+        }
     }
 
     private async handlePoStChallenge(challengeId: bigint, dealId: bigint) {
@@ -175,8 +226,75 @@ class ProviderDaemon {
                     }
                 }
             }
+
+            // After pinning active shards, clean up any shards from cancelled/completed/failed deals
+            await this.cleanupDeletedShards();
         } catch (error: any) {
             logger.error(`❌ Error checking assignments: ${error.message}`);
+        }
+    }
+
+    /**
+     * Poll the API for shards that should be unpinned and clean them up
+     */
+    private async cleanupDeletedShards() {
+        try {
+            logger.info('🧹 Checking for shards to clean up...');
+            const response = await axios.get(`${this.API_URL}/api/providers/${this.wallet.address}/cleanup`);
+            const { shards, cleanup_count } = response.data;
+
+            if (cleanup_count === 0) {
+                logger.info('✅ No shards to clean up.');
+                return;
+            }
+
+            logger.info(`🗑️  Found ${cleanup_count} shards to clean up`);
+
+            for (const shard of shards) {
+                await this.unpinAndCleanup(shard.shard_cid);
+            }
+
+            logger.info(`✅ Cleanup complete — ${cleanup_count} shards freed`);
+        } catch (error: any) {
+            logger.error(`❌ Error during shard cleanup: ${error.message}`);
+        }
+    }
+
+    /**
+     * Unpin a CID from IPFS and free associated in-memory data
+     */
+    private async unpinAndCleanup(cid: string) {
+        try {
+            // Unpin from IPFS/Kubo to free disk space
+            try {
+                await this.ipfs.pin.rm(cid);
+                logger.info(`📌 Unpinned shard: ${cid}`);
+            } catch (unpinErr: any) {
+                // May already be unpinned or not found — that's fine
+                if (!unpinErr.message?.includes('not pinned')) {
+                    logger.warn(`⚠️ Could not unpin ${cid}: ${unpinErr.message}`);
+                }
+            }
+
+            // Free in-memory Merkle tree and sector data
+            if (this.merkleTrees.has(cid)) {
+                this.merkleTrees.delete(cid);
+                logger.info(`🌳 Freed Merkle tree for: ${cid}`);
+            }
+            if (this.shardData.has(cid)) {
+                this.shardData.delete(cid);
+                logger.info(`💾 Freed sector data for: ${cid}`);
+            }
+
+            // Trigger IPFS garbage collection to reclaim disk space
+            try {
+                await this.ipfs.repo.gc();
+            } catch (gcErr: any) {
+                // GC is best-effort
+                logger.debug(`GC note: ${gcErr.message}`);
+            }
+        } catch (error: any) {
+            logger.error(`❌ Failed to cleanup shard ${cid}: ${error.message}`);
         }
     }
 
@@ -258,6 +376,7 @@ class ProviderDaemon {
         if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
         if (this.eventInterval) clearInterval(this.eventInterval);
         if (this.proverContract) this.proverContract.removeAllListeners();
+        if (this.relaySocket) this.relaySocket.disconnect();
         logger.info('🛑 Provider Daemon stopped.');
     }
 }

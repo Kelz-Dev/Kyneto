@@ -97,6 +97,10 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         address indexed newProvider,
         uint256 shardIndex
     );
+    event DealCancelled(
+        uint256 indexed dealId,
+        address indexed client
+    );
     event ProtocolFeeUpdated(uint256 newFee);
     event TreasuryUpdated(address newTreasury);
     event KynPriceUpdated(uint256 newPrice);
@@ -309,14 +313,67 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
 
         deal.status = DealStatus.Completed;
 
-        // Update provider stats
+        // Update provider stats and deactivate all shards
         for (uint256 i = 0; i < deal.providers.length; i++) {
-            if (deal.shardAllocations[deal.providers[i]].active) {
-                registry.recordDealCompleted(deal.providers[i]);
+            address provider = deal.providers[i];
+            if (deal.shardAllocations[provider].active) {
+                registry.recordDealCompleted(provider);
+                deal.shardAllocations[provider].active = false;
+                deal.activeShards--;
             }
         }
 
+        // Release escrowed funds to providers
+        deal.escrowedAmount = 0;
+
         emit DealCompleted(dealId);
+    }
+
+    /**
+     * @dev Cancel a deal (client-initiated early termination)
+     * Client receives pro-rata refund based on remaining time
+     */
+    function cancelDeal(uint256 dealId) external nonReentrant {
+        Deal storage deal = deals[dealId];
+        require(
+            deal.status == DealStatus.Active ||
+                deal.status == DealStatus.InGracePeriod,
+            "Deal not active"
+        );
+        require(deal.client == msg.sender, "Not your deal");
+
+        deal.status = DealStatus.Cancelled;
+
+        // Deactivate all shards so providers know to clean up
+        for (uint256 i = 0; i < deal.providers.length; i++) {
+            address provider = deal.providers[i];
+            if (deal.shardAllocations[provider].active) {
+                deal.shardAllocations[provider].active = false;
+                deal.activeShards--;
+            }
+        }
+
+        // Calculate pro-rata refund based on remaining time
+        uint256 elapsed = block.timestamp > deal.startTime
+            ? block.timestamp - deal.startTime
+            : 0;
+        uint256 totalDuration = deal.endTime - deal.startTime;
+        uint256 refundAmount = 0;
+
+        if (elapsed < totalDuration && deal.escrowedAmount > 0) {
+            uint256 remaining = totalDuration - elapsed;
+            refundAmount = (deal.escrowedAmount * remaining) / totalDuration;
+        }
+
+        if (refundAmount > 0) {
+            deal.escrowedAmount -= refundAmount;
+            require(
+                token.transfer(deal.client, refundAmount),
+                "Refund failed"
+            );
+        }
+
+        emit DealCancelled(dealId, deal.client);
     }
 
     /**

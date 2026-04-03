@@ -249,7 +249,7 @@ const DISTRIBUTOR_ABI = [
 // Contract Addresses (Hardcoded for Polygon Amoy - Update these with your deployed addresses)
 const KYN_TOKEN_ADDRESS = '0xC33eA878fC9819Fa2d60fD60EF6A89EbA871930A';
 const CAPACITY_PLEDGE_ADDRESS = '0x2E158F19704B8A1C0D00CE562c2E3ee923e235E5';
-const STORAGE_MARKETPLACE_ADDRESS = '0x242545610D645Ac3526c7c9b3866Ccc66e333322';
+const STORAGE_MARKETPLACE_ADDRESS = '0x042C022d001cF6Ff1a3bD038BBA7ff2917c2cbcE';
 const PROVIDER_REGISTRY_ADDRESS = '0x2Cc10CdCbF9D2b7b6b8AcE8b607d8652772075Dd';
 const PROOF_VERIFIER_ADDRESS = '0xfac091c63921709A7F5375aA465Bba42E5755695';
 const SLASHING_MANAGER_ADDRESS = '0x0f4927b287b441af412019636887847A8639D17C';
@@ -695,11 +695,8 @@ async function checkProviderStatus() {
                     for (let i = 0; i < numPledges; i++) {
                         const pledge = await pledgeContract.getPledge(userAddress, i);
                         const capacity = pledge[0].toNumber();
-                        const collateral = pledge[2];
+                        const collateral = pledge[1]; // Fix collateral index
                         const isActive = pledge[6];
-
-                        // Only show and count active pledges
-                        if (!isActive) continue;
 
                         totalCapacity += capacity;
                         totalCollateral = totalCollateral.add(collateral);
@@ -709,12 +706,14 @@ async function checkProviderStatus() {
                             '<span class="status-badge online" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot"></span><span class="text">Online</span></span>' : 
                             '<span class="status-badge" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></span><span class="text">Offline</span></span>';
 
+                        const inactiveLabel = !isActive && isNodeOnline ? '<span class="status-badge" style="display: inline-flex; padding: 4px 10px; margin-left: 10px; background: rgba(255,255,255,0.1);"><span class="text">Inactive On-Chain</span></span>' : statusLabel;
+
                         pledgesHtml += `
                             <div class="stat-card">
                                 <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
                                 <div class="stat-info">
                                     <span class="label">${label} (ID: ${i})</span>
-                                    <span class="value">${formatStorage(capacity)} Pledged ${statusLabel}</span>
+                                    <span class="value">${formatStorage(capacity)} Pledged ${inactiveLabel}</span>
                                 </div>
                                 <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
                                     <button class="btn-secondary btn-sm" onclick="submitProof(${i})">

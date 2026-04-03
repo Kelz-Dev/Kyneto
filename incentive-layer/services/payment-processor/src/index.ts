@@ -124,11 +124,12 @@ export class PaymentProcessor {
      */
     private async processUsageRewards() {
         try {
-            // Find completed deals not yet paid
+            // Find completed deals not yet paid (exclude cancelled deals)
             const result = await this.db.query(`
         SELECT deal_id
         FROM deals
         WHERE status = 'completed'
+          AND status != 'cancelled'
           AND payment_processed = false
         LIMIT 50
       `);
