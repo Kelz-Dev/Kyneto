@@ -549,7 +549,7 @@ async function checkProviderStatus() {
         // (handles case where daemon uses a different private key than the dashboard wallet)
         if (!isProvider) {
             try {
-                const allRes = await fetch(`${API_URL}/api/providers?active=true`);
+                const allRes = await fetch(`${API_URL}/api/providers`);
                 if (allRes.ok) {
                     const allData = await allRes.json();
                     if (allData.providers && allData.providers.length > 0) {
@@ -631,7 +631,7 @@ async function checkProviderStatus() {
                     if (!apiData || !apiData.provider || !apiData.provider.registered_at) {
                         console.warn('âš ï¸ No provider row found for dashboard wallet. Checking all active providers...');
                         try {
-                            const allRes = await fetch(`${API_URL}/api/providers?active=true`);
+                            const allRes = await fetch(`${API_URL}/api/providers`);
                             if (allRes.ok) {
                                 const allData = await allRes.json();
                                 if (allData.providers && allData.providers.length > 0) {
