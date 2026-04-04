@@ -52,6 +52,8 @@ let currentPledgedCapacity = 0; // Track total pledged storage
 
 let projectId = 'YOUR_PROJECT_ID'; // User needs to replace this
 const AMOY_CHAIN_ID = '0x13882'; // 80002 in hex
+const RPC_URL = 'https://rpc-amoy.polygon.technology';
+const readOnlyProvider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
 // Contract ABIs
 const ERC20_ABI = [
@@ -1311,11 +1313,12 @@ async function fetchStats() {
         } catch (e) { console.warn('API Stats offline, falling back to contracts'); }
 
         // Fetch real-time data from contracts if provider is available
-        if (provider) {
-            const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, provider);
-            const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
-            const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
-            const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, provider);
+        const activeProvider = provider || readOnlyProvider;
+        if (activeProvider) {
+            const pledgeContract = new ethers.Contract(CAPACITY_PLEDGE_ADDRESS, CAPACITY_PLEDGE_ABI, activeProvider);
+            const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, activeProvider);
+            const registryContract = new ethers.Contract(PROVIDER_REGISTRY_ADDRESS, REGISTRY_ABI, activeProvider);
+            const tokenContract = new ethers.Contract(KYN_TOKEN_ADDRESS, ERC20_ABI, activeProvider);
 
             const [
                 totalCapacity,
@@ -1414,8 +1417,9 @@ async function fetchDeals() {
         } catch (e) { console.warn('API Deals offline, falling back to contracts'); }
 
         // If API failed or returned no deals, try contract fallback
-        if (deals.length === 0 && provider) {
-            const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
+        const activeProvider = provider || readOnlyProvider;
+        if (deals.length === 0 && activeProvider) {
+            const marketplaceContract = new ethers.Contract(STORAGE_MARKETPLACE_ADDRESS, MARKETPLACE_ABI, activeProvider);
             const count = await marketplaceContract.dealCount();
             const numDeals = count.toNumber();
 
