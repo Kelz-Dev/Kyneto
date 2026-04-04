@@ -563,10 +563,16 @@ async function checkProviderStatus() {
         console.log('Is Provider (final):', isProvider);
 
         if (isProvider) {
+            const queryAddress = window._daemonAddress || userAddress;
+            let activeProviderData = providerData;
+            if (queryAddress.toLowerCase() !== userAddress.toLowerCase()) {
+                activeProviderData = await registryContract.providers(queryAddress);
+            }
+
             // Fetch Reputation and Stats
-            let reputation = providerData[3].toNumber(); // Base contract score
-            const dealsCompleted = providerData[7].toNumber();
-            const dealsFailed = providerData[8].toNumber();
+            let reputation = activeProviderData[3].toNumber(); // Base contract score
+            const dealsCompleted = activeProviderData[7].toNumber();
+            const dealsFailed = activeProviderData[8].toNumber();
 
             const totalDeals = dealsCompleted + dealsFailed;
             let uptime = "0.0"; 
@@ -708,7 +714,7 @@ async function checkProviderStatus() {
 
             // 2. Fetch All Pledges
             try {
-                const count = await pledgeContract.pledgeCount(userAddress);
+                const count = await pledgeContract.pledgeCount(queryAddress);
                 const numPledges = count.toNumber();
                 console.log('Pledge Count:', numPledges);
 
@@ -718,7 +724,7 @@ async function checkProviderStatus() {
 
                 if (numPledges > 0) {
                     for (let i = 0; i < numPledges; i++) {
-                        const pledge = await pledgeContract.getPledge(userAddress, i);
+                        const pledge = await pledgeContract.getPledge(queryAddress, i);
                         const capacity = pledge[0].toNumber();
                         const collateral = pledge[1];
                         const isActive = pledge[6];
@@ -779,7 +785,7 @@ async function checkProviderStatus() {
                     
                     let fallbackCapacity = 10; // Default
                     try {
-                        const dbRes = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                        const dbRes = await fetch(`${API_URL}/api/providers/${queryAddress}`);
                         if (dbRes.ok) {
                             const dbData = await dbRes.json();
                             if (dbData && dbData.provider && dbData.provider.total_capacity_gb) {
