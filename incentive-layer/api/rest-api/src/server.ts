@@ -235,7 +235,7 @@ app.post('/api/heartbeat', async (req: Request, res: Response) => {
         await db.query(
             `INSERT INTO providers (address, peer_id, last_heartbeat, active, reputation_score, registered_at)
              VALUES (LOWER($1), 'pending', NOW(), true, 50, NOW())
-             ON CONFLICT (address) DO UPDATE SET last_heartbeat = NOW(), active = true`,
+             ON CONFLICT (address) DO UPDATE SET last_heartbeat = NOW(), active = true, peer_id = COALESCE(EXCLUDED.peer_id, providers.peer_id)`,
             [provider_address]
         );
 

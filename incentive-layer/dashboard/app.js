@@ -224,7 +224,8 @@ try {
     // Listen for real-time provider online/offline status changes
     dashboardSocket.on('provider:status', (data) => {
         console.log('ðŸ”” Real-time provider status update:', data);
-        if (userAddress && data.address && data.address.toLowerCase() === userAddress.toLowerCase()) {
+        const matchAddress = (window._daemonAddress || userAddress || '').toLowerCase();
+        if (matchAddress && data.address && data.address.toLowerCase() === matchAddress) {
             console.log(`ðŸ“¡ Your node is now ${data.online ? 'ONLINE âœ…' : 'OFFLINE âŒ'}. Refreshing UI...`);
             checkProviderStatus();
         }
@@ -232,8 +233,10 @@ try {
 
     // Listen for heartbeat events too
     dashboardSocket.on('heartbeat', (data) => {
-        if (userAddress && data.provider && data.provider.toLowerCase() === userAddress.toLowerCase()) {
-            console.log('ðŸ’“ Received heartbeat confirmation from server');
+        const hbMatchAddress = (window._daemonAddress || userAddress || '').toLowerCase();
+        if (hbMatchAddress && data.provider && data.provider.toLowerCase() === hbMatchAddress) {
+            console.log('Received heartbeat confirmation from server. Refreshing UI...');
+            checkProviderStatus();
         }
     });
 } catch (e) {
@@ -536,8 +539,28 @@ async function checkProviderStatus() {
         const providerData = await registryContract.providers(userAddress);
         console.log('Registry Provider Data:', providerData);
 
+        // Primary: Check if dashboard wallet is directly registered on-chain
         isProvider = providerData && providerData[0] === true;
-        console.log('Is Provider:', isProvider);
+        console.log('Is Provider (on-chain):', isProvider);
+
+        // Fallback: Check if there is ANY active daemon in the backend
+        // (handles case where daemon uses a different private key than the dashboard wallet)
+        if (!isProvider) {
+            try {
+                const allRes = await fetch(`${API_URL}/api/providers?active=true`);
+                if (allRes.ok) {
+                    const allData = await allRes.json();
+                    if (allData.providers && allData.providers.length > 0) {
+                        isProvider = true;
+                        window._daemonAddress = allData.providers[0].address;
+                        console.log('Provider found via backend fallback. Daemon address:', window._daemonAddress);
+                    }
+                }
+            } catch (e) { console.warn('Backend provider check failed:', e); }
+        } else {
+            window._daemonAddress = userAddress;
+        }
+        console.log('Is Provider (final):', isProvider);
 
         if (isProvider) {
             // Fetch Reputation and Stats
@@ -558,7 +581,8 @@ async function checkProviderStatus() {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 12000);
                 
-                const rpcRes = await fetch(`${API_URL}/api/providers/${userAddress}/rpc/peer-id`, {
+                const checkAddress = window._daemonAddress || userAddress;
+                const rpcRes = await fetch(`${API_URL}/api/providers/${checkAddress}/rpc/peer-id`, {
                     method: 'GET',
                     signal: controller.signal,
                     cache: 'no-store',
@@ -584,8 +608,9 @@ async function checkProviderStatus() {
 
             if (!directPingSuccess) {
                 try {
-                    // 2. Centralized Fallback: Fetch from backend (for historically offline tracking)
-                    let apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                    // 2. Centralized Fallback: Fetch from backend using daemon address
+                    const fallbackAddress = window._daemonAddress || userAddress;
+                    let apiResponse = await fetch(`${API_URL}/api/providers/${fallbackAddress}`);
                     let apiData = null;
 
                     if (apiResponse.ok) {

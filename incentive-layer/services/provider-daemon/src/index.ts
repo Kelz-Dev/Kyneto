@@ -202,7 +202,11 @@ class ProviderDaemon {
     private async sendHeartbeat() {
         try {
             await axios.post(`${this.API_URL}/api/heartbeat`, {
-                provider_address: this.wallet.address
+                provider_address: this.wallet.address,
+                storage: {
+                    pledged_capacity_gb: parseInt(process.env.PLEDGED_CAPACITY_GB || '10'),
+                    used_gb: 0
+                }
             });
             logger.info('💓 Heartbeat sent');
         } catch (error: any) {
