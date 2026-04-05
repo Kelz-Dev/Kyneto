@@ -13,8 +13,17 @@ import * as crypto from 'crypto';
 
 dotenv.config();
 
-// File upload configuration (50MB max)
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+// File upload configuration (500MB max)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
+
+// Rate limiter for file uploads (5 requests per minute per IP)
+const uploadLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    message: { error: 'Too many upload requests, please try again after a minute' },
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+});
 
 // IPFS/Kubo client (lazy-loaded because ipfs-http-client is ESM)
 let ipfsClient: any = null;
@@ -641,7 +650,7 @@ app.get('/api/providers/:address/rpc/peer-id', async (req: Request, res: Respons
  * POST /api/upload - Upload a file to IPFS and return the real CID
  * Accepts multipart/form-data with a 'file' field
  */
-app.post('/api/upload', upload.single('file'), async (req: Request, res: Response) => {
+app.post('/api/upload', uploadLimiter, upload.single('file'), async (req: Request, res: Response) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file provided' });
@@ -917,6 +926,98 @@ app.get('/api/deals/:id/download', async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to download file' });
     }
 });
+
+/**
+ * DELETE /api/deals/:id - Cancel a storage deal early
+ */
+app.delete('/api/deals/:id', async (req: Request, res: Response) => {
+    try {
+        const dealId = req.params.id;
+        const clientAddress = req.headers['x-client-address'] as string; // Ideally verified via signature
+
+        const dealResult = await db.query('SELECT * FROM deals WHERE deal_id = $1', [dealId]);
+        if (dealResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Deal not found' });
+        }
+
+        const deal = dealResult.rows[0];
+
+        // Basic verification (in production, verify signed message)
+        if (clientAddress && deal.client_address.toLowerCase() !== clientAddress.toLowerCase()) {
+            return res.status(403).json({ error: 'Not authorized to cancel this deal' });
+        }
+
+        if (deal.status !== 'active') {
+            return res.status(400).json({ error: `Cannot cancel deal in status: ${deal.status}` });
+        }
+
+        // Cancel deal and inactive shards
+        await db.query('UPDATE deals SET status = $1, cancelled_at = NOW() WHERE deal_id = $2', ['cancelled', dealId]);
+        await db.query('UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true', [dealId]);
+
+        // Log protocol event
+        await db.query(
+            `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
+            ['DEAL_CANCELLED', `Deal ${dealId} cancelled by client`, JSON.stringify({ dealId, clientAddress })]
+        );
+
+        // Broadcast to clients
+        io.emit('protocol_event', {
+            event_type: 'DEAL_CANCELLED',
+            description: `Storage deal cancelled: ${dealId}`,
+            data: { dealId },
+            created_at: new Date()
+        });
+
+        // Broadcast directly to provider RPC channel for immediate cleanup
+        io.emit('deal:cancelled', { dealId });
+
+        console.log(`❌ Deal ${dealId} cancelled via API, deletion propagated to providers`);
+
+        res.json({ success: true, message: 'Deal cancelled successfully' });
+
+    } catch (error: any) {
+        console.error('Error cancelling deal:', error);
+        res.status(500).json({ error: 'Failed to cancel deal' });
+    }
+});
+
+// ====================================================
+// CRON JOBS
+// ====================================================
+
+// Deal expiration check (runs every 5 minutes)
+setInterval(async () => {
+    try {
+        console.log('⏳ Running deal expiration check...');
+        const expiredResult = await db.query(`
+            SELECT deal_id FROM deals 
+            WHERE status = 'active' 
+            AND created_at + (duration_days || ' days')::interval < NOW()
+        `);
+
+        if (expiredResult.rows.length > 0) {
+            console.log(`Found ${expiredResult.rows.length} expired deals to auto-complete.`);
+            
+            for (const row of expiredResult.rows) {
+                const dealId = row.deal_id;
+                
+                // Mark deal completed and shards inactive
+                await db.query('UPDATE deals SET status = $1, completed_at = NOW() WHERE deal_id = $2', ['completed', dealId]);
+                await db.query('UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true', [dealId]);
+                
+                await db.query(
+                    `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
+                    ['DEAL_COMPLETED', `Deal ${dealId} automatically completed (expired)`, JSON.stringify({ dealId })]
+                );
+
+                io.emit('deal:cancelled', { dealId }); // Signals provider daemon to clean up shards
+            }
+        }
+    } catch (err) {
+        console.error('Error during expiration cron:', err);
+    }
+}, 5 * 60 * 1000);
 
 // Export io for use in other modules
 export { io };
