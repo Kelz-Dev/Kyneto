@@ -558,11 +558,13 @@ async function checkProviderStatus() {
             let uptime = "0.0"; 
             let directPingSuccess = false;
             let isNodeOnline = false;
+            let providerApiData = null; // Hoisted so reputation penalty logic can access it
 
+            // ====================================================
+            // STEP 1: Primary Liveness Check via WebSocket Relay RPC
+            // ====================================================
             try {
-                // Primary Check: Use the WebSocket Relay RPC to check if the provider is connected
-                // The API server will relay the request to the provider via WebSocket and return the result.
-                console.log(`ðŸ”  Checking node liveness via Relay RPC for ${userAddress}...`);
+                console.log(`🔍 Checking node liveness via Relay RPC for ${userAddress}...`);
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -577,40 +579,41 @@ async function checkProviderStatus() {
                 
                 if (rpcRes.ok) {
                     const rpcData = await rpcRes.json();
-                    console.log('ðŸ“¡ Relay RPC response:', rpcData);
+                    console.log('📡 Relay RPC response:', rpcData);
                     if (rpcData && rpcData.peerId) {
                         uptime = "100.0";
                         directPingSuccess = true;
                         isNodeOnline = true;
-                        console.log(`âœ… Node is ONLINE via Relay! Peer ID: ${rpcData.peerId}`);
+                        console.log(`✅ Node is ONLINE via Relay! Peer ID: ${rpcData.peerId}`);
                     }
                 } else {
-                    console.warn(`âš ï¸ Relay RPC returned ${rpcRes.status}. Provider may be offline.`);
+                    console.warn(`⚠️ Relay RPC returned ${rpcRes.status}. Provider may be offline.`);
                 }
             } catch (pingErr) {
-                console.warn(`âŒ Relay RPC check failed: ${pingErr.message}. Falling back to heartbeat check.`);
-                    try {
-                    // 2. Centralized Fallback: Fetch from backend
+                console.warn(`❌ Relay RPC check failed: ${pingErr.message}.`);
+            }
+
+            // ====================================================
+            // STEP 2: Heartbeat Fallback (ALWAYS runs if relay didn't confirm online)
+            // ====================================================
+            if (!directPingSuccess) {
+                try {
                     let apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
-                    let apiData = null;
 
                     if (apiResponse.ok) {
-                        apiData = await apiResponse.json();
+                        providerApiData = await apiResponse.json();
                     }
 
-                    if (apiData && apiData.provider && apiData.provider.registered_at) {
-                        uptime = "100.0";
-                        const registeredAt = new Date(apiData.provider.registered_at).getTime();
-                        
-                        let lastHeartbeat = registeredAt;
-                        if (apiData.provider.last_heartbeat) {
-                            lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+                    if (providerApiData && providerApiData.provider && providerApiData.provider.registered_at) {
+                        let lastHeartbeat = new Date(providerApiData.provider.registered_at).getTime();
+                        if (providerApiData.provider.last_heartbeat) {
+                            lastHeartbeat = new Date(providerApiData.provider.last_heartbeat).getTime();
                         }
 
                         const now = Date.now();
-
-                        // Consider offline if no heartbeat in the last 45 seconds
-                        if (now - lastHeartbeat > 45 * 1000) {
+                        // Consider offline if no heartbeat in the last 90 seconds
+                        // (heartbeats are sent every 30s; 90s = 3 missed beats)
+                        if (now - lastHeartbeat > 90 * 1000) {
                             isNodeOnline = false;
                             uptime = 'Offline';
                         } else {
@@ -621,6 +624,14 @@ async function checkProviderStatus() {
                 } catch (e) {
                     console.warn('Could not fetch dynamic uptime from API. Defaulting to Offline.');
                 }
+            } else {
+                // Relay confirmed online, but still fetch API data for reputation calculation
+                try {
+                    let apiResponse = await fetch(`${API_URL}/api/providers/${userAddress}`);
+                    if (apiResponse.ok) {
+                        providerApiData = await apiResponse.json();
+                    }
+                } catch (e) { /* non-critical */ }
             }
 
             // Update Stats UI
@@ -638,21 +649,23 @@ async function checkProviderStatus() {
             const dealsStat = document.querySelector('#provider-stat-deals .value');
             if (dealsStat) dealsStat.textContent = dealsCompleted;
 
-            // Make Reputation Dynamic
-            // Instead of starting at 50 and adding up, start at 100 and deduct for offline time/failures
+            // ====================================================
+            // STEP 3: Dynamic Reputation Score
+            // Start at 100 and deduct for offline time and failed deals
+            // ====================================================
             let dynamicReputation = 100;
             
-            // 1. Penalize for failed offline time: -1 per 30 minutes offline
+            // Penalize for offline time: -1 point per 30 minutes offline
             let offlinePenalty = 0;
-            if (!isNodeOnline && apiData && apiData.provider && apiData.provider.last_heartbeat) {
-                const lastHeartbeat = new Date(apiData.provider.last_heartbeat).getTime();
+            if (!isNodeOnline && providerApiData && providerApiData.provider && providerApiData.provider.last_heartbeat) {
+                const lastHeartbeat = new Date(providerApiData.provider.last_heartbeat).getTime();
                 const offlineMs = Date.now() - lastHeartbeat;
                 // deduct 1 point per 30 mins (30 * 60 * 1000 ms)
                 offlinePenalty = Math.floor(offlineMs / (30 * 60 * 1000));
             }
             dynamicReputation -= offlinePenalty;
 
-            // 2. Penalize for failed deals
+            // Penalize for failed deals
             if (totalDeals > 0) {
                 const failRatio = dealsFailed / totalDeals;
                 // if 100% of deals failed, drop reputation by 50 points
@@ -679,6 +692,9 @@ async function checkProviderStatus() {
                         const collateral = pledge[1];
                         const isActive = pledge[6];
 
+                        // Skip inactive/exited pledges — only show active ones
+                        if (!isActive) continue;
+
                         totalCapacity += capacity;
                         totalCollateral = totalCollateral.add(collateral);
 
@@ -687,14 +703,12 @@ async function checkProviderStatus() {
                             '<span class="status-badge online" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot"></span><span class="text">Online</span></span>' : 
                             '<span class="status-badge" style="display: inline-flex; padding: 4px 10px; margin-left: 10px;"><span class="dot" style="background: var(--error); box-shadow: 0 0 10px var(--error);"></span><span class="text">Offline</span></span>';
 
-                        const inactiveLabel = !isActive && isNodeOnline ? '<span class="status-badge" style="display: inline-flex; padding: 4px 10px; margin-left: 10px; background: rgba(255,255,255,0.1);"><span class="text">Inactive On-Chain</span></span>' : statusLabel;
-
                         pledgesHtml += `
                             <div class="stat-card">
                                 <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
                                 <div class="stat-info">
                                     <span class="label">${label} (ID: ${i})</span>
-                                    <span class="value">${formatStorage(capacity)} Pledged ${inactiveLabel}</span>
+                                    <span class="value">${formatStorage(capacity)} Pledged ${statusLabel}</span>
                                 </div>
                                 <div class="node-actions" style="margin-left: auto; display: flex; gap: 10px;">
                                     <button class="btn-secondary btn-sm" onclick="submitProof(${i})">
