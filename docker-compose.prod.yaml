@@ -64,6 +64,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
       - PORT=3000
+      - KUBO_API_URL=http://ipfs:5001
     depends_on:
       postgres:
         condition: service_healthy

@@ -8,8 +8,23 @@ import { createServer } from 'http';
 import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
 import client from 'prom-client';
+import multer from 'multer';
+import * as crypto from 'crypto';
 
 dotenv.config();
+
+// File upload configuration (50MB max)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+// IPFS/Kubo client (lazy-loaded because ipfs-http-client is ESM)
+let ipfsClient: any = null;
+async function getIpfs() {
+    if (!ipfsClient) {
+        const { create } = await (eval('import("ipfs-http-client")') as Promise<any>);
+        ipfsClient = create({ url: process.env.KUBO_API_URL || 'http://localhost:5001' });
+    }
+    return ipfsClient;
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -618,6 +633,291 @@ app.get('/api/providers/:address/rpc/peer-id', async (req: Request, res: Respons
     }
 });
 
+// ====================================================
+// PRODUCTION ROUTES: Real File Upload & Deal Pipeline
+// ====================================================
+
+/**
+ * POST /api/upload - Upload a file to IPFS and return the real CID
+ * Accepts multipart/form-data with a 'file' field
+ */
+app.post('/api/upload', upload.single('file'), async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file provided' });
+        }
+
+        const ipfs = await getIpfs();
+        const result = await ipfs.add(req.file.buffer, { pin: true });
+        const cid = result.cid.toString();
+
+        console.log(`📦 File uploaded to IPFS: ${cid} (${req.file.size} bytes)`);
+
+        res.json({
+            success: true,
+            cid,
+            size: req.file.size,
+            sizeGB: req.file.size / (1024 ** 3),
+            filename: req.file.originalname
+        });
+
+    } catch (error: any) {
+        console.error('Error uploading file:', error);
+        res.status(500).json({ error: 'Failed to upload file to storage network' });
+    }
+});
+
+/**
+ * POST /api/deals/create - Create a real storage deal
+ * Performs: erasure coding (10+5) → provider selection → DB insertion → WebSocket broadcast
+ * On-chain deal creation is handled separately by the client's wallet transaction
+ */
+app.post('/api/deals/create', async (req: Request, res: Response) => {
+    try {
+        const { fileCID, fileName, sizeGB, pricePerGBMonth, durationDays, clientAddress, encrypted } = req.body;
+
+        if (!fileCID || !clientAddress || !sizeGB) {
+            return res.status(400).json({ error: 'Missing required fields: fileCID, clientAddress, sizeGB' });
+        }
+
+        console.log(`🔧 Creating deal for file ${fileCID} (${sizeGB} GB)...`);
+
+        // Step 1: Erasure code the file into shards (10 data + 5 parity)
+        const DATA_SHARDS = 10;
+        const PARITY_SHARDS = 5;
+        const TOTAL_SHARDS = DATA_SHARDS + PARITY_SHARDS;
+
+        let shardCIDs: string[] = [];
+        let shardSizes: number[] = [];
+
+        try {
+            const ipfs = await getIpfs();
+
+            // Download the file from IPFS
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of ipfs.cat(fileCID)) {
+                chunks.push(chunk);
+            }
+            const fileData = Buffer.concat(chunks);
+            const fileSize = fileData.length;
+
+            // Simple erasure coding: split into 10 data shards, create 5 parity shards
+            const shardSize = Math.ceil(fileSize / DATA_SHARDS);
+            const dataShards: Buffer[] = [];
+
+            for (let i = 0; i < DATA_SHARDS; i++) {
+                const start = i * shardSize;
+                const end = Math.min(start + shardSize, fileSize);
+                const shard = Buffer.alloc(shardSize, 0);
+                fileData.copy(shard, 0, start, end);
+                dataShards.push(shard);
+            }
+
+            // Generate parity shards via simple XOR (lightweight erasure coding)
+            const parityShards: Buffer[] = [];
+            for (let p = 0; p < PARITY_SHARDS; p++) {
+                const parity = Buffer.alloc(shardSize, 0);
+                for (let d = 0; d < DATA_SHARDS; d++) {
+                    for (let b = 0; b < shardSize; b++) {
+                        parity[b] ^= dataShards[(d + p) % DATA_SHARDS][b];
+                    }
+                }
+                parityShards.push(parity);
+            }
+
+            const allShards = [...dataShards, ...parityShards];
+
+            // Upload each shard to IPFS
+            for (let i = 0; i < allShards.length; i++) {
+                const shardResult = await ipfs.add(allShards[i], { pin: true });
+                shardCIDs.push(shardResult.cid.toString());
+                shardSizes.push(allShards[i].length);
+            }
+
+            console.log(`✅ File split into ${TOTAL_SHARDS} shards (${DATA_SHARDS} data + ${PARITY_SHARDS} parity)`);
+
+        } catch (shardErr: any) {
+            console.error('Erasure coding failed:', shardErr.message);
+            // Fallback: store the file as a single shard
+            shardCIDs = [fileCID];
+            shardSizes = [Math.ceil((sizeGB || 0.001) * 1024 * 1024 * 1024)];
+            console.warn('⚠️ Fallback: storing file as single shard (no erasure coding)');
+        }
+
+        // Step 2: Select available providers
+        let selectedProviders: any[] = [];
+        try {
+            const providerResult = await db.query(`
+                SELECT p.address, p.peer_id, p.region, p.reputation_score,
+                       COALESCE(cp.capacity_gb, 0) as capacity_gb,
+                       COALESCE(cp.utilization_gb, 0) as utilization_gb
+                FROM providers p
+                LEFT JOIN capacity_pledges cp ON LOWER(p.address) = LOWER(cp.provider_address) AND cp.active = true
+                WHERE p.active = true
+                  AND p.last_heartbeat > NOW() - INTERVAL '90 seconds'
+                ORDER BY p.reputation_score DESC
+            `);
+
+            selectedProviders = providerResult.rows;
+            console.log(`📡 Found ${selectedProviders.length} active provider(s)`);
+
+            if (selectedProviders.length === 0) {
+                console.warn('⚠️ No active providers — shards will be stored on IPFS only (unassigned)');
+            }
+        } catch (provErr: any) {
+            console.warn('Provider selection failed:', provErr.message);
+        }
+
+        // Step 3: Create deal record in database
+        const dealId = `D-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+        const totalMonths = Math.max(1, Math.ceil((durationDays || 30) / 30));
+        const storageCost = (sizeGB || 0.001) * (pricePerGBMonth || 0.01) * totalMonths;
+        const protocolFee = storageCost * 0.03;
+
+        await db.query(
+            `INSERT INTO deals (deal_id, client_address, file_cid, file_size_gb, duration_days, price_per_gb_month, 
+                               total_cost, protocol_fee, status, created_at)
+             VALUES ($1, LOWER($2), $3, $4, $5, $6, $7, $8, 'active', NOW())`,
+            [dealId, clientAddress, fileCID, sizeGB, durationDays || 30, pricePerGBMonth || 0.01, storageCost, protocolFee]
+        );
+
+        // Step 4: Create shard records and assign to providers
+        for (let i = 0; i < shardCIDs.length; i++) {
+            // Assign shard to a provider (round-robin across available providers)
+            const assignedProvider = selectedProviders.length > 0
+                ? selectedProviders[i % selectedProviders.length].address
+                : clientAddress; // Self-assign if no providers available
+
+            await db.query(
+                `INSERT INTO shards (deal_id, shard_index, shard_cid, shard_size_bytes, provider_address, 
+                                    is_data_shard, active, created_at)
+                 VALUES ($1, $2, $3, $4, LOWER($5), $6, true, NOW())`,
+                [dealId, i, shardCIDs[i], shardSizes[i], assignedProvider, i < DATA_SHARDS]
+            );
+        }
+
+        // Step 5: Log protocol event
+        await db.query(
+            `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
+            ['DEAL_CREATED', `Deal ${dealId} created: ${fileName || 'file'} (${shardCIDs.length} shards)`,
+             JSON.stringify({ dealId, fileCID, shardCount: shardCIDs.length, providers: selectedProviders.length, encrypted: !!encrypted })]
+        );
+
+        // Step 6: Broadcast to all connected clients
+        io.emit('protocol_event', {
+            event_type: 'DEAL_CREATED',
+            description: `New storage deal: ${fileName || dealId}`,
+            data: { dealId, fileCID, shardCount: shardCIDs.length },
+            created_at: new Date()
+        });
+
+        // Notify provider daemons about new shard assignments
+        for (const provider of selectedProviders) {
+            io.to(`provider-rpc:${provider.address.toLowerCase()}`).emit('shard:assigned', {
+                dealId,
+                shardCIDs: shardCIDs.filter((_, idx) => {
+                    const assignedTo = selectedProviders[idx % selectedProviders.length];
+                    return assignedTo && assignedTo.address.toLowerCase() === provider.address.toLowerCase();
+                })
+            });
+        }
+
+        console.log(`✅ Deal ${dealId} created with ${shardCIDs.length} shards across ${selectedProviders.length} provider(s)`);
+
+        res.json({
+            success: true,
+            dealId,
+            fileCID,
+            shardCount: shardCIDs.length,
+            shardCIDs,
+            providerCount: selectedProviders.length,
+            providers: selectedProviders.map(p => ({ address: p.address, region: p.region })),
+            totalCost: storageCost + protocolFee,
+            protocolFee,
+            degradedMode: selectedProviders.length < TOTAL_SHARDS
+        });
+
+    } catch (error: any) {
+        console.error('Error creating deal:', error);
+        res.status(500).json({ error: `Failed to create deal: ${error.message}` });
+    }
+});
+
+/**
+ * GET /api/deals/:id/download - Reconstruct and download a file from its shards
+ */
+app.get('/api/deals/:id/download', async (req: Request, res: Response) => {
+    try {
+        const dealId = req.params.id;
+
+        // Get deal info
+        const dealResult = await db.query(
+            'SELECT * FROM deals WHERE deal_id = $1',
+            [dealId]
+        );
+
+        if (dealResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Deal not found' });
+        }
+
+        const deal = dealResult.rows[0];
+
+        // Try to get the original file directly from IPFS first
+        try {
+            const ipfs = await getIpfs();
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of ipfs.cat(deal.file_cid)) {
+                chunks.push(chunk);
+            }
+            const fileData = Buffer.concat(chunks);
+
+            res.set('Content-Type', 'application/octet-stream');
+            res.set('Content-Disposition', `attachment; filename="${deal.file_cid}"`);
+            res.set('X-File-CID', deal.file_cid);
+            res.set('X-Encrypted', deal.is_encrypted ? 'true' : 'false');
+            return res.send(fileData);
+
+        } catch (ipfsErr: any) {
+            console.warn(`Original file not available on IPFS, attempting shard reconstruction...`);
+        }
+
+        // Fallback: reconstruct from data shards
+        const shardsResult = await db.query(
+            `SELECT shard_cid, shard_index FROM shards 
+             WHERE deal_id = $1 AND active = true AND is_data_shard = true 
+             ORDER BY shard_index ASC`,
+            [dealId]
+        );
+
+        if (shardsResult.rows.length === 0) {
+            return res.status(404).json({ error: 'No active shards found for this deal' });
+        }
+
+        const ipfs = await getIpfs();
+        const dataShardBuffers: Buffer[] = [];
+
+        for (const shard of shardsResult.rows) {
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of ipfs.cat(shard.shard_cid)) {
+                chunks.push(chunk);
+            }
+            dataShardBuffers.push(Buffer.concat(chunks));
+        }
+
+        const reconstructedFile = Buffer.concat(dataShardBuffers);
+
+        res.set('Content-Type', 'application/octet-stream');
+        res.set('Content-Disposition', `attachment; filename="${deal.file_cid}"`);
+        res.set('X-File-CID', deal.file_cid);
+        res.set('X-Reconstructed', 'true');
+        res.send(reconstructedFile);
+
+    } catch (error: any) {
+        console.error('Error downloading deal file:', error);
+        res.status(500).json({ error: 'Failed to download file' });
+    }
+});
+
 // Export io for use in other modules
 export { io };
 
@@ -626,4 +926,5 @@ const PORT = process.env.PORT || 3002;
 httpServer.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`✅ API server running on port ${PORT}`);
     console.log(`📡 WebSocket server ready`);
+    console.log(`📦 IPFS URL: ${process.env.KUBO_API_URL || 'http://localhost:5001'}`);
 });
