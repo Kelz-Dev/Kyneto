@@ -17,7 +17,7 @@ const logger = winston.createLogger({
 });
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // Every 5 minutes
-const OFFLINE_THRESHOLD_MINUTES = 5; // Marked offline if heartbeat is older than 5 mins
+const OFFLINE_THRESHOLD_MINUTES = 24 * 60; // 24 hours (Industry standard grace period before severe collateral slashing)
 
 // SlashingManager minimal ABI for missed PoSt (heartbeat offline implies missed proofs/availability)
 const slashingABI = [

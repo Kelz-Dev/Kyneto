@@ -655,13 +655,62 @@ async function checkProviderStatus() {
             // ====================================================
             let dynamicReputation = 100;
             
-            // Penalize for offline time: -1 point per 30 minutes offline
+            // Persistent Penalty Recovery Logic
+            // The score should gradually work its way back up at the same rate it reduced (1 point per 30 mins constraint).
+            const PENALTY_STORAGE_KEY = `kyneto_rep_penalty_${userAddress}`;
+            let storedPenaltyData = { penalty: 0, lastUpdated: Date.now() };
+            
+            try {
+                const savedNodeData = localStorage.getItem(PENALTY_STORAGE_KEY);
+                if (savedNodeData) storedPenaltyData = JSON.parse(savedNodeData);
+            } catch(e){}
+
             let offlinePenalty = 0;
+
             if (!isNodeOnline && providerApiData && providerApiData.provider && providerApiData.provider.last_heartbeat) {
+                // Node is currently offline: calculate realtime penalty
                 const lastHeartbeat = new Date(providerApiData.provider.last_heartbeat).getTime();
                 const offlineMs = Date.now() - lastHeartbeat;
-                // deduct 1 point per 30 mins (30 * 60 * 1000 ms)
-                offlinePenalty = Math.floor(offlineMs / (30 * 60 * 1000));
+                
+                // Phase 1 (First 24 hours): Drip 1 point per 30 mins, hard-capped at 30.
+                const msInDay = 24 * 60 * 60 * 1000;
+                const firstDayMs = Math.min(offlineMs, msInDay);
+                const firstDayPenalty = Math.min(30, Math.floor(firstDayMs / (30 * 60 * 1000)));
+
+                // Phase 2 (After 24 hours): Depreciate at 2 points per full day offline
+                let extraDaysPenalty = 0;
+                if (offlineMs > msInDay) {
+                    const extraMs = offlineMs - msInDay;
+                    extraDaysPenalty = Math.floor((extraMs / msInDay) * 2); 
+                }
+
+                offlinePenalty = firstDayPenalty + extraDaysPenalty;
+                
+                // Save this so we remember it when the node goes back online
+                storedPenaltyData = { penalty: offlinePenalty, lastUpdated: Date.now() };
+                localStorage.setItem(PENALTY_STORAGE_KEY, JSON.stringify(storedPenaltyData));
+            } else if (isNodeOnline) {
+                // Node is online! 
+                // Work its way back up systematically using the saved penalty
+                if (storedPenaltyData.penalty > 0) {
+                    const onlineMs = Date.now() - storedPenaltyData.lastUpdated;
+                    const recoveryAmount = Math.floor(onlineMs / (30 * 60 * 1000));
+                    
+                    if (recoveryAmount > 0) {
+                        const newPenalty = Math.max(0, storedPenaltyData.penalty - recoveryAmount);
+                        // Update storage with new penalty and fast-forward the timer by the amount recovered
+                        storedPenaltyData = { 
+                            penalty: newPenalty, 
+                            lastUpdated: storedPenaltyData.lastUpdated + (recoveryAmount * 30 * 60 * 1000) 
+                        };
+                        localStorage.setItem(PENALTY_STORAGE_KEY, JSON.stringify(storedPenaltyData));
+                    }
+                    offlinePenalty = storedPenaltyData.penalty;
+                } else {
+                    // Clean start
+                    storedPenaltyData = { penalty: 0, lastUpdated: Date.now() };
+                    localStorage.setItem(PENALTY_STORAGE_KEY, JSON.stringify(storedPenaltyData));
+                }
             }
             dynamicReputation -= offlinePenalty;
 
