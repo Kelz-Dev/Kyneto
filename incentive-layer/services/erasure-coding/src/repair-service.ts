@@ -216,7 +216,7 @@ export class RepairService {
                 throw new Error('Missing blockchain configuration (PRIVATE_KEY, MARKETPLACE_ADDRESS, RPC_URL)');
             }
 
-            const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+            const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
             const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 
             const abi = [

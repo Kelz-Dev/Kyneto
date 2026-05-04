@@ -140,6 +140,11 @@ contract PaymentDistributor is Ownable, ReentrancyGuard {
 
         uint256 perShardReward = providerPool / 15;
 
+        require(
+            token.balanceOf(address(this)) >= providerPool,
+            "Insufficient balance for usage rewards"
+        );
+
         protocolFeeCollected += protocolFee;
         repairReserve += reserve;
 

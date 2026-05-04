@@ -177,6 +177,13 @@ contract CapacityPledge is Ownable {
         uint256 penalty = (pledge.collateral *
             remaining *
             EARLY_EXIT_PENALTY_PERCENT) / (pledge.duration * 100);
+
+        // Enforce minimum 1% penalty floor to prevent zero-penalty exits
+        uint256 minPenalty = pledge.collateral / 100;
+        if (penalty < minPenalty && remaining > 0) {
+            penalty = minPenalty;
+        }
+
         uint256 returnAmount = pledge.collateral - penalty;
 
         pledge.active = false;

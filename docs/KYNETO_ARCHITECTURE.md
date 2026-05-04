@@ -52,10 +52,11 @@ The foundational data layer. Kyneto does not modify the core Kubo daemon. Instea
 
 ### 3. Backend Incentive Layer (REST API & Postgres)
 Located in `incentive-layer/api/rest-api/src/server.ts`, this Node.js/Express service manages the business logic:
-- **Provider Registration:** Linking Ethereum addresses to IPFS Peer IDs.
-- **Deal Management:** Tracking storage deals and capacities.
-- **WebSocket Gateway:** Pushing real-time blockchain events to connected dashboard clients.
+- **Provider Registration:** Linking Ethereum addresses to IPFS Peer IDs. Requires EIP-191 signature proof.
+- **Deal Management:** Tracking storage deals and capacities. Deal cancellation and encryption key storage require wallet signatures.
+- **WebSocket Gateway:** Pushing real-time blockchain events to connected dashboard clients. Room-scoped emits prevent CID leaks.
 - **Database:** A PostgreSQL instance (`database-schema.sql`) acts as the high-speed index for the otherwise slow blockchain state.
+- **Authentication:** All state-changing endpoints (`DELETE /api/deals/:id`, `POST /api/heartbeat`, `POST /api/deals/:id/key`) verify EIP-191 signatures via `ethers.verifyMessage()`.
 
 ### 4. Blockchain & Consensus Layer (Indexer)
 Located in `incentive-layer/indexer/src/index.ts`, the decentralized Indexer bridges Polygon to Kyneto.
@@ -95,10 +96,11 @@ All files are encrypted **before they leave the user's device**, ensuring zero-k
 ### A. The Storage Deal Flow
 1. **Client Request:** A client requests to store a file via the REST API or Dashboard.
 2. **Uploading:** The file is uploaded directly to the client's local Kubo node.
-3. **Smart Contract:** The client signs a `createDeal` transaction on Polygon, pushing funds to escrow.
+3. **Smart Contract:** The client signs a `createDeal` transaction on Polygon, pushing funds to escrow in `StorageMarketplace`.
 4. **Indexing:** The Indexer detects the `DealCreated` event and populates the PostgreSQL database.
 5. **Erasure Coding:** The EC service splits the file into 15 shards and assigns them to 15 different active providers.
 6. **Provider Pinning:** Providers see their assigned shards, pull the CIDs from IPFS, and begin generating daily Proofs of Spacetime (PoSt).
+7. **Deal Completion:** When the deal expires, `StorageMarketplace.completeDeal()` transfers provider payments to `PaymentDistributor`, where providers can claim their earnings.
 
 ### B. The ML Feedback Loop
 1. **Initial Assessment:** When a new provider joins, the API queries `/ml/predict/reliability` to assign an initial tier.

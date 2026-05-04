@@ -29,6 +29,8 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     uint256 public constant MIN_PROVIDERS = 10; // Minimum to reconstruct
     uint256 public constant GRACE_PERIOD = 7 days;
 
+    address public paymentDistributor;
+
     struct Deal {
         address client;
         string fileCID; // IPFS CID of original file
@@ -105,6 +107,7 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     event TreasuryUpdated(address newTreasury);
     event KynPriceUpdated(uint256 newPrice);
     event FeesWithdrawn(address indexed to, uint256 amount);
+    event PaymentDistributorUpdated(address indexed distributor);
 
     struct Retrieval {
         uint256 dealId;
@@ -232,16 +235,14 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
         uint256 pricePerGBMonth = (params.pricePerGBMonthUSD * 10 ** 18) /
             kynPriceUSD;
 
-        // Verify all providers are active
+        // Verify all providers are active and unique
         for (uint256 i = 0; i < params.selectedProviders.length; i++) {
-            require(
-                registry.isProviderActive(params.selectedProviders[i]),
-                "Provider not active"
-            );
-            require(
-                params.selectedProviders[i] != address(0),
-                "Invalid provider"
-            );
+            address provider = params.selectedProviders[i];
+            require(provider != address(0), "Invalid provider");
+            require(registry.isProviderActive(provider), "Provider not active");
+            for (uint256 j = 0; j < i; j++) {
+                require(params.selectedProviders[j] != provider, "Duplicate provider");
+            }
         }
 
         // Calculate total cost and fees
@@ -323,8 +324,17 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
             }
         }
 
-        // Release escrowed funds to providers
+        // Release escrowed funds: protocol fee stays, provider payment goes to distributor
+        uint256 protocolFee = (deal.totalCost * protocolFeeBasisPoints) / 10000;
+        uint256 providerPayment = deal.escrowedAmount - protocolFee;
         deal.escrowedAmount = 0;
+
+        if (providerPayment > 0 && paymentDistributor != address(0)) {
+            require(
+                token.transfer(paymentDistributor, providerPayment),
+                "Provider payment transfer failed"
+            );
+        }
 
         emit DealCompleted(dealId);
     }
@@ -512,6 +522,7 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
 
         deal.activeShards++;
         providerDeals[newProvider].push(dealId);
+        removeProviderDeal(oldProvider, dealId);
 
         emit ShardRepaired(dealId, newProvider, shardIndex);
     }
@@ -609,12 +620,36 @@ contract StorageMarketplace is Ownable, ReentrancyGuard {
     }
 
     /**
+     * @dev Remove a deal ID from a provider's deal list (internal helper)
+     */
+    function removeProviderDeal(address provider, uint256 dealId) internal {
+        uint256[] storage providerDealList = providerDeals[provider];
+        for (uint256 i = 0; i < providerDealList.length; i++) {
+            if (providerDealList[i] == dealId) {
+                providerDealList[i] = providerDealList[providerDealList.length - 1];
+                providerDealList.pop();
+                break;
+            }
+        }
+    }
+
+    /**
      * @dev Update KYN price in USD (only owner)
      */
     function updateKynPrice(uint256 _priceUSD) external onlyOwner {
         require(_priceUSD > 0, "Invalid price");
         kynPriceUSD = _priceUSD;
         emit KynPriceUpdated(_priceUSD);
+    }
+
+    /**
+     * @dev Set the payment distributor address (only owner, once)
+     */
+    function setPaymentDistributor(address _paymentDistributor) external onlyOwner {
+        require(paymentDistributor == address(0), "Already set");
+        require(_paymentDistributor != address(0), "Invalid address");
+        paymentDistributor = _paymentDistributor;
+        emit PaymentDistributorUpdated(_paymentDistributor);
     }
 
     /**

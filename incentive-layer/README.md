@@ -35,6 +35,7 @@ kubo-master/
 - **Predictive Intelligence**: Machine Learning sidecar to predict provider failure and classify reliability.
 - **Enterprise Observability**: Prometheus metrics and centralized Grafana tracking.
 - **Highly Resilient Indexer**: Exponential backoff RPC reconnection and graceful shutdowns.
+- **Cryptographic API Authentication**: All state-changing REST endpoints require EIP-191 wallet signatures.
 
 ## Dashboard vs. Daemon: How Pledging Works
 
@@ -72,12 +73,39 @@ npm install
 
 Edit `config/chain-config.json` to set your Polygon RPC and contract addresses.
 
+### Run Tests
+
+#### Smart Contracts (Hardhat)
+```bash
+cd smart-contracts
+npm install
+npx hardhat test
+```
+
+The integration test (`test/Integration.test.js`) validates the full on-chain lifecycle:
+- Provider registration & pledging
+- Deal creation, completion, cancellation
+- Escrow fund release to PaymentDistributor
+- PoSt challenge submission & double-check prevention
+- Slashing & appeals
+
+#### REST API (Jest + Supertest)
+```bash
+cd api/rest-api
+npm install
+npm test
+```
+
+Tests cover authenticated endpoints with mocked PostgreSQL (no external DB required).
+
 ### Deploy Contracts
 
 ```bash
 cd smart-contracts
-npx hardhat run scripts/deploy.js --network mumbai
+npx hardhat run scripts/deploy-v2.js --network amoy
 ```
+
+After deployment, call `setPaymentDistributor()` on `StorageMarketplace` to wire the reward flow.
 
 ## Economic Model
 
@@ -103,6 +131,7 @@ Kyneto leverages Polygon to provide an enterprise-grade storage backbone:
 - [Smart Contracts Guide](docs/smart-contracts.md) - Contract specifications
 - [Provider Guide](docs/provider-guide.md) - How to become a storage provider
 - [Client Guide](docs/client-guide.md) - How to use the storage network
+- [API Authentication](docs/API_AUTHENTICATION.md) - EIP-191 signing requirements for protected endpoints
 
 ## Development Status
 

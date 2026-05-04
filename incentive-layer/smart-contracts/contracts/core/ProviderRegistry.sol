@@ -27,6 +27,9 @@ contract ProviderRegistry is Ownable {
     mapping(address => Provider) public providers;
     address[] public providerList;
 
+    // Authorized contracts that can record slashing, deal completion, etc.
+    mapping(address => bool) public authorizedRecordKeepers;
+
     // Reputation thresholds
     uint256 public constant INITIAL_REPUTATION = 50;
     uint256 public constant MAX_REPUTATION = 100;
@@ -118,7 +121,7 @@ contract ProviderRegistry is Ownable {
         address provider,
         uint256 amount,
         string memory reason
-    ) public onlyOwner {
+    ) public onlyAuthorizedKeeper {
         require(providers[provider].registered, "Provider not registered");
 
         uint256 newScore = providers[provider].reputationScore + amount;
@@ -137,7 +140,7 @@ contract ProviderRegistry is Ownable {
         address provider,
         uint256 amount,
         string memory reason
-    ) public onlyOwner {
+    ) public onlyAuthorizedKeeper {
         require(providers[provider].registered, "Provider not registered");
 
         uint256 currentScore = providers[provider].reputationScore;
@@ -154,10 +157,32 @@ contract ProviderRegistry is Ownable {
         }
     }
 
+    modifier onlyAuthorizedKeeper() {
+        require(
+            msg.sender == owner() || authorizedRecordKeepers[msg.sender],
+            "Not authorized"
+        );
+        _;
+    }
+
+    /**
+     * @dev Authorize a contract to record provider events (e.g. SlashingManager)
+     */
+    function authorizeRecordKeeper(address keeper) external onlyOwner {
+        authorizedRecordKeepers[keeper] = true;
+    }
+
+    /**
+     * @dev Revoke a record keeper authorization
+     */
+    function revokeRecordKeeper(address keeper) external onlyOwner {
+        authorizedRecordKeepers[keeper] = false;
+    }
+
     /**
      * @dev Record successful deal completion
      */
-    function recordDealCompleted(address provider) external onlyOwner {
+    function recordDealCompleted(address provider) external onlyAuthorizedKeeper {
         require(providers[provider].registered, "Provider not registered");
         providers[provider].totalDealsCompleted++;
 
@@ -168,7 +193,7 @@ contract ProviderRegistry is Ownable {
     /**
      * @dev Record failed deal
      */
-    function recordDealFailed(address provider) external onlyOwner {
+    function recordDealFailed(address provider) external onlyAuthorizedKeeper {
         require(providers[provider].registered, "Provider not registered");
         providers[provider].totalDealsFailed++;
 
@@ -179,7 +204,7 @@ contract ProviderRegistry is Ownable {
     /**
      * @dev Record slashing event
      */
-    function recordSlashing(address provider) external onlyOwner {
+    function recordSlashing(address provider) external onlyAuthorizedKeeper {
         require(providers[provider].registered, "Provider not registered");
         providers[provider].totalSlashingEvents++;
 

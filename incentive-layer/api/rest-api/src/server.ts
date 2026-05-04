@@ -10,11 +10,36 @@ import * as dotenv from 'dotenv';
 import client from 'prom-client';
 import multer from 'multer';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import { ethers } from 'ethers';
+
+// Ensure upload temp directory exists
+const UPLOAD_TMP_DIR = '/tmp/kyneto-uploads';
+if (!fs.existsSync(UPLOAD_TMP_DIR)) {
+    fs.mkdirSync(UPLOAD_TMP_DIR, { recursive: true });
+}
+
+function verifySignature(message: string, signature: string, expectedAddress: string): boolean {
+    try {
+        const recovered = ethers.verifyMessage(message, signature);
+        return recovered.toLowerCase() === expectedAddress.toLowerCase();
+    } catch {
+        return false;
+    }
+}
 
 dotenv.config();
 
-// File upload configuration (500MB max)
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
+// File upload configuration (500MB max, disk storage to avoid memory exhaustion)
+const upload = multer({
+    storage: multer.diskStorage({
+        destination: '/tmp/kyneto-uploads',
+        filename: (req, file, cb) => {
+            cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.originalname}`);
+        }
+    }),
+    limits: { fileSize: 500 * 1024 * 1024 }
+});
 
 // Rate limiter for file uploads (5 requests per minute per IP)
 const uploadLimiter = rateLimit({
@@ -46,14 +71,27 @@ const db = new Pool({
     connectionString: process.env.DATABASE_URL
 });
 
-// Trust proxy (required when behind Nginx to get real client IP for rate limiting)
-app.set('trust proxy', 1);
+// Trust proxy only when explicitly configured (prevents IP spoofing when not behind Nginx)
+if (process.env.BEHIND_REVERSE_PROXY === 'true') {
+    app.set('trust proxy', 1);
+}
 
 // Middleware
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(morgan('combined'));
+
+// Sanitized error response helper (never leaks stack traces in production)
+function sanitizedError(res: Response, status: number, message: string, logDetails?: any) {
+    if (logDetails) {
+        console.error(`[ERROR ${status}]`, message, logDetails);
+    }
+    const isDev = process.env.NODE_ENV === 'development';
+    const body: any = { error: message };
+    if (isDev && logDetails) body._dev = logDetails;
+    return res.status(status).json(body);
+}
 
 // Prometheus Metrics
 const register = new client.Registry();
@@ -249,10 +287,15 @@ app.get('/api/providers/:address', async (req: Request, res: Response) => {
  */
 app.post('/api/heartbeat', async (req: Request, res: Response) => {
     try {
-        const { provider_address, storage } = req.body;
+        const { provider_address, storage, signature } = req.body;
 
-        if (!provider_address) {
-            return res.status(400).json({ error: 'provider_address required' });
+        if (!provider_address || !signature) {
+            return res.status(400).json({ error: 'provider_address and signature required' });
+        }
+
+        const message = `Kyneto Provider Heartbeat`;
+        if (!verifySignature(message, signature, provider_address)) {
+            return res.status(401).json({ error: 'Invalid signature' });
         }
 
         // UPSERT: create provider row if it doesn't exist, always update heartbeat
@@ -346,7 +389,10 @@ app.get('/api/detect-region', async (req: Request, res: Response) => {
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
         // Using ip-api.com (free for non-commercial use, no API key required for basic)
-        const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,continentCode,countryCode`);
+        const controller = new AbortController();
+        const ipTimeout = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,message,continentCode,countryCode`, { signal: controller.signal });
+        clearTimeout(ipTimeout);
         const data: any = await response.json();
 
         if (data.status === 'fail') {
@@ -401,10 +447,19 @@ app.post('/api/events', async (req: Request, res: Response) => {
 app.post('/api/deals/:dealId/key', async (req: Request, res: Response) => {
     try {
         const { dealId } = req.params;
-        const { encrypted_key, encryption_iv, encryption_auth_tag, client_address } = req.body;
+        const { encrypted_key, encryption_iv, encryption_auth_tag, client_address, signature } = req.body;
 
-        if (!encrypted_key || !encryption_iv || !encryption_auth_tag || !client_address) {
+        if (!client_address || !signature) {
+            return res.status(400).json({ error: 'client_address and signature required' });
+        }
+
+        if (!encrypted_key || !encryption_iv || !encryption_auth_tag) {
             return res.status(400).json({ error: 'Missing required encryption fields' });
+        }
+
+        const keyMessage = `store-key-${dealId}`;
+        if (!verifySignature(keyMessage, signature, client_address)) {
+            return res.status(401).json({ error: 'Invalid signature' });
         }
 
         await db.query(
@@ -481,6 +536,15 @@ app.delete('/api/deals/:id', async (req: Request, res: Response) => {
             return res.status(400).json({ error: `Deal is already ${deal.status}` });
         }
 
+        const { client_address, signature } = req.body;
+        if (!client_address || !signature) {
+            return res.status(400).json({ error: 'client_address and signature required' });
+        }
+        const cancelMessage = `cancel-deal-${dealId}`;
+        if (!verifySignature(cancelMessage, signature, deal.client_address)) {
+            return res.status(401).json({ error: 'Invalid signature' });
+        }
+
         // Mark deal as cancelled
         await db.query(
             'UPDATE deals SET status = $1, cancelled_at = NOW() WHERE deal_id = $2',
@@ -508,8 +572,10 @@ app.delete('/api/deals/:id', async (req: Request, res: Response) => {
              JSON.stringify({ dealId, shardCIDs, providerAddresses })]
         );
 
-        // Broadcast to all connected providers via WebSocket
-        io.emit('deal:cancelled', { dealId, shardCIDs, providerAddresses });
+        // Broadcast only to affected provider rooms via WebSocket
+        providerAddresses.forEach((addr: string) => {
+            io.to(`provider-rpc:${addr.toLowerCase()}`).emit('deal:cancelled', { dealId, shardCIDs });
+        });
 
         res.json({
             success: true,
@@ -657,8 +723,12 @@ app.post('/api/upload', uploadLimiter, upload.single('file'), async (req: Reques
         }
 
         const ipfs = await getIpfs();
-        const result = await ipfs.add(req.file.buffer, { pin: true });
+        const fileBuffer = fs.readFileSync(req.file.path);
+        const result = await ipfs.add(fileBuffer, { pin: true });
         const cid = result.cid.toString();
+
+        // Clean up temp file
+        try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
 
         console.log(`📦 File uploaded to IPFS: ${cid} (${req.file.size} bytes)`);
 
@@ -710,31 +780,25 @@ app.post('/api/deals/create', async (req: Request, res: Response) => {
             const fileData = Buffer.concat(chunks);
             const fileSize = fileData.length;
 
-            // Simple erasure coding: split into 10 data shards, create 5 parity shards
+            // Proper Reed-Solomon erasure coding (10 data + 5 parity)
+            const { ReedSolomonErasure } = require('@subspace/reed-solomon-erasure.wasm');
+            const rs = await ReedSolomonErasure.fromCurrentDirectory();
+
             const shardSize = Math.ceil(fileSize / DATA_SHARDS);
-            const dataShards: Buffer[] = [];
+            const totalSize = shardSize * TOTAL_SHARDS;
 
-            for (let i = 0; i < DATA_SHARDS; i++) {
-                const start = i * shardSize;
-                const end = Math.min(start + shardSize, fileSize);
-                const shard = Buffer.alloc(shardSize, 0);
-                fileData.copy(shard, 0, start, end);
-                dataShards.push(shard);
+            const contiguousBuffer = Buffer.alloc(totalSize);
+            fileData.copy(contiguousBuffer);
+
+            const encodeResult = rs.encode(contiguousBuffer, DATA_SHARDS, PARITY_SHARDS);
+            if (encodeResult !== 0) {
+                throw new Error(`Reed-Solomon encoding failed with error code: ${encodeResult}`);
             }
 
-            // Generate parity shards via simple XOR (lightweight erasure coding)
-            const parityShards: Buffer[] = [];
-            for (let p = 0; p < PARITY_SHARDS; p++) {
-                const parity = Buffer.alloc(shardSize, 0);
-                for (let d = 0; d < DATA_SHARDS; d++) {
-                    for (let b = 0; b < shardSize; b++) {
-                        parity[b] ^= dataShards[(d + p) % DATA_SHARDS][b];
-                    }
-                }
-                parityShards.push(parity);
+            const allShards: Buffer[] = [];
+            for (let i = 0; i < TOTAL_SHARDS; i++) {
+                allShards.push(Buffer.from(contiguousBuffer.subarray(i * shardSize, (i + 1) * shardSize)));
             }
-
-            const allShards = [...dataShards, ...parityShards];
 
             // Upload each shard to IPFS
             for (let i = 0; i < allShards.length; i++) {
@@ -986,46 +1050,62 @@ app.delete('/api/deals/:id', async (req: Request, res: Response) => {
 // CRON JOBS
 // ====================================================
 
-// Deal expiration check (runs every 5 minutes)
+// Deal expiration check (runs every 5 minutes; disabled in test mode)
+if (process.env.NODE_ENV !== 'test') {
 setInterval(async () => {
     try {
         console.log('⏳ Running deal expiration check...');
         const expiredResult = await db.query(`
-            SELECT deal_id FROM deals 
-            WHERE status = 'active' 
+            SELECT deal_id FROM deals
+            WHERE status = 'active'
             AND created_at + (duration_days || ' days')::interval < NOW()
         `);
 
         if (expiredResult.rows.length > 0) {
             console.log(`Found ${expiredResult.rows.length} expired deals to auto-complete.`);
-            
+
             for (const row of expiredResult.rows) {
                 const dealId = row.deal_id;
-                
-                // Mark deal completed and shards inactive
-                await db.query('UPDATE deals SET status = $1, completed_at = NOW() WHERE deal_id = $2', ['completed', dealId]);
-                await db.query('UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true', [dealId]);
-                
-                await db.query(
-                    `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
-                    ['DEAL_COMPLETED', `Deal ${dealId} automatically completed (expired)`, JSON.stringify({ dealId })]
-                );
-
-                io.emit('deal:cancelled', { dealId }); // Signals provider daemon to clean up shards
+                try {
+                    await db.query('BEGIN');
+                    await db.query('UPDATE deals SET status = $1, completed_at = NOW() WHERE deal_id = $2', ['completed', dealId]);
+                    await db.query('UPDATE shards SET active = false, deleted_at = NOW() WHERE deal_id = $1 AND active = true', [dealId]);
+                    await db.query(
+                        `INSERT INTO protocol_events (event_type, description, data) VALUES ($1, $2, $3)`,
+                        ['DEAL_COMPLETED', `Deal ${dealId} automatically completed (expired)`, JSON.stringify({ dealId })]
+                    );
+                    await db.query('COMMIT');
+                    io.emit('deal:cancelled', { dealId });
+                } catch (innerErr: any) {
+                    await db.query('ROLLBACK').catch(() => {});
+                    console.error(`[CRON] Failed to auto-complete deal ${dealId}:`, innerErr.message || innerErr);
+                }
             }
         }
-    } catch (err) {
-        console.error('Error during expiration cron:', err);
+    } catch (err: any) {
+        console.error('[CRON] Fatal error during expiration check:', err.message || err);
     }
 }, 5 * 60 * 1000);
+}
 
 // Export io for use in other modules
-export { io };
+export { io, app, httpServer, db };
 
-// Start server
-const PORT = process.env.PORT || 3002;
-httpServer.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`✅ API server running on port ${PORT}`);
-    console.log(`📡 WebSocket server ready`);
-    console.log(`📦 IPFS URL: ${process.env.KUBO_API_URL || 'http://localhost:5001'}`);
+// Global error handler — catches anything that slipped through route handlers
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('[UNHANDLED ERROR]', err);
+    const isDev = process.env.NODE_ENV === 'development';
+    const body: any = { error: 'Internal server error' };
+    if (isDev) body._dev = { message: err.message, stack: err.stack };
+    res.status(500).json(body);
 });
+
+// Start server (disabled in test mode so supertest can bind its own port)
+if (process.env.NODE_ENV !== 'test') {
+    const PORT = process.env.PORT || 3002;
+    httpServer.listen(Number(PORT), '0.0.0.0', () => {
+        console.log(`✅ API server running on port ${PORT}`);
+        console.log(`📡 WebSocket server ready`);
+        console.log(`📦 IPFS URL: ${process.env.KUBO_API_URL || 'http://localhost:5001'}`);
+    });
+}

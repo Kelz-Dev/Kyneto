@@ -77,7 +77,7 @@ async function connectWithRetry(): Promise<ethers.JsonRpcProvider> {
  */
 async function processBlock(blockNumber: number) {
     try {
-        const result = await db.query('SELECT * FROM deals');
+        const result = await db.query('SELECT * FROM deals ORDER BY created_at DESC LIMIT 1000');
         const deals = result.rows;
 
         const metadata = {

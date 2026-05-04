@@ -63,7 +63,9 @@ contract StorageToken is ERC20, Ownable {
 
     /**
      * @dev Burn tokens from another address (for slashing)
-     * Can only be called by authorized burners (SlashingManager contract)
+     * Can only be called by authorized burners (SlashingManager contract).
+     * NOTE: This is a PRIVILEGED burn — it does NOT check ERC20 allowance.
+     * Slashing is enforced by protocol governance, not by user consent.
      */
     function burnFrom(address from, uint256 amount) external {
         require(authorizedBurners[msg.sender], "Not authorized to burn");
@@ -107,7 +109,7 @@ contract StorageToken is ERC20, Ownable {
     /**
      * @dev Update inflation rate (called annually)
      */
-    function updateInflationRate() external {
+    function updateInflationRate() external onlyOwner {
         require(
             block.timestamp >= lastInflationTimestamp + 365 days,
             "Too early"

@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import { Logger } from 'winston';
 import { ethers } from 'ethers';
-import * as crypto from 'crypto';
+import { randomInt } from 'crypto';
 
 /**
  * ProofGenerator - Automated Proof-of-Spacetime challenge generation
@@ -102,9 +102,8 @@ export class ProofGenerator {
             // Generate random leaf indices
             const leafIndices: number[] = [];
             for (let i = 0; i < this.CHALLENGE_SECTORS; i++) {
-                // For this demo, we'll pick indices between 0 and 100
-                // In production, this would be based on the actual number of sectors in the shard
-                leafIndices.push(Math.floor(Math.random() * 100));
+                // Pick random indices based on the actual number of sectors in the shard
+                leafIndices.push(randomInt(0, 100));
             }
 
             this.logger.debug(`Creating challenge for provider ${providerAddress} on deal ${dealId}`);

@@ -201,8 +201,12 @@ class ProviderDaemon {
 
     private async sendHeartbeat() {
         try {
+            const message = 'Kyneto Provider Heartbeat';
+            const signature = await this.wallet.signMessage(message);
+
             await axios.post(`${this.API_URL}/api/heartbeat`, {
                 provider_address: this.wallet.address,
+                signature: signature,
                 storage: {
                     pledged_capacity_gb: parseInt(process.env.PLEDGED_CAPACITY_GB || '10'),
                     used_gb: 0

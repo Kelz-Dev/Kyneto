@@ -1,0 +1,8 @@
+{
+  "ann_failure.pkl": "2dd9b1ae557d7cf2a8db897d2ab62c48e99008da5e5804dc0762f7d24567f0c2",
+  "cart_failure.pkl": "def0ae8443aa374d1eca5418b4cbb73a64f6cf0e478bc8b87b9244e7bc8c9c31",
+  "cart_reliability.pkl": "ac1b060ea627410c9e7f914d99c913b6a12b6b57f3f6301acd60008d76bf7f82",
+  "catboost_failure.pkl": "4a5beccf9e82f4c294a5777cfad8c9c4274a619c41259a15c06bc59a3b306a34",
+  "xgboost_failure.pkl": "ef3568552fee49e311acdca77cfdfbc385a33d2302edfe9322ae79dc6e2473f0",
+  "xgboost_reliability.pkl": "7c3eda30cbd760d36d46e9a5e39771e323c93118eabd0099a74a29aa1d869f5b"
+}

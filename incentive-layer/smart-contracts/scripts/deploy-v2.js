@@ -72,16 +72,27 @@ async function main() {
     const paymentsAddress = await payments.getAddress();
     console.log("✅ PaymentDistributor deployed to:", paymentsAddress, "\n");
 
-    // 8. Configure contracts - Authorize minters
-    console.log("8️⃣  Configuring contract permissions...");
+    // 8. Wire PaymentDistributor to Marketplace
+    console.log("8️⃣  Wiring PaymentDistributor to StorageMarketplace...");
+    await marketplace.setPaymentDistributor(paymentsAddress);
+    console.log("   ✅ PaymentDistributor wired");
+
+    // 9. Configure contract permissions
+    console.log("9️⃣  Configuring contract permissions...");
 
     // Authorize PaymentDistributor to mint tokens
     console.log("   Authorizing PaymentDistributor as minter...");
     await token.authorizeMinter(paymentsAddress);
 
     // Authorize SlashingManager to burn tokens
-    console.log("   Authorizing SlashingManager as minter (for burning)...");
-    await token.authorizeMinter(slashingAddress);
+    console.log("   Authorizing SlashingManager as burner...");
+    await token.authorizeBurner(slashingAddress);
+
+    // Authorize SlashingManager and Marketplace as record keepers on ProviderRegistry
+    console.log("   Authorizing SlashingManager as record keeper...");
+    await registry.authorizeRecordKeeper(slashingAddress);
+    console.log("   Authorizing Marketplace as record keeper...");
+    await registry.authorizeRecordKeeper(marketplaceAddress);
 
     console.log("✅ Permissions configured\n");
 

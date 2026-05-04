@@ -7,7 +7,17 @@ require("dotenv").config();
 // POLYGON_RPC=https://polygon-rpc.com
 // MUMBAI_RPC=https://rpc-mumbai.maticvigil.com
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
+function getPrivateKey() {
+    const pk = process.env.PRIVATE_KEY;
+    // Validate that the key is a proper 64-char hex string (with optional 0x prefix)
+    if (pk && /^0x?[0-9a-fA-F]{64}$/.test(pk)) {
+        return pk.startsWith('0x') ? pk : '0x' + pk;
+    }
+    // Return a dummy Hardhat account key for local testing
+    return "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+}
+
+const PRIVATE_KEY = getPrivateKey();
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
 const POLYGON_RPC = process.env.POLYGON_RPC || "https://polygon-rpc.com";
 const AMOY_RPC = process.env.AMOY_RPC || "https://rpc-amoy.polygon.technology";
