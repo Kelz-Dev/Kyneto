@@ -106,7 +106,7 @@ jobs:
         script: |
           if [ -d "kyneto" ]; then
             cd kyneto
-            sudo docker compose -f docker-compose.prod.yaml down || true
+            sudo docker-compose -f docker-compose.prod.yaml down || true
             cd ..
             sudo rm -rf kyneto
           fi
@@ -146,9 +146,17 @@ jobs:
           # Install Docker if missing
           if ! [ -x "$(command -v docker)" ]; then
             echo "Installing Docker..."
-            curl -fsSL https://get.docker.com -o get-docker.sh
-            sudo sh get-docker.sh
-            sudo usermod -aG docker ${{ secrets.EC2_USERNAME }}
+            curl -fsSL https://get.docker.com -o get-docker.sh || true
+            sudo sh get-docker.sh || true
+            sudo usermod -aG docker ${{ secrets.EC2_USERNAME }} || true
+          fi
+          
+          # Install standalone docker-compose to guarantee it's available
+          if ! [ -x "$(command -v docker-compose)" ]; then
+            echo "Installing docker-compose..."
+            sudo curl -SL "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true
           fi
           
           # Install Certbot and setup SSL
@@ -180,12 +188,12 @@ jobs:
 
           # Deploy everything (no --build needed!)
           echo "Starting all services..."
-          sudo docker compose -f docker-compose.prod.yaml up -d
+          sudo docker-compose -f docker-compose.prod.yaml up -d
 
           # Force restart services that use volume mounts so they pick up new files
           echo "Restarting services to pick up code changes..."
-          sudo docker compose -f docker-compose.prod.yaml restart api-server
-          sudo docker compose -f docker-compose.prod.yaml restart incentive-dashboard
+          sudo docker-compose -f docker-compose.prod.yaml restart api-server
+          sudo docker-compose -f docker-compose.prod.yaml restart incentive-dashboard
 
           sudo docker system prune -f
           echo "Deployment complete!"
