@@ -96,6 +96,16 @@ jobs:
         echo "SLASHING_MANAGER_CONTRACT=${{ secrets.SLASHING_MANAGER_CONTRACT || '0x0f4927b287b441af412019636887847A8639D17C' }}" >> .env
         echo "PAYMENTS_CONTRACT=${{ secrets.PAYMENTS_CONTRACT || '0x78F97B5E5f270d2c83d2e0bbb98ac00784E53a1F' }}" >> .env
 
+    - name: Fix permissions before copy
+      uses: appleboy/ssh-action@master
+      continue-on-error: true
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          sudo chown -R ${{ secrets.EC2_USERNAME }}:${{ secrets.EC2_USERNAME }} kyneto || true
+
     - name: Copy files to server
       uses: appleboy/scp-action@master
       with:
