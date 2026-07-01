@@ -114,6 +114,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         command_timeout: 15m
         script: |
+          set -e
           # Setup swap if needed
           if [ ! -f /swapfile ] || [ $(stat -c%s /swapfile) -lt 4000000000 ]; then
             echo "Setting up 4GB swap file..."
@@ -164,12 +165,12 @@ jobs:
 
           # Deploy everything (no --build needed!)
           echo "Starting all services..."
-          sudo docker-compose -f docker-compose.prod.yaml up -d
+          sudo docker compose -f docker-compose.prod.yaml up -d
 
           # Force restart services that use volume mounts so they pick up new files
           echo "Restarting services to pick up code changes..."
-          sudo docker-compose -f docker-compose.prod.yaml restart api-server
-          sudo docker-compose -f docker-compose.prod.yaml restart incentive-dashboard
+          sudo docker compose -f docker-compose.prod.yaml restart api-server
+          sudo docker compose -f docker-compose.prod.yaml restart incentive-dashboard
 
           sudo docker system prune -f
           echo "Deployment complete!"
