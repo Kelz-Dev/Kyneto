@@ -52,7 +52,7 @@ let currentPledgedCapacity = 0; // Track total pledged storage
 
 let projectId = 'YOUR_PROJECT_ID'; // User needs to replace this
 const AMOY_CHAIN_ID = '0x13882'; // 80002 in hex
-const RPC_URL = 'https://rpc-amoy.polygon.technology';
+const RPC_URL = 'https://polygon-amoy.drpc.org';
 const readOnlyProvider = new ethers.providers.JsonRpcProvider(RPC_URL);
 
 // Contract ABIs
@@ -338,7 +338,7 @@ async function initAppKit(retries = 0) {
         name: 'Polygon Amoy',
         currency: 'POL',
         explorerUrl: 'https://amoy.polygonscan.com',
-        rpcUrl: 'https://rpc-amoy.polygon.technology'
+        rpcUrl: 'https://polygon-amoy.drpc.org'
     };
 
     modal = window.createAppKit({
@@ -1862,7 +1862,7 @@ async function switchNetwork() {
                                 symbol: 'POL',
                                 decimals: 18,
                             },
-                            rpcUrls: ['https://rpc-amoy.polygon.technology'],
+                            rpcUrls: ['https://polygon-amoy.drpc.org'],
                             blockExplorerUrls: ['https://amoy.polygonscan.com'],
                         },
                     ],

@@ -28,7 +28,7 @@ async function main() {
     logger.info('Starting Kyneto Uptime Monitor & Slashing Worker...');
 
     const dbUrl = process.env.DATABASE_URL;
-    const rpcUrl = process.env.RPC_URL || 'https://rpc-amoy.polygon.technology';
+    const rpcUrl = process.env.RPC_URL || 'https://polygon-amoy.drpc.org';
     const privateKey = process.env.PRIVATE_KEY;
     const slashingAddress = process.env.SLASHING_ADDRESS;
 

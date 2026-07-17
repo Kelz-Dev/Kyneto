@@ -295,7 +295,7 @@ async function initAppKit(retries = 0) {
         name: 'Polygon Amoy',
         currency: 'POL',
         explorerUrl: 'https://amoy.polygonscan.com',
-        rpcUrl: 'https://rpc-amoy.polygon.technology'
+        rpcUrl: 'https://polygon-amoy.drpc.org'
     };
 
     modal = window.createAppKit({
@@ -1557,7 +1557,7 @@ async function switchNetwork() {
                                 symbol: 'POL',
                                 decimals: 18,
                             },
-                            rpcUrls: ['https://rpc-amoy.polygon.technology'],
+                            rpcUrls: ['https://polygon-amoy.drpc.org'],
                             blockExplorerUrls: ['https://amoy.polygonscan.com'],
                         },
                     ],
