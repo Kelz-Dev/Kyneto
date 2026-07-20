@@ -84,7 +84,7 @@ services:
       - ./incentive-layer/indexer:/app
     environment:
       - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
-      - RPC_URL=https://rpc-amoy.polygon.technology/
+      - RPC_URL=https://polygon-amoy-bor-rpc.publicnode.com/
       - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
     depends_on:
       postgres:
@@ -107,7 +107,7 @@ services:
       - ./incentive-layer/services/blockchain-listener:/app
     environment:
       - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
-      - RPC_URL=https://rpc-amoy.polygon.technology/
+      - RPC_URL=https://polygon-amoy-bor-rpc.publicnode.com/
       - REGISTRY_ADDRESS=${REGISTRY_CONTRACT}
       - PLEDGES_ADDRESS=${PLEDGES_CONTRACT}
       - MARKETPLACE_ADDRESS=${MARKETPLACE_CONTRACT}
@@ -131,7 +131,7 @@ services:
     environment:
       - KUBO_API_URL=http://ipfs:5001
       - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
-      - RPC_URL=https://rpc-amoy.polygon.technology/
+      - RPC_URL=https://polygon-amoy-bor-rpc.publicnode.com/
       - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
       - PRIVATE_KEY=${PRIVATE_KEY}
     depends_on:
@@ -204,7 +204,7 @@ services:
       - ./incentive-layer/services/uptime-monitor:/app
     environment:
       - DATABASE_URL=postgresql://kyneto_user:your_secure_password@postgres:5432/incentive_layer
-      - RPC_URL=https://rpc-amoy.polygon.technology/
+      - RPC_URL=https://polygon-amoy-bor-rpc.publicnode.com/
       - SLASHING_ADDRESS=${SLASHING_MANAGER_CONTRACT}
       - PRIVATE_KEY=${PRIVATE_KEY}
     depends_on:

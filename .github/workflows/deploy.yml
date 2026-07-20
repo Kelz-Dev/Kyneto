@@ -88,7 +88,7 @@ jobs:
         echo "DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER || 'kyneto_user' }}:${{ secrets.POSTGRES_PASSWORD || 'your_secure_password' }}@postgres:5432/${{ secrets.POSTGRES_DB || 'incentive_layer' }}" >> .env
         echo "MARKETPLACE_ADDRESS=${{ secrets.MARKETPLACE_ADDRESS }}" >> .env
         echo "PRIVATE_KEY=${{ secrets.PRIVATE_KEY }}" >> .env
-        echo "RPC_URL=https://rpc-amoy.polygon.technology" >> .env
+        echo "RPC_URL=https://polygon-amoy-bor-rpc.publicnode.com" >> .env
         echo "REGISTRY_CONTRACT=${{ secrets.REGISTRY_CONTRACT || '0x2Cc10CdCbF9D2b7b6b8AcE8b607d8652772075Dd' }}" >> .env
         echo "PLEDGES_CONTRACT=${{ secrets.PLEDGES_CONTRACT || '0x2E158F19704B8A1C0D00CE562c2E3ee923e235E5' }}" >> .env
         echo "MARKETPLACE_CONTRACT=${{ secrets.MARKETPLACE_CONTRACT || '0x242545610D645Ac3526c7c9b3866Ccc66e333322' }}" >> .env
