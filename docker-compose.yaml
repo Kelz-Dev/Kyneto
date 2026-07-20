@@ -81,7 +81,7 @@ services:
       - ./incentive-layer/indexer:/app
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
-      - RPC_URL=https://polygon-amoy.drpc.org
+      - RPC_URL=https://rpc-amoy.polygon.technology/
       - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
     depends_on:
       postgres:
@@ -105,7 +105,7 @@ services:
     environment:
       - KUBO_API_URL=http://ipfs:5001
       - DATABASE_URL=postgresql://user:password@postgres:5432/incentive_layer
-      - RPC_URL=https://polygon-amoy.drpc.org
+      - RPC_URL=https://rpc-amoy.polygon.technology/
       - MARKETPLACE_ADDRESS=${MARKETPLACE_ADDRESS}
       - PRIVATE_KEY=${PRIVATE_KEY}
     depends_on:

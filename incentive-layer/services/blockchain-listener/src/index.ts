@@ -370,7 +370,7 @@ const db = new Pool({
 });
 
 async function main() {
-    const rpcUrl = process.env.RPC_URL || 'https://polygon-amoy.drpc.org';
+    const rpcUrl = process.env.RPC_URL || 'https://rpc-amoy.polygon.technology/';
     const listener = new BlockchainListener(rpcUrl, db, logger);
 
     const addresses: ContractAddresses = {
